@@ -18,7 +18,6 @@ import {
   AIAction,
   QuickOption,
   DataChange,
-  getColumnIndex,
 } from "@/types/excel";
 import { useToast } from "@/hooks/use-toast";
 import { streamChat } from "@/utils/streamChat";
@@ -68,41 +67,6 @@ const ChatInterface = ({
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, streamingContent]);
-
-  useEffect(() => {
-    if (!excelData) return;
-    const sel = excelData.selectedCells;
-    if (!sel || sel.length === 0) return;
-    const toIndex = (ref: string) => {
-      const m = ref.match(/^([A-Z]+)(\d+)$/i);
-      if (!m) return null;
-      return { col: getColumnIndex(m[1].toUpperCase()), row: parseInt(m[2], 10) - 2, excelRow: parseInt(m[2], 10) };
-    };
-    const indices = sel.map(toIndex).filter(Boolean) as { col: number; row: number; excelRow: number }[];
-    const minCol = Math.min(...indices.map(i => i.col));
-    const maxCol = Math.max(...indices.map(i => i.col));
-    const minRow = Math.min(...indices.map(i => i.row));
-    const maxRow = Math.max(...indices.map(i => i.row));
-    const startRef = `${String.fromCharCode(65 + (minCol % 26))}${minRow + 2}`;
-    let endLetter = "";
-    let n = maxCol;
-    while (n >= 0) {
-      endLetter = String.fromCharCode(65 + (n % 26)) + endLetter;
-      n = Math.floor(n / 26) - 1;
-    }
-    const startLetter = (() => {
-      let s = "";
-      let x = minCol;
-      while (x >= 0) {
-        s = String.fromCharCode(65 + (x % 26)) + s;
-        x = Math.floor(x / 26) - 1;
-      }
-      return s;
-    })();
-    const rangeRef = `${startLetter}${minRow + 2}:${endLetter}${maxRow + 2}`;
-    const refToInsert = sel.length === 1 ? `${startLetter}${minRow + 2}` : rangeRef;
-    setInput((prev) => (prev.trim() ? `${prev} ${refToInsert}` : refToInsert));
-  }, [excelData]);
 
   const sendMessage = useCallback(async (messageText?: string) => {
     const text = messageText || input.trim();
@@ -173,50 +137,19 @@ const ChatInterface = ({
         const parseResult = parseAIResponse(fullText, fullText);
         logParseResult(parseResult, "Excel Chat");
 
-        let updatedAction: AIAction | undefined = parseResult.data?.action
-          ? ({ ...parseResult.data.action, status: "pending" as const } as AIAction)
-          : undefined;
-
-        if (
-          updatedAction &&
-          updatedAction.type === "STATISTICS" &&
-          updatedAction.target?.type === "column" &&
-          excelData &&
-          updatedAction.statisticsType &&
-          ["sum", "average", "count", "min", "max"].includes(updatedAction.statisticsType)
-        ) {
-          const colLetter = updatedAction.target.ref;
-          const colIndex = getColumnIndex(colLetter);
-          const endRowExcel = excelData.rows.length + 1;
-          const statsRowExcel = excelData.rows.length + 2;
-          const op = updatedAction.statisticsType.toUpperCase();
-          const formula = `=${op}(${colLetter}2:${colLetter}${endRowExcel})`;
-          const syntheticChange: DataChange = {
-            cellRef: `${colLetter}${statsRowExcel}`,
-            before: null,
-            after: formula,
-            type: "formula",
-          };
-          updatedAction = {
-            ...updatedAction,
-            formula: formula,
-            changes: [...(updatedAction.changes || []), syntheticChange],
-          };
-        }
-
         const assistantMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
           content: parseResult.data?.content || fullText,
-          action: updatedAction,
+          action: parseResult.data?.action ? { ...parseResult.data.action, status: "pending" as const } as AIAction : undefined,
           quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({ id: opt.id || crypto.randomUUID(), label: opt.label, value: opt.value, variant: opt.variant || "default" })) as QuickOption[] | undefined,
           timestamp: new Date(),
         };
 
         onNewMessage(assistantMessage);
 
-        if (updatedAction?.changes && updatedAction.changes.length > 0) {
-          onSetPendingChanges(updatedAction.changes);
+        if (parseResult.data?.action?.changes && parseResult.data.action.changes.length > 0) {
+          onSetPendingChanges(parseResult.data.action.changes);
         }
 
         setIsProcessing(false);

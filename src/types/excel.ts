@@ -105,6 +105,7 @@ export interface ExcelData {
   rows: (string | number | null)[][];
   formulas: { [cellRef: string]: string };
   selectedCells: string[];
+  isSelecting?: boolean;
   pendingChanges: DataChange[];
    allSheets?: { [sheetName: string]: SheetData }; // All sheets data for switching
 }

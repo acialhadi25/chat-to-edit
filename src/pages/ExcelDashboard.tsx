@@ -201,11 +201,12 @@ const ExcelDashboard = () => {
     saveChatMessage(message, fileHistoryId, message.action?.formula);
   }, [fileHistoryId, saveChatMessage]);
 
-  const handleCellSelect = useCallback((cellRefs: string[]) => {
+  const handleCellSelect = useCallback((cellRefs: string[], isSelecting?: boolean) => {
     if (!excelData) return;
     setExcelData({
       ...excelData,
       selectedCells: cellRefs,
+      isSelecting: isSelecting,
     });
   }, [excelData]);
 
