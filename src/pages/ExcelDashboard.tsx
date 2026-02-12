@@ -52,6 +52,7 @@ import {
   copyColumn,
   padSpareSpace,
   removeFormulas,
+  clearCells,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
 
@@ -221,6 +222,80 @@ const ExcelDashboard = () => {
     setExcelData(newData);
   }, [excelData, pushState]);
 
+  const handleDeleteSelection = useCallback((mode: "clear" | "delete") => {
+    if (!excelData || excelData.selectedCells.length === 0) return;
+
+    const beforeData = cloneExcelData(excelData);
+    let newData = cloneExcelData(excelData);
+    let description = "";
+    let affectedChanges: DataChange[] = [];
+
+    // Determine what's selected
+    const selectedRefs = excelData.selectedCells;
+    const rowSet = new Set<number>();
+    const colSet = new Set<number>();
+    
+    selectedRefs.forEach(ref => {
+      const parsed = parseCellRef(ref);
+      if (parsed) {
+        rowSet.add(parsed.row);
+        colSet.add(parsed.col);
+      }
+    });
+
+    const isFullRowSelection = Array.from(rowSet).every(r => 
+      Array.from({length: excelData.headers.length}, (_, i) => createCellRef(i, r))
+        .every(ref => selectedRefs.includes(ref))
+    );
+
+    const isFullColSelection = Array.from(colSet).every(c => 
+      Array.from({length: excelData.rows.length}, (_, i) => createCellRef(c, i))
+        .every(ref => selectedRefs.includes(ref))
+    );
+
+    if (mode === "clear") {
+      const { data: clearedData, changes } = clearCells(newData, selectedRefs);
+      newData = clearedData;
+      affectedChanges = changes;
+      description = `Cleared ${selectedRefs.length} cells`;
+    } else if (mode === "delete") {
+      if (isFullRowSelection) {
+        const rowIndices = Array.from(rowSet);
+        const { data: deletedData, changes } = deleteRows(newData, rowIndices);
+        newData = deletedData;
+        affectedChanges = changes;
+        description = `Deleted ${rowIndices.length} rows`;
+      } else if (isFullColSelection) {
+        const colIndices = Array.from(colSet).sort((a, b) => b - a);
+        let currentData = newData;
+        const allChanges: DataChange[] = [];
+        
+        for (const colIndex of colIndices) {
+          const { data: nextData, changes } = deleteColumn(currentData, colIndex);
+          currentData = nextData;
+          allChanges.push(...changes);
+        }
+        
+        newData = currentData;
+        affectedChanges = allChanges;
+        description = `Deleted ${colIndices.length} columns`;
+      } else {
+        // Fallback to clear if delete is not possible (e.g. partial selection)
+        const { data: clearedData, changes } = clearCells(newData, selectedRefs);
+        newData = clearedData;
+        affectedChanges = changes;
+        description = `Cleared ${selectedRefs.length} cells`;
+      }
+    }
+
+    pushState(beforeData, newData, mode === "delete" ? "DELETE_ROW" : "EDIT_CELL", description);
+    newData.selectedCells = [];
+    setExcelData(newData);
+    setAppliedChanges(affectedChanges);
+    setTimeout(() => setAppliedChanges([]), 2000);
+    toast({ title: mode === "clear" ? "Data Dihapus" : "Elemen Dihapus", description });
+  }, [excelData, pushState, toast]);
+
   const handleUndo = useCallback(() => {
     const previousState = undo();
     if (previousState) {
@@ -278,6 +353,72 @@ const ExcelDashboard = () => {
     const generatedChanges: DataChange[] = [];
 
     switch (action.type) {
+      case "CREATE_CHART": {
+        description = `Chart created: ${action.chartTitle || action.chartType}`;
+        toast({
+          title: "Chart Applied",
+          description: `Visualisasi ${action.chartType} telah ditambahkan ke dashboard.`,
+        });
+        break;
+      }
+      case "CONDITIONAL_FORMAT": {
+        if (action.target && action.conditionType && action.formatStyle) {
+          const refs: string[] = [];
+          if (action.target.type === "column") {
+            const colIndex = getColumnIndex(action.target.ref);
+            for (let r = 0; r < newData.rows.length; r++) {
+              refs.push(createCellRef(colIndex, r));
+            }
+          } else if (action.target.type === "range") {
+            const match = action.target.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+            if (match) {
+              const startCol = getColumnIndex(match[1]);
+              const startRow = parseInt(match[2], 10) - 2;
+              const endCol = getColumnIndex(match[3]);
+              const endRow = parseInt(match[4], 10) - 2;
+              for (let r = startRow; r <= endRow; r++) {
+                for (let c = startCol; c <= endCol; c++) {
+                  refs.push(createCellRef(c, r));
+                }
+              }
+            }
+          } else if (action.target.type === "cell") {
+            refs.push(action.target.ref);
+          }
+
+          let applyCount = 0;
+          refs.forEach(ref => {
+            const parsed = parseCellRef(ref);
+            if (!parsed) return;
+            const val = newData.rows[parsed.row][parsed.col];
+            
+            let match = false;
+            const numVal = typeof val === "number" ? val : parseFloat(String(val));
+            const condVal = action.conditionValues?.[0];
+            const condNum = typeof condVal === "number" ? condVal : parseFloat(String(condVal));
+
+            switch (action.conditionType) {
+              case "greater_than": match = !isNaN(numVal) && !isNaN(condNum) && numVal > condNum; break;
+              case "less_than": match = !isNaN(numVal) && !isNaN(condNum) && numVal < condNum; break;
+              case "equal_to": match = String(val) === String(condVal); break;
+              case "contains": match = String(val).includes(String(condVal)); break;
+              case "between": {
+                const condVal2 = action.conditionValues?.[1];
+                const condNum2 = typeof condVal2 === "number" ? condVal2 : parseFloat(String(condVal2));
+                match = !isNaN(numVal) && !isNaN(condNum) && !isNaN(condNum2) && numVal >= condNum && numVal <= condNum2;
+                break;
+              }
+            }
+
+            if (match) {
+              newData.cellStyles[ref] = { ...action.formatStyle };
+              applyCount++;
+            }
+          });
+          description = `Applied conditional formatting to ${applyCount} cells`;
+        }
+        break;
+      }
       case "INSERT_FORMULA": {
         if (action.formula && action.target) {
            if (action.target.type === "cell") {
@@ -285,7 +426,8 @@ const ExcelDashboard = () => {
              if (match) {
                const colIndex = getColumnIndex(match[1]);
                const rowIndex = parseInt(match[2], 10) - 2;
-               const { data: withFormula, change } = setCellFormula(newData, colIndex, rowIndex, action.formula);
+               const interpolatedFormula = action.formula.replace(/\{row\}/g, String(rowIndex + 2));
+               const { data: withFormula, change } = setCellFormula(newData, colIndex, rowIndex, interpolatedFormula);
                newData = withFormula;
                generatedChanges.push(change);
                description = `Insert formula at ${action.target.ref}`;
@@ -313,7 +455,8 @@ const ExcelDashboard = () => {
               const endRow = parseInt(match[4], 10) - 2;
               for (let r = startRow; r <= endRow; r++) {
                 for (let c = startCol; c <= endCol; c++) {
-                  const { data: withFormula, change } = setCellFormula(newData, c, r, action.formula);
+                  const interpolatedFormula = action.formula.replace(/\{row\}/g, String(r + 2));
+                  const { data: withFormula, change } = setCellFormula(newData, c, r, interpolatedFormula);
                   newData = withFormula;
                   generatedChanges.push(change);
                 }
@@ -325,11 +468,17 @@ const ExcelDashboard = () => {
           for (const ref of excelData.selectedCells) {
             const parsed = parseCellRef(ref);
             if (!parsed) continue;
-            const { data: withFormula, change } = setCellFormula(newData, parsed.col, parsed.row, action.formula);
+            const interpolatedFormula = action.formula.replace(/\{row\}/g, String(parsed.row + 2));
+            const { data: withFormula, change } = setCellFormula(newData, parsed.col, parsed.row, interpolatedFormula);
             newData = withFormula;
             generatedChanges.push(change);
           }
           description = `Insert formula to ${excelData.selectedCells.length} selected cells`;
+        } else if (action.changes && action.changes.length > 0) {
+          // Fallback to direct changes if provided (AI often does this for precision)
+          newData = applyChanges(newData, action.changes);
+          generatedChanges.push(...action.changes);
+          description = `Insert formula: ${action.changes.length} cells updated`;
         }
         break;
       }
@@ -362,7 +511,8 @@ const ExcelDashboard = () => {
         break;
       }
       case "EDIT_CELL":
-      case "EDIT_COLUMN": {
+      case "EDIT_COLUMN":
+      case "EDIT_ROW": {
         if (action.changes && action.changes.length > 0) {
           newData = applyChanges(newData, action.changes);
           description = `${action.type}: ${action.changes.length} cells changed`;
@@ -579,13 +729,48 @@ const ExcelDashboard = () => {
             action.aggregateColumn,
             action.statisticsType as "sum" | "average" | "count" | "min" | "max" || "sum"
           );
-          // Add summary as new rows (simple implementation)
-          toast({
-            title: "Pivot Summary",
-            description: summary.slice(0, 5).map(s => `${s.groupName}: ${s.value}`).join(", ") + 
-              (summary.length > 5 ? `... and ${summary.length - 5} more` : ""),
+          
+          // Add summary as new rows at the end of the sheet
+          // Add 2 empty rows as separator
+          newData.rows.push(new Array(newData.headers.length).fill(null));
+          newData.rows.push(new Array(newData.headers.length).fill(null));
+          
+          const startRowIndex = newData.rows.length;
+          const headerRow = new Array(newData.headers.length).fill(null);
+          const groupHeader = newData.headers[action.groupByColumn];
+          const aggHeader = newData.headers[action.aggregateColumn];
+          const opName = (action.statisticsType || "sum").toUpperCase();
+          
+          headerRow[0] = `RINGKASAN: ${groupHeader}`;
+          headerRow[1] = `${opName} DARI ${aggHeader}`;
+          newData.rows.push(headerRow);
+
+          // Apply styling to header row
+          const headerRef1 = createCellRef(0, newData.rows.length - 1);
+          const headerRef2 = createCellRef(1, newData.rows.length - 1);
+          newData.cellStyles[headerRef1] = { fontWeight: "bold", backgroundColor: "#f3f4f6" };
+          newData.cellStyles[headerRef2] = { fontWeight: "bold", backgroundColor: "#f3f4f6" };
+
+          summary.forEach((s, idx) => {
+            const summaryRow = new Array(newData.headers.length).fill(null);
+            summaryRow[0] = s.groupName;
+            summaryRow[1] = s.value;
+            newData.rows.push(summaryRow);
+            
+            // Zebra striping for summary
+            if (idx % 2 === 1) {
+              const ref1 = createCellRef(0, newData.rows.length - 1);
+              const ref2 = createCellRef(1, newData.rows.length - 1);
+              newData.cellStyles[ref1] = { backgroundColor: "#f9fafb" };
+              newData.cellStyles[ref2] = { backgroundColor: "#f9fafb" };
+            }
           });
-          return; // Don't modify data, just show summary
+
+          description = `Ditambahkan ringkasan pivot untuk ${groupHeader}`;
+          toast({
+            title: "Ringkasan Pivot Diterapkan",
+            description: `Tabel ringkasan telah ditambahkan di bagian bawah sheet.`,
+          });
         }
         break;
       }
@@ -640,9 +825,10 @@ const ExcelDashboard = () => {
               cellSelectionMode={cellSelectionMode}
               onSheetChange={handleSheetChange}
               appliedChanges={appliedChanges}
-              onAddRow={handleAddRow}
-              onAddColumn={handleAddColumn}
-            />
+            onAddRow={handleAddRow}
+            onAddColumn={handleAddColumn}
+            onDeleteSelection={handleDeleteSelection}
+          />
           )}
         </div>
 

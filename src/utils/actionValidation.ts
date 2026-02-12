@@ -94,8 +94,31 @@ export function validatePDFAction(action: unknown): ValidationResult {
       }
       break;
 
+    case "PIVOT_SUMMARY":
+      if (a.groupByColumn === undefined || a.aggregateColumn === undefined) {
+        errors.push("PIVOT_SUMMARY requires 'groupByColumn' and 'aggregateColumn' fields");
+      }
+      break;
+
+    case "CONDITIONAL_FORMAT":
+      if (!a.target || !a.conditionType || !a.formatStyle) {
+        errors.push("CONDITIONAL_FORMAT requires 'target', 'conditionType', and 'formatStyle' fields");
+      }
+      break;
+
+    case "CREATE_CHART":
+      if (!a.chartType || a.xAxisColumn === undefined || !Array.isArray(a.yAxisColumns)) {
+        errors.push("CREATE_CHART requires 'chartType', 'xAxisColumn', and 'yAxisColumns' fields");
+      }
+      break;
+
+    case "CLARIFY":
+    case "INFO":
+      // No extra fields required
+      break;
+
     default:
-      // INFO, CLARIFY, PDF_INFO don't require additional fields
+      // Other actions might not have specific validation yet
       break;
   }
 
@@ -149,6 +172,8 @@ export function validateExcelAction(action: unknown): ValidationResult {
       "CONCATENATE",
       "STATISTICS",
       "PIVOT_SUMMARY",
+      "CREATE_CHART",
+      "CONDITIONAL_FORMAT",
       "CLARIFY",
       "INFO",
     ];

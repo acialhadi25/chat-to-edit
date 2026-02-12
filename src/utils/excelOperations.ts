@@ -17,7 +17,8 @@ export function cloneExcelData(data: ExcelData): ExcelData {
     formulas: { ...data.formulas },
     selectedCells: [...data.selectedCells],
     pendingChanges: [...data.pendingChanges],
-     allSheets: data.allSheets ? { ...data.allSheets } : undefined,
+    allSheets: data.allSheets ? { ...data.allSheets } : undefined,
+    cellStyles: { ...data.cellStyles },
   };
 }
 
@@ -375,6 +376,39 @@ export function deleteRows(
   return { data: newData, changes };
 }
 
+// Clear cell values and formulas
+export function clearCells(
+  data: ExcelData,
+  refs: string[]
+): { data: ExcelData; changes: DataChange[] } {
+  const newData = cloneExcelData(data);
+  const changes: DataChange[] = [];
+
+  for (const ref of refs) {
+    const parsed = parseCellRef(ref);
+    if (!parsed) continue;
+
+    const before = newData.formulas[ref] || newData.rows[parsed.row][parsed.col];
+    
+    // Clear formula if exists
+    if (newData.formulas[ref]) {
+      delete newData.formulas[ref];
+    }
+    
+    // Clear cell value
+    newData.rows[parsed.row][parsed.col] = null;
+    
+    changes.push({
+      cellRef: ref,
+      before,
+      after: null,
+      type: "value",
+    });
+  }
+
+  return { data: newData, changes };
+}
+
 // Apply pending changes to data
 export function applyChanges(
   data: ExcelData,
@@ -386,7 +420,7 @@ export function applyChanges(
     const parsed = parseCellRef(change.cellRef);
     if (!parsed) continue;
 
-    if (change.type === "formula") {
+    if (change.type === "formula" || (typeof change.after === "string" && change.after.startsWith("="))) {
       newData.formulas[change.cellRef] = change.after as string;
     } else {
       newData.rows[parsed.row][parsed.col] = change.after;

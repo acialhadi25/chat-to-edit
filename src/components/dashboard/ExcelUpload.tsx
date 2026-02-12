@@ -80,10 +80,13 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
           fileName: file.name,
           sheets,
           currentSheet: firstSheet,
-           headers: allSheets[firstSheet].headers,
-           rows: allSheets[firstSheet].rows,
+          headers: allSheets[firstSheet].headers,
+          rows: allSheets[firstSheet].rows,
           formulas: {},
-           allSheets,
+          selectedCells: [],
+          pendingChanges: [],
+          allSheets,
+          cellStyles: {},
         };
 
         onFileUpload(excelData);

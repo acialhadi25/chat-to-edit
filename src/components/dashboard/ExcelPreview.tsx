@@ -23,11 +23,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus } from "lucide-react";
+import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex, parseCellRef } from "@/types/excel";
 import { evaluateFormula } from "@/utils/formulaEvaluator";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
+import XLSXStyle from "xlsx-js-style";
 
 interface ExcelPreviewProps {
   data: ExcelData;
@@ -39,6 +40,7 @@ interface ExcelPreviewProps {
   appliedChanges?: DataChange[];
   onAddRow?: () => void;
   onAddColumn?: () => void;
+  onDeleteSelection?: (mode: "clear" | "delete") => void;
 }
 
 const ROW_HEIGHT = 36;
@@ -53,6 +55,7 @@ const ExcelPreview = ({
   appliedChanges = [],
   onAddRow,
   onAddColumn,
+  onDeleteSelection,
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -272,9 +275,67 @@ const ExcelPreview = ({
       const wsData = [data.headers, ...data.rows];
       const worksheet = XLSX.utils.aoa_to_sheet(wsData);
 
+      // Apply formulas
       Object.entries(data.formulas).forEach(([cellRef, formula]) => {
-        worksheet[cellRef] = { t: "s", f: formula };
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].f = formula;
+        } else {
+          worksheet[cellRef] = { t: "s", v: "", f: formula };
+        }
       });
+
+      // Apply styles if format is xlsx
+      if (format === "xlsx") {
+        const colorMap: Record<string, string> = {
+          "red": "FF0000",
+          "green": "00FF00",
+          "blue": "0000FF",
+          "yellow": "FFFF00",
+          "orange": "FFA500",
+          "purple": "800080",
+          "pink": "FFC0CB",
+          "black": "000000",
+          "white": "FFFFFF",
+          "gray": "808080",
+          "lightgray": "D3D3D3",
+          "darkgray": "A9A9A9",
+          "success": "22C55E",
+          "warning": "F59E0B",
+          "destructive": "EF4444",
+          "primary": "0EA5E9"
+        };
+
+        const normalizeColor = (color: string) => {
+          if (!color) return "000000";
+          const lowerColor = color.toLowerCase();
+          if (colorMap[lowerColor]) return colorMap[lowerColor];
+          return color.startsWith("#") ? color.slice(1).toUpperCase() : color.toUpperCase();
+        };
+
+        Object.entries(data.cellStyles).forEach(([cellRef, style]) => {
+          if (worksheet[cellRef]) {
+            const xlsxStyle: any = {};
+            
+            if (style.backgroundColor) {
+              xlsxStyle.fill = {
+                fgColor: { rgb: normalizeColor(style.backgroundColor) }
+              };
+            }
+            
+            if (style.color || style.fontWeight) {
+              xlsxStyle.font = {};
+              if (style.color) {
+                xlsxStyle.font.color = { rgb: normalizeColor(style.color) };
+              }
+              if (style.fontWeight === "bold") {
+                xlsxStyle.font.bold = true;
+              }
+            }
+
+            worksheet[cellRef].s = xlsxStyle;
+          }
+        });
+      }
 
       XLSX.utils.book_append_sheet(workbook, worksheet, data.currentSheet);
 
@@ -295,14 +356,16 @@ const ExcelPreview = ({
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        XLSX.writeFile(workbook, fileName);
+        // Use xlsx-js-style to write the file instead of standard xlsx
+        XLSXStyle.writeFile(workbook, fileName);
       }
 
       toast({
         title: "Download successful!",
-        description: `File ${fileName} has been downloaded`,
+        description: `File ${fileName} has been downloaded with styles`,
       });
     } catch (error) {
+      console.error("Download error:", error);
       toast({
         variant: "destructive",
         title: "Download failed",
@@ -314,6 +377,36 @@ const ExcelPreview = ({
   const formulaCount = Object.keys(data.formulas).length;
   const pendingCount = data.pendingChanges.length;
   const appliedCount = appliedChanges.length;
+  const selectedCount = data.selectedCells.length;
+
+  const selectionInfo = useMemo(() => {
+    if (selectedCount === 0) return null;
+
+    const rowSet = new Set<number>();
+    const colSet = new Set<number>();
+    
+    data.selectedCells.forEach(ref => {
+      const parsed = parseCellRef(ref);
+      if (parsed) {
+        rowSet.add(parsed.row);
+        colSet.add(parsed.col);
+      }
+    });
+
+    const isFullRow = Array.from(rowSet).every(r => 
+      Array.from({length: data.headers.length}, (_, i) => createCellRef(i, r))
+        .every(ref => data.selectedCells.includes(ref))
+    );
+
+    const isFullCol = Array.from(colSet).every(c => 
+      Array.from({length: data.rows.length}, (_, i) => createCellRef(c, i))
+        .every(ref => data.selectedCells.includes(ref))
+    );
+
+    if (isFullRow) return { type: "row", count: rowSet.size };
+    if (isFullCol) return { type: "column", count: colSet.size };
+    return { type: "cell", count: selectedCount };
+  }, [data.selectedCells, data.headers.length, data.rows.length, selectedCount]);
 
   const getCellClassName = (cellRef: string) => {
     const classes: string[] = ["transition-colors"];
@@ -325,6 +418,17 @@ const ExcelPreview = ({
     if (cellSelectionMode) classes.push("cursor-pointer hover:bg-accent");
     
     return classes.join(" ");
+  };
+
+  const getCellStyle = (cellRef: string) => {
+    const style = data.cellStyles[cellRef];
+    if (!style) return {};
+    
+    return {
+      color: style.color,
+      backgroundColor: style.backgroundColor,
+      fontWeight: style.fontWeight as any,
+    };
   };
 
   const formatCellValue = (value: string | number | null | undefined): string => {
@@ -483,6 +587,49 @@ const ExcelPreview = ({
             </Badge>
           )}
 
+          {selectionInfo && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Hapus
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {selectionInfo.type === "cell" ? (
+                  <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
+                    Hapus isi {selectionInfo.count} cell
+                  </DropdownMenuItem>
+                ) : selectionInfo.type === "row" ? (
+                  <>
+                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
+                      Hapus isi {selectionInfo.count} baris
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => onDeleteSelection?.("delete")}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Hapus {selectionInfo.count} baris secara permanen
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
+                      Hapus isi {selectionInfo.count} kolom
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => onDeleteSelection?.("delete")}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Hapus {selectionInfo.count} kolom secara permanen
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="default" size="sm" className="gap-2">
@@ -625,6 +772,7 @@ const ExcelPreview = ({
                           }
                         }}
                         className={`min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}
+                        style={getCellStyle(cellRef)}
                       >
                         {renderCellContent(cellRef, cellValue, colIndex, rowIndex)}
                       </div>

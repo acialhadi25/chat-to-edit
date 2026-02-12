@@ -28,7 +28,8 @@ export type ActionType =
   | "DATE_CALCULATION"
   | "CONCATENATE"
   | "STATISTICS"
-  | "PIVOT_SUMMARY";
+  | "PIVOT_SUMMARY"
+  | "CREATE_CHART";
 
 // Target for actions
 export interface CellTarget {
@@ -87,6 +88,19 @@ export interface AIAction {
   statisticsType?: "sum" | "average" | "count" | "min" | "max" | "median" | "std_dev";
   groupByColumn?: number;
   aggregateColumn?: number;
+  // Chart fields
+  chartType?: "bar" | "line" | "pie" | "area" | "scatter";
+  chartTitle?: string;
+  xAxisColumn?: number;
+  yAxisColumns?: number[];
+  // Conditional formatting
+  conditionType?: "greater_than" | "less_than" | "equal_to" | "contains" | "between";
+  conditionValues?: (string | number)[];
+  formatStyle?: {
+    color?: string;
+    backgroundColor?: string;
+    fontWeight?: string;
+  };
   status: "pending" | "applied" | "rejected";
 }
 
@@ -107,7 +121,8 @@ export interface ExcelData {
   selectedCells: string[];
   isSelecting?: boolean;
   pendingChanges: DataChange[];
-   allSheets?: { [sheetName: string]: SheetData }; // All sheets data for switching
+  allSheets?: { [sheetName: string]: SheetData }; // All sheets data for switching
+  cellStyles: { [cellRef: string]: { color?: string; backgroundColor?: string; fontWeight?: string } };
 }
 
 // Chat message structure

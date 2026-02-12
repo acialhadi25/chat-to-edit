@@ -28,6 +28,9 @@ import { streamChat } from "@/utils/streamChat";
 import { parseAIResponse, logParseResult } from "@/utils/jsonParser";
 import QuickActionButtons from "./QuickActionButtons";
 import ActionPreview from "./ActionPreview";
+import ChartPreview from "./ChartPreview";
+import DataSummaryPreview from "./DataSummaryPreview";
+import ConditionalFormatPreview from "./ConditionalFormatPreview";
 import MarkdownContent from "./MarkdownContent";
 import ExcelPromptExamples from "./ExcelPromptExamples";
 
@@ -359,6 +362,21 @@ const ChatInterface = ({
                     changes={message.action.changes.slice(0, 5)}
                     totalChanges={message.action.changes.length}
                   />
+                )}
+
+                {/* Show chart preview if present */}
+                {message.action?.type === "CREATE_CHART" && excelData && (
+                  <ChartPreview data={excelData} action={message.action} />
+                )}
+
+                {/* Show data summary preview for statistics or pivot */}
+                {(message.action?.type === "STATISTICS" || message.action?.type === "PIVOT_SUMMARY") && excelData && (
+                  <DataSummaryPreview data={excelData} action={message.action} />
+                )}
+
+                {/* Show conditional formatting preview */}
+                {message.action?.type === "CONDITIONAL_FORMAT" && (
+                  <ConditionalFormatPreview action={message.action} />
                 )}
 
                 {/* Quick action buttons */}
