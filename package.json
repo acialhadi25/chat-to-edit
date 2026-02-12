@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "chattoedit",
   "private": true,
   "version": "0.0.0",
+  "description": "AI Copilot for Excel - Your intelligent Excel assistant that understands natural language",
   "type": "module",
   "scripts": {
     "dev": "vite",

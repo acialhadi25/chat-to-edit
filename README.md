@@ -1,13 +1,14 @@
-# ChaTtoEdit - AI-Powered Document Assistant
+# ChaTtoEdit - AI Copilot for Excel
 
-A sophisticated multi-tool application for intelligently editing **PDFs**, **Excel spreadsheets**, and **Word documents** using AI-powered conversational interfaces. Built with React, TypeScript, Supabase, and integrated with Lovable AI Gateway.
+Your intelligent Excel assistant that understands natural language. Built with React, TypeScript, Supabase, and powered by AI to help you work with spreadsheets faster and smarter.
 
 ## 🎯 Overview
 
-ChaTtoEdit provides three specialized AI assistants:
-- **Chat to PDF** - Extract, merge, split, rotate, watermark PDFs with natural language commands
-- **Chat to Excel** - Create formulas, clean data, transform, sort, filter spreadsheets via chat
-- **Chat to Docs** - Write, rewrite, translate, summarize, format Word documents conversationally
+ChaTtoEdit provides four powerful Excel tools:
+- **Chat to Excel** - Create formulas, clean data, transform, sort, filter spreadsheets via natural language
+- **Merge Excel** - Combine multiple Excel files or sheets with intelligent column mapping
+- **Split Excel** - Split large spreadsheets by column values or row count
+- **Data Entry Form** - Generate custom data entry forms with AI assistance
 
 ## 🏗️ Project Architecture
 
@@ -16,26 +17,24 @@ ChaTtoEdit provides three specialized AI assistants:
 - **Styling**: Tailwind CSS + shadcn-ui components
 - **Backend**: Supabase (Auth, Database, Edge Functions)
 - **AI Integration**: Lovable AI Gateway (Google Gemini 3 Flash)
-- **File Processing**: pdf-lib, xlsx, docx libraries
+- **File Processing**: xlsx, xlsx-js-style libraries
 
 ### Project Structure
 ```
 src/
-├── pages/              # Route pages (Dashboard, PDF, Excel, Docs, Auth)
+├── pages/              # Route pages (Excel, Merge, Split, Data Entry, Auth)
 ├── components/
-│   ├── pdf/           # PDF tool components
-│   ├── docs/          # Docs tool components
 │   ├── dashboard/     # Excel tool components
 │   ├── ui/            # shadcn-ui components
 │   └── landing/       # Marketing pages
 ├── hooks/             # Custom React hooks (useAuth, useProfile, useChatHistory)
-├── utils/             # Utilities (PDF ops, Excel ops, streaming chat)
+├── utils/             # Utilities (Excel operations, streaming chat, formulas)
 ├── types/             # TypeScript definitions
 ├── integrations/      # Supabase client setup
 └── lib/              # Helper functions
 
 supabase/
-├── functions/         # Edge functions (chat-pdf, chat-docs, chat)
+├── functions/         # Edge functions (chat for AI integration)
 └── migrations/        # Database schema migrations
 ```
 
@@ -61,10 +60,8 @@ VITE_SUPABASE_PROJECT_ID=your_project_id
 5. Paste into `.env` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 ### Setting Up Supabase Edge Functions
-1. Deploy edge functions:
+1. Deploy edge function:
    ```bash
-   supabase functions deploy chat-pdf
-   supabase functions deploy chat-docs
    supabase functions deploy chat
    ```
 
@@ -105,25 +102,50 @@ npm run preview
 ## 📋 Feature Status
 
 ### ✅ Fully Implemented
-- **PDF Operations**: Extract, merge, split, delete, rotate, watermark pages
-- **Excel Operations**: Formulas, data cleansing, transforms, sort, filter, split/merge columns
-- **Docs Editing**: Write, rewrite, grammar check, translate, summarize, tone adjustment
-- **Chat Interface**: Streaming responses with real-time updates
-- **Prompt Examples**: 230+ categorized examples across all tools
-- **Authentication**: Supabase Auth with email/password and OAuth
-- **History**: File history and chat persistence
-- **Undo/Redo**: Full history support for all edits
 
-### ⚠️ Partial Implementation
-- **PDF Text Extraction**: Currently returns placeholder (requires pdfjs-dist integration)
-- **PDF to Image**: Partially implemented (requires completion)
+#### Chat to Excel
+- **30+ Excel Operations**: Formulas (SUM, AVERAGE, VLOOKUP, IF, etc.), data cleansing, transforms
+- **Data Management**: Sort, filter, find & replace, remove duplicates, fill down
+- **Column Operations**: Add, delete, rename, split, merge, copy
+- **Row Operations**: Add, delete, remove empty rows
+- **Advanced Features**: Conditional formatting, statistics, pivot summaries, chart creation
+- **Formula Support**: Insert formulas with AI assistance, evaluate complex formulas
+- **Undo/Redo**: Full history support with Ctrl+Z and Ctrl+Y
+- **Multi-sheet Support**: Work with multiple sheets in one workbook
+
+#### Merge Excel
+- **Multi-file Merge**: Combine multiple Excel files into one
+- **Sheet Consolidation**: Merge sheets from different files
+- **Column Mapping**: Automatic and manual column alignment
+- **Format Preservation**: Maintain original formatting
+
+#### Split Excel
+- **Split by Column**: Separate data based on column values
+- **Split by Row Count**: Divide large files into smaller chunks
+- **Custom Rules**: Define your own splitting logic
+- **Batch Export**: Generate multiple files at once
+
+#### Data Entry Form Builder
+- **AI Form Generation**: Describe your needs, AI creates the form
+- **Manual Builder**: Visual form designer with drag & drop
+- **Field Types**: Text, number, date, select, textarea, checkbox
+- **Validation**: Required fields, custom validation rules
+- **Excel Export**: Generate ready-to-use Excel forms
+
+#### General Features
+- **Chat Interface**: Natural language commands with streaming AI responses
+- **Prompt Examples**: 100+ pre-built examples for common tasks
+- **Authentication**: Secure login with Supabase Auth
+- **File History**: Track all processed files
+- **Chat Persistence**: Save and load previous conversations
 
 ### 🔄 In Progress / Planned
-- Visual merge preview with page thumbnails
-- Batch operations (queue multiple edits)
-- Advanced error handling for AI gateway
-- Mobile-responsive UI polish
-- Payment integration and credit system
+- Advanced chart customization
+- Excel template library
+- Collaboration features (share, comments)
+- Workflow automation
+- Mobile-responsive UI improvements
+- Payment integration and usage tracking
 
 ## 🔌 Integration Points
 
@@ -159,89 +181,82 @@ Apply action & update UI
 ## 🎨 Key Components
 
 ### Chat Interfaces
-- **PdfChatInterface**: Chat for PDF operations with streaming responses
-- **ChatInterface**: Excel chat with formula suggestions
-- **DocsChatInterface**: Document editing chat
+- **ChatInterface**: Excel chat with formula suggestions and streaming AI responses
+- **ExcelPromptExamples**: 100+ categorized prompt examples for common Excel tasks
 
 ### File Processors
-- **src/utils/pdfOperations.ts**: PDF manipulation (extract, merge, rotate, watermark)
-- **src/utils/excelOperations.ts**: Spreadsheet operations (formulas, filters, transforms)
-- **src/utils/streamChat*.ts**: AI response streaming handlers
+- **src/utils/excelOperations.ts**: Comprehensive Excel operations (30+ functions)
+- **src/utils/formulas/**: Formula evaluation engine with support for Excel functions
+- **src/utils/streamChat.ts**: AI response streaming handler
 
 ### Custom Hooks
 - `useAuth()` - Authentication state management
 - `useProfile()` - User profile with realtime updates
 - `useChatHistory()` - Persist/load chat messages
 - `useFileHistory()` - Track processed files
-- `useUndoRedo()` / `useDocsUndoRedo()` - Edit history
+- `useUndoRedo()` - Edit history with undo/redo support
 
 ## 🧪 Testing Recommendations
 
 ### Test Prompt Examples
-The new prompt examples added should be tested:
+Test the AI-powered features with these examples:
 
-**PDF Merge Examples**:
-- "Merge pages 3-4 from File A with pages 12-13 from File B"
-- "Merge first 5 pages of File A and last 3 pages of File B"
-- "Extract pages 1, 5, 10 from File A and merge with pages 2-4 from File B"
-
-**Excel Examples**:
+**Chat to Excel Examples**:
 - "Calculate weighted average of values based on weights"
 - "Sort by Region (A-Z) and then by Salary (highest to lowest)"
 - "Create pivot table showing Total Sales by Region and Month"
+- "Remove all duplicate rows based on Email column"
+- "Split Full Name column into First Name and Last Name"
 
-**Docs Examples**:
-- "Convert this to a professional case study format"
-- "Create a whitepaper with executive summary"
-- "Format as FAQ with questions and answers"
+**Merge Excel Examples**:
+- Upload 3 files with similar structure and merge them
+- Merge sheets from different files with different column orders
+- Test automatic column mapping accuracy
+
+**Split Excel Examples**:
+- Split a 1000-row file by Department column
+- Split into files of 100 rows each
+- Test custom split rules
+
+**Data Entry Form Examples**:
+- "Create form for employee data: name, age, department, salary, join date"
+- "Make registration form with email, phone, address"
+- Test AI form generation with various field types
 
 ### Testing Procedure
-1. Upload multiple test files (PDFs, Excel, DOCX)
-2. Click prompt example in chat
-3. Verify AI response is generated
+1. Upload test Excel files (various sizes and formats)
+2. Click prompt example or type custom command
+3. Verify AI response is generated correctly
 4. Apply suggested action
 5. Verify file is correctly modified
 6. Check download works properly
+7. Test undo/redo functionality
 
 ## 🐛 Known Issues & Limitations
 
-1. **PDF Text Extraction**: Currently returns placeholder message. Requires pdfjs-dist integration to properly extract text content from PDFs.
+1. **Large Files**: Client-side processing loads entire files into memory. Large files (>100MB) may cause memory issues. Consider server-side processing for production.
 
-2. **Large Files**: Client-side processing loads entire files into memory. Large files (>100MB) may cause memory issues. Consider server-side processing for production.
+2. **JSON Parsing**: AI response parsing assumes Lovable gateway returns proper JSON format. Malformed responses may cause parsing errors (partially handled with fallback).
 
-3. **JSON Parsing**: AI response parsing assumes Lovable gateway returns proper JSON format. Malformed responses may cause parsing errors (partially handled with fallback).
+3. **Payment System**: References to "credits" and payment in UI, but actual payment integration not yet implemented.
 
-4. **Payment System**: References to "credits" and payment in UI, but actual payment integration not yet implemented.
-
-5. **Mobile Responsiveness**: Primarily tested on desktop. Mobile UI needs polish.
+4. **Mobile Responsiveness**: Primarily tested on desktop. Mobile UI needs polish.
 
 ## 📊 Technology Details
 
-### PDF Processing (pdf-lib)
-- Extract specific pages or ranges
-- Merge multiple PDFs
-- Rotate pages
-- Add watermarks with custom text
-- Split PDFs into individual pages
-- Reorder pages
-
-**Limitations**: No compression, no image conversion (yet), text extraction is placeholder
-
 ### Excel Processing (xlsx library)
-- Parse .xlsx files
-- Insert formulas (SUM, AVERAGE, IF, VLOOKUP, etc.)
-- Apply data transforms
-- Find and replace
-- Sort and filter
-- Remove duplicates
+- Parse .xlsx and .xls files
+- Insert formulas (SUM, AVERAGE, IF, VLOOKUP, and 30+ more)
+- Apply data transforms (uppercase, lowercase, titlecase)
+- Find and replace with regex support
+- Sort and filter with multiple operators
+- Remove duplicates and empty rows
 - Merge/split columns
-
-### Document Processing (docx library)
-- Parse .docx files
-- Edit content
-- Preserve formatting
-- Export to PDF/Markdown
-- Undo/redo support
+- Conditional formatting
+- Chart creation
+- Formula evaluation engine
+- Multi-sheet support
+- Style preservation on export
 
 ## 🔐 Security Considerations
 
@@ -289,11 +304,12 @@ The new prompt examples added should be tested:
 ## 🤝 Contributing
 
 This project is actively being developed. Current focus areas:
-1. Complete PDF text extraction implementation
-2. Improve AI response parsing robustness
-3. Add comprehensive test suite
-4. Implement payment system
+1. Advanced Excel features (macros, advanced pivot tables)
+2. Excel template library
+3. Collaboration features (share, comments)
+4. Workflow automation
 5. Mobile UI optimization
+6. Payment system implementation
 
 ## 📄 License
 

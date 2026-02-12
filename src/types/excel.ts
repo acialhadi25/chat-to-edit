@@ -52,7 +52,7 @@ export interface QuickOption {
   value: string;
   variant: "default" | "success" | "destructive" | "outline";
   icon?: string;
-   isApplyAction?: boolean; // Flag to indicate if this button applies the action
+  isApplyAction?: boolean; // Flag to indicate if this button applies the action
 }
 
 // AI Action attached to a message
@@ -106,8 +106,8 @@ export interface AIAction {
 
 // Sheet data structure
 export interface SheetData {
-   headers: string[];
-   rows: (string | number | null)[][];
+  headers: string[];
+  rows: (string | number | null)[][];
 }
 
 // Excel data structure
@@ -122,7 +122,17 @@ export interface ExcelData {
   isSelecting?: boolean;
   pendingChanges: DataChange[];
   allSheets?: { [sheetName: string]: SheetData }; // All sheets data for switching
-  cellStyles: { [cellRef: string]: { color?: string; backgroundColor?: string; fontWeight?: string } };
+  cellStyles: {
+    [cellRef: string]: {
+      color?: string;
+      backgroundColor?: string;
+      fontColor?: string;
+      fontWeight?: string;
+      fontSize?: number;
+      textAlign?: "left" | "center" | "right";
+      border?: boolean;
+    }
+  };
 }
 
 // Chat message structure
@@ -182,56 +192,56 @@ export function getColumnIndex(letter: string): number {
 export function parseCellRef(ref: string): { col: number; row: number; excelRow: number } | null {
   const match = ref.match(/^([A-Z]+)(\d+)$/);
   if (!match) return null;
-   const excelRow = parseInt(match[2], 10);
+  const excelRow = parseInt(match[2], 10);
   return {
     col: getColumnIndex(match[1]),
-     row: excelRow - 2, // Data row index (Excel row 2 = index 0)
-     excelRow,
+    row: excelRow - 2, // Data row index (Excel row 2 = index 0)
+    excelRow,
   };
 }
 
 // Create cell reference from col/row indices (rowIndex is 0-based data index)
 export function createCellRef(col: number, row: number): string {
-   return `${getColumnLetter(col)}${row + 2}`; // Data row 0 = Excel row 2
+  return `${getColumnLetter(col)}${row + 2}`; // Data row 0 = Excel row 2
 }
 
 // Parse row reference (e.g., "5" or "2,5,8" or "2-5")
 export function parseRowRefs(ref: string): number[] {
-   const rows: number[] = [];
-   const parts = ref.split(",").map(p => p.trim());
-   
-   for (const part of parts) {
-     if (part.includes("-")) {
-       const [start, end] = part.split("-").map(n => parseInt(n.trim(), 10) - 2);
-       for (let i = start; i <= end; i++) {
-         if (i >= 0) rows.push(i);
-       }
-     } else {
-       const rowIndex = parseInt(part, 10) - 2;
-       if (rowIndex >= 0) rows.push(rowIndex);
-     }
-   }
-   
-   return [...new Set(rows)].sort((a, b) => a - b);
+  const rows: number[] = [];
+  const parts = ref.split(",").map(p => p.trim());
+
+  for (const part of parts) {
+    if (part.includes("-")) {
+      const [start, end] = part.split("-").map(n => parseInt(n.trim(), 10) - 2);
+      for (let i = start; i <= end; i++) {
+        if (i >= 0) rows.push(i);
+      }
+    } else {
+      const rowIndex = parseInt(part, 10) - 2;
+      if (rowIndex >= 0) rows.push(rowIndex);
+    }
+  }
+
+  return [...new Set(rows)].sort((a, b) => a - b);
 }
 
 // Parse column reference (e.g., "B" or "A,C,E" or "A-D")
 export function parseColumnRefs(ref: string): number[] {
-   const cols: number[] = [];
-   const parts = ref.split(",").map(p => p.trim());
-   
-   for (const part of parts) {
-     if (part.includes("-")) {
-       const [startLetter, endLetter] = part.split("-").map(l => l.trim());
-       const start = getColumnIndex(startLetter);
-       const end = getColumnIndex(endLetter);
-       for (let i = start; i <= end; i++) {
-         cols.push(i);
-       }
-     } else {
-       cols.push(getColumnIndex(part));
-     }
-   }
-   
-   return [...new Set(cols)].sort((a, b) => a - b);
+  const cols: number[] = [];
+  const parts = ref.split(",").map(p => p.trim());
+
+  for (const part of parts) {
+    if (part.includes("-")) {
+      const [startLetter, endLetter] = part.split("-").map(l => l.trim());
+      const start = getColumnIndex(startLetter);
+      const end = getColumnIndex(endLetter);
+      for (let i = start; i <= end; i++) {
+        cols.push(i);
+      }
+    } else {
+      cols.push(getColumnIndex(part));
+    }
+  }
+
+  return [...new Set(cols)].sort((a, b) => a - b);
 }

@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { 
-  ClipboardEdit, 
-  Plus, 
-  Download, 
-  Trash2, 
-  Save, 
-  Edit2, 
-  CheckCircle2, 
-  AlertCircle, 
-  Search, 
-  Table2, 
-  ArrowRight, 
+import {
+  ClipboardEdit,
+  Plus,
+  Download,
+  Trash2,
+  Save,
+  Edit2,
+  CheckCircle2,
+  AlertCircle,
+  Search,
+  Table2,
+  ArrowRight,
   FileSpreadsheet,
   Settings2,
   LayoutDashboard,
@@ -44,16 +44,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react";
 
 interface FormField {
   id: string;
@@ -79,6 +78,15 @@ const DataEntryDashboard = () => {
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Missing state variables
+  const [editFieldLabel, setEditFieldLabel] = useState("");
+  const [editFieldType, setEditFieldType] = useState<FormField["type"]>("text");
+  const [editFieldRequired, setEditFieldRequired] = useState(false);
+  const [editFieldPlaceholder, setEditFieldPlaceholder] = useState("");
+  const [editFieldOptions, setEditFieldOptions] = useState("");
+  const [currentEntry, setCurrentEntry] = useState<any>({});
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({});
+
   // AI Parsing Logic
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) {
@@ -87,12 +95,12 @@ const DataEntryDashboard = () => {
     }
 
     setIsGenerating(true);
-    
+
     // Simulating AI Processing (Rule-based parsing for demo)
     setTimeout(() => {
       const prompt = aiPrompt.toLowerCase();
       const detectedFields: FormField[] = [];
-      
+
       // Basic keyword detection
       const keywords = [
         { key: "nama", label: "Nama Lengkap", type: "text" },
@@ -148,7 +156,7 @@ const DataEntryDashboard = () => {
 
     try {
       const wb = XLSX.utils.book_new();
-      
+
       // SHEET 1: FORM
       const formRows = [
         ["DATA ENTRY FORM"],
@@ -161,30 +169,31 @@ const DataEntryDashboard = () => {
         [""],
         ["SUBMIT DATA"]
       ];
-      
+
       const wsForm = XLSX.utils.aoa_to_sheet(formRows);
-      
+
       // Styling and Cell References logic
       // In a real VBA scenario, we would add macros here. 
       // For now, we provide the layout that is ready for data entry.
-      
+
       // SHEET 2: DATABASE
       const headers = fields.map(f => f.label);
       const wsDb = XLSX.utils.aoa_to_sheet([headers]);
-      
+
       XLSX.utils.book_append_sheet(wb, wsForm, "Form_Input");
       XLSX.utils.book_append_sheet(wb, wsDb, "Database");
-      
+
       XLSX.writeFile(wb, `${sheetName}.xlsx`);
-      
-      toast({ 
-        title: "Excel Berhasil Dibuat", 
-        description: "File berisi 2 Sheet (Form & Database) telah diunduh." 
+
+      toast({
+        title: "Excel Berhasil Dibuat",
+        description: "File berisi 2 Sheet (Form & Database) telah diunduh."
       });
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal membuat file Excel" });
     }
   };
+  const addField = () => {
     const newField: FormField = {
       id: Math.random().toString(36).substr(2, 9),
       label: "Field Baru",
@@ -194,6 +203,16 @@ const DataEntryDashboard = () => {
     };
     setFields([...fields, newField]);
     startEditingField(newField);
+  };
+
+  const moveField = (index: number, direction: "up" | "down") => {
+    const newFields = [...fields];
+    if (direction === "up" && index > 0) {
+      [newFields[index], newFields[index - 1]] = [newFields[index - 1], newFields[index]];
+    } else if (direction === "down" && index < newFields.length - 1) {
+      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+    }
+    setFields(newFields);
   };
 
   const removeField = (id: string) => {
@@ -212,7 +231,7 @@ const DataEntryDashboard = () => {
 
   const saveFieldEdit = () => {
     if (!editingFieldId) return;
-    
+
     setFields(fields.map(f => {
       if (f.id === editingFieldId) {
         return {
@@ -226,7 +245,7 @@ const DataEntryDashboard = () => {
       }
       return f;
     }));
-    
+
     setEditingFieldId(null);
     toast({ title: "Field diperbarui" });
   };
@@ -235,7 +254,7 @@ const DataEntryDashboard = () => {
     // Validation
     const newErrors: { [key: string]: boolean } = {};
     let firstError = "";
-    
+
     fields.forEach(f => {
       if (f.required && (!currentEntry[f.id] || currentEntry[f.id].toString().trim() === "")) {
         newErrors[f.id] = true;
@@ -265,10 +284,10 @@ const DataEntryDashboard = () => {
     try {
       const headers = fields.map(f => f.label);
       const data = entries.map(entry => fields.map(f => entry[f.id] || ""));
-      
+
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-      
+
       // Auto-width columns
       const colWidths = headers.map((h, i) => {
         let max = h.length;
@@ -282,7 +301,7 @@ const DataEntryDashboard = () => {
 
       XLSX.utils.book_append_sheet(wb, ws, sheetName.replace(/[\[\]\*\?\/\\]/g, "_").substring(0, 31));
       XLSX.writeFile(wb, `${sheetName}.xlsx`);
-      
+
       toast({ title: "Berhasil", description: `File Excel '${sheetName}.xlsx' telah diunduh.` });
     } catch (error) {
       toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat mengekspor Excel" });
@@ -305,18 +324,18 @@ const DataEntryDashboard = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button 
-              variant={mode === "ai" ? "secondary" : "ghost"} 
-              size="sm" 
+            <Button
+              variant={mode === "ai" ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setMode("ai")}
               className={mode === "ai" ? "bg-white text-[#2b579a] hover:bg-white/90" : "text-white hover:bg-white/10"}
             >
               <Sparkles className="h-4 w-4 mr-2" />
               AI Assistant
             </Button>
-            <Button 
-              variant={mode === "builder" ? "secondary" : "ghost"} 
-              size="sm" 
+            <Button
+              variant={mode === "builder" ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setMode("builder")}
               className={mode === "builder" ? "bg-white text-[#2b579a] hover:bg-white/90" : "text-white hover:bg-white/10"}
             >
@@ -342,7 +361,7 @@ const DataEntryDashboard = () => {
                   <div className="p-6 bg-white">
                     <div className="relative">
                       <MessageSquare className="absolute top-4 left-4 h-5 w-5 text-gray-400" />
-                      <textarea 
+                      <textarea
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         placeholder="Contoh: Buatkan form data karyawan yang berisi nama, umur, alamat, tanggal masuk, dan status pernikahan..."
@@ -356,8 +375,8 @@ const DataEntryDashboard = () => {
                         Tips: Pisahkan dengan koma
                       </Badge>
                     </div>
-                    <Button 
-                      onClick={handleAiGenerate} 
+                    <Button
+                      onClick={handleAiGenerate}
                       disabled={isGenerating || !aiPrompt.trim()}
                       className="bg-[#2b579a] hover:bg-[#1e3e6d] px-8 h-12 text-lg font-bold shadow-lg"
                     >
@@ -383,7 +402,7 @@ const DataEntryDashboard = () => {
                   { title: "Pendaftaran Event", desc: "Nama, Email, No HP, Ukuran Kaos" },
                   { title: "Inventaris Barang", desc: "Nama Barang, Kode, Stok, Lokasi" }
                 ].map((item, i) => (
-                  <button 
+                  <button
                     key={i}
                     onClick={() => setAiPrompt(`Buatkan form ${item.title.toLowerCase()} dengan kolom: ${item.desc}`)}
                     className="p-4 bg-white border border-gray-100 rounded-xl text-left hover:border-[#2b579a] hover:shadow-md transition-all group"
@@ -412,7 +431,7 @@ const DataEntryDashboard = () => {
                     <ScrollArea className="h-[500px]">
                       <div className="p-2 space-y-1">
                         {fields.map((field, idx) => (
-                          <div 
+                          <div
                             key={field.id}
                             onClick={() => startEditingField(field)}
                             className={`
@@ -422,18 +441,18 @@ const DataEntryDashboard = () => {
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex flex-col gap-0.5">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-4 w-4 text-gray-400 hover:text-blue-500"
                                   disabled={idx === 0}
                                   onClick={(e) => { e.stopPropagation(); moveField(idx, "up"); }}
                                 >
                                   <ChevronUp className="h-3 w-3" />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-4 w-4 text-gray-400 hover:text-blue-500"
                                   disabled={idx === fields.length - 1}
                                   onClick={(e) => { e.stopPropagation(); moveField(idx, "down"); }}
@@ -449,9 +468,9 @@ const DataEntryDashboard = () => {
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">{field.type}</p>
                               </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-7 w-7 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
                               onClick={(e) => { e.stopPropagation(); removeField(field.id); }}
                             >
@@ -465,13 +484,13 @@ const DataEntryDashboard = () => {
                   <CardFooter className="bg-[#f3f4f6] border-t p-3">
                     <div className="w-full space-y-2">
                       <Label className="text-[10px] font-bold text-gray-500 uppercase">Excel File Name</Label>
-                      <Input 
-                        value={sheetName} 
-                        onChange={(e) => setSheetName(e.target.value)} 
+                      <Input
+                        value={sheetName}
+                        onChange={(e) => setSheetName(e.target.value)}
                         className="h-8 text-sm bg-white"
                         placeholder="Nama File Excel..."
                       />
-                      <Button 
+                      <Button
                         onClick={generateExcelFormFile}
                         className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 mt-2"
                       >
@@ -495,8 +514,8 @@ const DataEntryDashboard = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label className="text-xs font-bold text-gray-500">Field Label</Label>
-                          <Input 
-                            value={editFieldLabel} 
+                          <Input
+                            value={editFieldLabel}
                             onChange={(e) => setEditFieldLabel(e.target.value)}
                             placeholder="Contoh: Nama Lengkap"
                           />
@@ -519,8 +538,8 @@ const DataEntryDashboard = () => {
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs font-bold text-gray-500">Placeholder Text</Label>
-                          <Input 
-                            value={editFieldPlaceholder} 
+                          <Input
+                            value={editFieldPlaceholder}
                             onChange={(e) => setEditFieldPlaceholder(e.target.value)}
                             placeholder="Contoh: Masukkan nama..."
                           />
@@ -530,9 +549,9 @@ const DataEntryDashboard = () => {
                             <Label className="text-sm font-medium">Required Field</Label>
                             <p className="text-xs text-gray-500">Wajib diisi saat input data</p>
                           </div>
-                          <Switch 
-                            checked={editFieldRequired} 
-                            onCheckedChange={setEditFieldRequired} 
+                          <Switch
+                            checked={editFieldRequired}
+                            onCheckedChange={setEditFieldRequired}
                           />
                         </div>
                       </div>
@@ -540,8 +559,8 @@ const DataEntryDashboard = () => {
                       {editFieldType === "select" && (
                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                           <Label className="text-xs font-bold text-gray-500">Options (pisahkan dengan koma)</Label>
-                          <Input 
-                            value={editFieldOptions} 
+                          <Input
+                            value={editFieldOptions}
                             onChange={(e) => setEditFieldOptions(e.target.value)}
                             placeholder="Opsi 1, Opsi 2, Opsi 3"
                           />
@@ -549,7 +568,7 @@ const DataEntryDashboard = () => {
                       )}
 
                       <Separator />
-                      
+
                       <div className="flex justify-end gap-3">
                         <Button variant="outline" onClick={() => setEditingFieldId(null)}>Cancel</Button>
                         <Button className="bg-[#2b579a] hover:bg-[#1e3e6d]" onClick={saveFieldEdit}>Update Field</Button>

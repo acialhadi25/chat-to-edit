@@ -7,24 +7,26 @@ import ExcelUpload from "@/components/dashboard/ExcelUpload";
 import ExcelPreview from "@/components/dashboard/ExcelPreview";
 import ChatInterface from "@/components/dashboard/ChatInterface";
 import UndoRedoBar from "@/components/dashboard/UndoRedoBar";
+import TemplateGallery from "@/components/dashboard/TemplateGallery";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, X } from "lucide-react";
-import { 
-   ExcelData, 
-   ChatMessage, 
-   AIAction, 
-   DataChange, 
-   SheetData,
-   createCellRef,
-   getColumnIndex,
-   getColumnLetter,
-   parseRowRefs,
-   parseColumnRefs,
-   parseCellRef,
- } from "@/types/excel";
-import { 
-  applyChanges, 
-  applyFormulaToColumn, 
+import { MessageSquare, X, FileSpreadsheet } from "lucide-react";
+import { ExcelTemplate } from "@/types/template";
+import {
+  ExcelData,
+  ChatMessage,
+  AIAction,
+  DataChange,
+  SheetData,
+  createCellRef,
+  getColumnIndex,
+  getColumnLetter,
+  parseRowRefs,
+  parseColumnRefs,
+  parseCellRef,
+} from "@/types/excel";
+import {
+  applyChanges,
+  applyFormulaToColumn,
   addColumn,
   deleteColumn,
   deleteRows,
@@ -66,15 +68,16 @@ const ExcelDashboard = () => {
   const [appliedChanges, setAppliedChanges] = useState<DataChange[]>([]);
   const [fileHistoryId, setFileHistoryId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
-  
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+
   const { saveFileRecord } = useFileHistory();
   const { saveChatMessage } = useChatHistory();
 
-  const { 
-    pushState, 
-    undo, 
-    redo, 
-    canUndo, 
+  const {
+    pushState,
+    undo,
+    redo,
+    canUndo,
     canRedo,
     getCurrentDescription,
     getNextDescription,
@@ -112,16 +115,16 @@ const ExcelDashboard = () => {
   }, [excelData, canUndo, canRedo]);
 
   const handleFileUpload = useCallback(async (data: Omit<ExcelData, "selectedCells" | "pendingChanges" | "formulas"> & { formulas?: Record<string, string> }) => {
-     const uploadData = data as Omit<ExcelData, "selectedCells" | "pendingChanges" | "formulas"> & { 
-       formulas?: Record<string, string>;
-       allSheets?: { [sheetName: string]: SheetData };
-     };
-     let fullData: ExcelData = {
+    const uploadData = data as Omit<ExcelData, "selectedCells" | "pendingChanges" | "formulas"> & {
+      formulas?: Record<string, string>;
+      allSheets?: { [sheetName: string]: SheetData };
+    };
+    let fullData: ExcelData = {
       ...data,
       formulas: data.formulas || {},
       selectedCells: [],
       pendingChanges: [],
-       allSheets: uploadData.allSheets,
+      allSheets: uploadData.allSheets,
     };
     const spareRows = 10;
     const spareCols = 10;
@@ -197,6 +200,72 @@ const ExcelDashboard = () => {
     setChatOpen(false);
   }, [clearHistory]);
 
+  const handleApplyTemplate = useCallback(async (template: ExcelTemplate) => {
+    // Convert template to ExcelData format
+    const excelDataFromTemplate: ExcelData = {
+      fileName: `${template.name}.xlsx`,
+      currentSheet: "Sheet1",
+      sheets: ["Sheet1"],
+      headers: template.headers,
+      rows: template.sampleData,
+      formulas: {},
+      selectedCells: [],
+      pendingChanges: [],
+      cellStyles: {},
+    };
+
+    // Apply formulas if defined
+    if (template.formulas) {
+      template.formulas.forEach((formulaDef) => {
+        template.sampleData.forEach((_, rowIndex) => {
+          const actualRow = rowIndex + 2; // Excel rows: header=1, data starts at 2
+          const formula = formulaDef.formula.replace(/\{row\}/g, String(actualRow));
+          const cellRef = `${getColumnLetter(formulaDef.column)}${actualRow}`;
+          excelDataFromTemplate.formulas[cellRef] = formula;
+        });
+      });
+    }
+
+    // Apply styles if defined (store for future export)
+    if (template.styles) {
+      template.styles.forEach((style) => {
+        excelDataFromTemplate.cellStyles[style.cellRef] = {
+          backgroundColor: style.backgroundColor,
+          fontColor: style.fontColor,
+          fontWeight: style.fontWeight,
+          fontSize: style.fontSize,
+          textAlign: style.textAlign,
+          border: style.border,
+        };
+      });
+    }
+
+    // Pad with spare space
+    const spareRows = 10;
+    const spareCols = 10;
+    const paddedData = padSpareSpace(excelDataFromTemplate, spareRows, spareCols);
+
+    setExcelData(paddedData);
+    setMessages([]);
+    clearHistory();
+    setChatOpen(true);
+
+    // Save to file history
+    const record = await saveFileRecord(
+      template.name,
+      template.sampleData.length,
+      1
+    );
+    if (record) {
+      setFileHistoryId(record.id);
+    }
+
+    toast({
+      title: "Template Applied",
+      description: `${template.name} loaded successfully`,
+    });
+  }, [clearHistory, saveFileRecord, toast]);
+
   const handleNewMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
     saveChatMessage(message, fileHistoryId, message.action?.formula);
@@ -234,7 +303,7 @@ const ExcelDashboard = () => {
     const selectedRefs = excelData.selectedCells;
     const rowSet = new Set<number>();
     const colSet = new Set<number>();
-    
+
     selectedRefs.forEach(ref => {
       const parsed = parseCellRef(ref);
       if (parsed) {
@@ -243,13 +312,13 @@ const ExcelDashboard = () => {
       }
     });
 
-    const isFullRowSelection = Array.from(rowSet).every(r => 
-      Array.from({length: excelData.headers.length}, (_, i) => createCellRef(i, r))
+    const isFullRowSelection = Array.from(rowSet).every(r =>
+      Array.from({ length: excelData.headers.length }, (_, i) => createCellRef(i, r))
         .every(ref => selectedRefs.includes(ref))
     );
 
-    const isFullColSelection = Array.from(colSet).every(c => 
-      Array.from({length: excelData.rows.length}, (_, i) => createCellRef(c, i))
+    const isFullColSelection = Array.from(colSet).every(c =>
+      Array.from({ length: excelData.rows.length }, (_, i) => createCellRef(c, i))
         .every(ref => selectedRefs.includes(ref))
     );
 
@@ -269,13 +338,13 @@ const ExcelDashboard = () => {
         const colIndices = Array.from(colSet).sort((a, b) => b - a);
         let currentData = newData;
         const allChanges: DataChange[] = [];
-        
+
         for (const colIndex of colIndices) {
           const { data: nextData, changes } = deleteColumn(currentData, colIndex);
           currentData = nextData;
           allChanges.push(...changes);
         }
-        
+
         newData = currentData;
         affectedChanges = allChanges;
         description = `Deleted ${colIndices.length} columns`;
@@ -391,7 +460,7 @@ const ExcelDashboard = () => {
             const parsed = parseCellRef(ref);
             if (!parsed) return;
             const val = newData.rows[parsed.row][parsed.col];
-            
+
             let match = false;
             const numVal = typeof val === "number" ? val : parseFloat(String(val));
             const condVal = action.conditionValues?.[0];
@@ -421,28 +490,28 @@ const ExcelDashboard = () => {
       }
       case "INSERT_FORMULA": {
         if (action.formula && action.target) {
-           if (action.target.type === "cell") {
-             const match = action.target.ref.match(/([A-Z]+)(\d+)/);
-             if (match) {
-               const colIndex = getColumnIndex(match[1]);
-               const rowIndex = parseInt(match[2], 10) - 2;
-               const interpolatedFormula = action.formula.replace(/\{row\}/g, String(rowIndex + 2));
-               const { data: withFormula, change } = setCellFormula(newData, colIndex, rowIndex, interpolatedFormula);
-               newData = withFormula;
-               generatedChanges.push(change);
-               description = `Insert formula at ${action.target.ref}`;
-             }
-           } else if (action.newColumnName && action.target.type === "column") {
+          if (action.target.type === "cell") {
+            const match = action.target.ref.match(/([A-Z]+)(\d+)/);
+            if (match) {
+              const colIndex = getColumnIndex(match[1]);
+              const rowIndex = parseInt(match[2], 10) - 2;
+              const interpolatedFormula = action.formula.replace(/\{row\}/g, String(rowIndex + 2));
+              const { data: withFormula, change } = setCellFormula(newData, colIndex, rowIndex, interpolatedFormula);
+              newData = withFormula;
+              generatedChanges.push(change);
+              description = `Insert formula at ${action.target.ref}`;
+            }
+          } else if (action.newColumnName && action.target.type === "column") {
             const { data: withNewCol } = addColumn(newData, action.newColumnName);
             newData = withNewCol;
             const colIndex = newData.headers.length - 1;
-             const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
+            const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
             newData = withFormula;
             generatedChanges.push(...changes);
             description = `Insert formula to column ${action.newColumnName}`;
           } else if (action.target.type === "column") {
-             const colIndex = getColumnIndex(action.target.ref);
-             const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
+            const colIndex = getColumnIndex(action.target.ref);
+            const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
             newData = withFormula;
             generatedChanges.push(...changes);
             description = `Insert formula to column ${action.target.ref}`;
@@ -668,9 +737,9 @@ const ExcelDashboard = () => {
         if (action.target?.type === "column" && action.numberFormat) {
           const colIndex = getColumnIndex(action.target.ref);
           const { data: formattedData, changes } = formatNumbers(
-            newData, 
-            colIndex, 
-            action.numberFormat, 
+            newData,
+            colIndex,
+            action.numberFormat,
             { symbol: action.currencySymbol || "$", decimals: 2 }
           );
           newData = formattedData;
@@ -680,8 +749,8 @@ const ExcelDashboard = () => {
       }
       case "GENERATE_ID": {
         const { data: withIds, changes } = generateIds(
-          newData, 
-          action.idPrefix || "ID", 
+          newData,
+          action.idPrefix || "ID",
           action.idStartFrom || 1
         );
         newData = withIds;
@@ -729,18 +798,18 @@ const ExcelDashboard = () => {
             action.aggregateColumn,
             action.statisticsType as "sum" | "average" | "count" | "min" | "max" || "sum"
           );
-          
+
           // Add summary as new rows at the end of the sheet
           // Add 2 empty rows as separator
           newData.rows.push(new Array(newData.headers.length).fill(null));
           newData.rows.push(new Array(newData.headers.length).fill(null));
-          
+
           const startRowIndex = newData.rows.length;
           const headerRow = new Array(newData.headers.length).fill(null);
           const groupHeader = newData.headers[action.groupByColumn];
           const aggHeader = newData.headers[action.aggregateColumn];
           const opName = (action.statisticsType || "sum").toUpperCase();
-          
+
           headerRow[0] = `RINGKASAN: ${groupHeader}`;
           headerRow[1] = `${opName} DARI ${aggHeader}`;
           newData.rows.push(headerRow);
@@ -756,7 +825,7 @@ const ExcelDashboard = () => {
             summaryRow[0] = s.groupName;
             summaryRow[1] = s.value;
             newData.rows.push(summaryRow);
-            
+
             // Zebra striping for summary
             if (idx % 2 === 1) {
               const ref1 = createCellRef(0, newData.rows.length - 1);
@@ -815,7 +884,21 @@ const ExcelDashboard = () => {
         {/* Preview/Upload Area */}
         <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden">
           {!excelData ? (
-            <ExcelUpload onFileUpload={handleFileUpload} />
+            <div className="flex flex-col h-full">
+              <div className="p-4 border-b flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Get Started</h2>
+                <Button
+                  onClick={() => setShowTemplateGallery(true)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Browse Templates
+                </Button>
+              </div>
+              <ExcelUpload onFileUpload={handleFileUpload} />
+            </div>
           ) : (
             <ExcelPreview
               data={excelData}
@@ -825,12 +908,20 @@ const ExcelDashboard = () => {
               cellSelectionMode={cellSelectionMode}
               onSheetChange={handleSheetChange}
               appliedChanges={appliedChanges}
-            onAddRow={handleAddRow}
-            onAddColumn={handleAddColumn}
-            onDeleteSelection={handleDeleteSelection}
-          />
+              onAddRow={handleAddRow}
+              onAddColumn={handleAddColumn}
+              onDeleteSelection={handleDeleteSelection}
+            />
           )}
         </div>
+
+        {/* Template Gallery Modal */}
+        {showTemplateGallery && (
+          <TemplateGallery
+            onSelectTemplate={handleApplyTemplate}
+            onClose={() => setShowTemplateGallery(false)}
+          />
+        )}
 
         {/* Mobile Chat Toggle Button */}
         {excelData && (
