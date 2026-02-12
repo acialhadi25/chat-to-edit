@@ -36,6 +36,7 @@ import {
   findReplace,
   transformText,
   removeEmptyRows,
+  setCellValue,
   setCellFormula,
   sortData,
   filterData,
@@ -286,6 +287,33 @@ const ExcelDashboard = () => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, action: updatedAction } : m));
   }, []);
 
+  const [formulaBarValue, setFormulaBarValue] = useState("");
+  const [selectedCellRef, setSelectedCellRef] = useState("");
+
+  // Update formula bar value when selection changes
+  useEffect(() => {
+    if (excelData && excelData.selectedCells.length > 0) {
+      const cellRef = excelData.selectedCells[0];
+      setSelectedCellRef(cellRef);
+
+      const formula = excelData.formulas[cellRef];
+      if (formula) {
+        setFormulaBarValue(formula);
+      } else {
+        const parsed = parseCellRef(cellRef);
+        if (parsed) {
+          const val = excelData.rows[parsed.row]?.[parsed.col];
+          setFormulaBarValue(val !== null && val !== undefined ? String(val) : "");
+        } else {
+          setFormulaBarValue("");
+        }
+      }
+    } else {
+      setSelectedCellRef("");
+      setFormulaBarValue("");
+    }
+  }, [excelData?.selectedCells, excelData?.rows, excelData?.formulas]);
+
   const handleCellSelect = useCallback((cellRefs: string[], isSelecting?: boolean) => {
     if (!excelData) return;
     setExcelData({
@@ -298,13 +326,29 @@ const ExcelDashboard = () => {
   const handleCellEdit = useCallback((colIndex: number, rowIndex: number, newValue: string) => {
     if (!excelData) return;
     const beforeData = cloneExcelData(excelData);
-    const newData = cloneExcelData(excelData);
-    const parsed = isNaN(Number(newValue)) ? newValue : Number(newValue);
-    newData.rows[rowIndex][colIndex] = newValue === "" ? null : parsed;
+    let newData = cloneExcelData(excelData);
     const cellRef = createCellRef(colIndex, rowIndex);
-    pushState(beforeData, newData, "EDIT_CELL", `Edited cell ${cellRef}`);
+
+    if (newValue.startsWith("=")) {
+      const { data: withFormula } = setCellFormula(newData, colIndex, rowIndex, newValue);
+      newData = withFormula;
+      pushState(beforeData, newData, "INSERT_FORMULA", `Set formula at ${cellRef}`);
+    } else {
+      const parsed = isNaN(Number(newValue)) || newValue === "" ? newValue : Number(newValue);
+      const { data: withValue } = setCellValue(newData, colIndex, rowIndex, newValue === "" ? null : parsed);
+      newData = withValue;
+      pushState(beforeData, newData, "EDIT_CELL", `Edited cell ${cellRef}`);
+    }
     setExcelData(newData);
   }, [excelData, pushState]);
+
+  const handleFormulaCommit = useCallback(() => {
+    if (!excelData || !selectedCellRef) return;
+    const parsed = parseCellRef(selectedCellRef);
+    if (parsed) {
+      handleCellEdit(parsed.col, parsed.row, formulaBarValue);
+    }
+  }, [excelData, selectedCellRef, formulaBarValue, handleCellEdit]);
 
   const handleDeleteSelection = useCallback((mode: "clear" | "delete") => {
     if (!excelData || excelData.selectedCells.length === 0) return;
@@ -1053,6 +1097,10 @@ Gunakan format JSON wajib berikut:
               onDeleteSelection={handleDeleteSelection}
               onRunAudit={handleRunAudit}
               onRunInsights={handleRunInsights}
+              formulaBarValue={formulaBarValue}
+              selectedCellRef={selectedCellRef}
+              onFormulaBarChange={setFormulaBarValue}
+              onFormulaBarCommit={handleFormulaCommit}
             />
           )}
         </div>

@@ -30,6 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import XLSXStyle from "xlsx-js-style";
 
+import FormulaBar from "@/components/dashboard/FormulaBar";
+
 interface ExcelPreviewProps {
   data: ExcelData;
   onClear: () => void;
@@ -43,6 +45,10 @@ interface ExcelPreviewProps {
   onDeleteSelection?: (mode: "clear" | "delete") => void;
   onRunAudit?: () => void;
   onRunInsights?: () => void;
+  formulaBarValue?: string;
+  selectedCellRef?: string;
+  onFormulaBarChange?: (value: string) => void;
+  onFormulaBarCommit?: () => void;
 }
 
 const ROW_HEIGHT = 36;
@@ -60,6 +66,10 @@ const ExcelPreview = ({
   onDeleteSelection,
   onRunAudit,
   onRunInsights,
+  formulaBarValue = "",
+  selectedCellRef = "",
+  onFormulaBarChange = () => { },
+  onFormulaBarCommit = () => { },
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -717,6 +727,15 @@ const ExcelPreview = ({
           <span>Click cell to select • Shift+click for range • Ctrl+click for multi-select • Esc to cancel</span>
         </div>
       )}
+
+      {/* Formula Bar - Positioned exactly above the table */}
+      <FormulaBar
+        selectedCell={selectedCellRef}
+        value={formulaBarValue}
+        onChange={onFormulaBarChange}
+        onCommit={onFormulaBarCommit}
+        disabled={cellSelectionMode}
+      />
 
       {/* Virtualized Table */}
       <div ref={parentRef} className="flex-1 overflow-auto min-h-0 min-w-0">
