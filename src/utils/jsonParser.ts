@@ -108,7 +108,7 @@ function findJsonObjectInText(text: string): string | null {
   // This is a simple heuristic that finds the longest valid JSON-like structure
   let braceCount = 0;
   let inString = false;
-  let escaped = false;
+  const escaped = false;
   let startIdx = -1;
 
   for (let i = 0; i < text.length; i++) {

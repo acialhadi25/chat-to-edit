@@ -72,7 +72,7 @@ export function evaluateFormula(
 ): string | number | null {
   if (!formula.startsWith("=")) return formula;
   
-  let expr = formula.slice(1); // Remove "="
+  const expr = formula.slice(1); // Remove "="
   
   try {
     // Handle Excel functions (case-insensitive)

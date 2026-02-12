@@ -140,7 +140,7 @@ const DocsDashboard = () => {
 
       try {
         const beforeData = cloneDocsData(docsData);
-        let newData = cloneDocsData(docsData);
+        const newData = cloneDocsData(docsData);
         let description = "";
 
         switch (action.type) {

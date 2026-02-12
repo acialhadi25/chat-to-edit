@@ -1,6 +1,7 @@
 // Action types that AI can perform
 export type ActionType =
   | "INSERT_FORMULA"
+  | "REMOVE_FORMULA"
   | "EDIT_CELL"
   | "EDIT_COLUMN"
   | "EDIT_ROW"

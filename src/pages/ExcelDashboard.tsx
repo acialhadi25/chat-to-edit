@@ -17,6 +17,7 @@ import {
    SheetData,
    createCellRef,
    getColumnIndex,
+   getColumnLetter,
    parseRowRefs,
    parseColumnRefs,
  } from "@/types/excel";
@@ -48,6 +49,7 @@ import {
   createGroupSummary,
   addStatisticsRow,
   copyColumn,
+  padSpareSpace,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
 
@@ -111,13 +113,34 @@ const ExcelDashboard = () => {
        formulas?: Record<string, string>;
        allSheets?: { [sheetName: string]: SheetData };
      };
-     const fullData: ExcelData = {
+     let fullData: ExcelData = {
       ...data,
       formulas: data.formulas || {},
       selectedCells: [],
       pendingChanges: [],
        allSheets: uploadData.allSheets,
     };
+    const spareRows = 10;
+    const spareCols = 10;
+    fullData = padSpareSpace(fullData, spareRows, spareCols);
+    if (fullData.allSheets) {
+      const paddedAll: { [sheetName: string]: SheetData } = {};
+      for (const [name, sheet] of Object.entries(fullData.allSheets)) {
+        const headers = [...sheet.headers, ...Array(spareCols).fill("")];
+        const rowsWithCols = sheet.rows.map((row) => [...row, ...Array(spareCols).fill(null)]);
+        const finalRows = [...rowsWithCols];
+        for (let i = 0; i < spareRows; i++) {
+          finalRows.push(Array(headers.length).fill(null));
+        }
+        paddedAll[name] = { headers, rows: finalRows };
+      }
+      fullData = {
+        ...fullData,
+        headers: paddedAll[fullData.currentSheet]?.headers || fullData.headers,
+        rows: paddedAll[fullData.currentSheet]?.rows || fullData.rows,
+        allSheets: paddedAll,
+      };
+    }
     setExcelData(fullData);
     setMessages([]);
     clearHistory();
@@ -132,6 +155,36 @@ const ExcelDashboard = () => {
       setFileHistoryId(record.id);
     }
   }, [clearHistory, saveFileRecord]);
+
+  const handleAddRow = useCallback(() => {
+    if (!excelData) return;
+    const beforeData = cloneExcelData(excelData);
+    const newData = cloneExcelData(excelData);
+    const newRow = Array(newData.headers.length).fill(null);
+    newData.rows.push(newRow);
+    const newRowIndex = newData.rows.length - 1;
+    pushState(beforeData, newData, "EDIT_ROW", `Added row ${newRowIndex + 2}`);
+    setExcelData(newData);
+    const cellRef = createCellRef(0, newRowIndex);
+    setAppliedChanges([{ cellRef, before: null, after: null, type: "value" }]);
+    setTimeout(() => setAppliedChanges([]), 1500);
+    toast({ title: "Baris Ditambahkan", description: `Baris ${newRowIndex + 2} ditambahkan` });
+  }, [excelData, pushState, toast]);
+
+  const handleAddColumn = useCallback(() => {
+    if (!excelData) return;
+    const beforeData = cloneExcelData(excelData);
+    let newData = cloneExcelData(excelData);
+    const { data: withCol } = addColumn(newData, "");
+    newData = withCol;
+    const newColIndex = newData.headers.length - 1;
+    pushState(beforeData, newData, "ADD_COLUMN", `Added column ${getColumnLetter(newColIndex)}`);
+    setExcelData(newData);
+    const cellRef = createCellRef(newColIndex, 0);
+    setAppliedChanges([{ cellRef, before: null, after: null, type: "value" }]);
+    setTimeout(() => setAppliedChanges([]), 1500);
+    toast({ title: "Kolom Ditambahkan", description: `Kolom ${getColumnLetter(newColIndex)} ditambahkan` });
+  }, [excelData, pushState, toast]);
 
   const handleClearFile = useCallback(() => {
     setExcelData(null);
@@ -219,6 +272,7 @@ const ExcelDashboard = () => {
     const beforeData = cloneExcelData(excelData);
     let newData = cloneExcelData(excelData);
     let description = "";
+    const generatedChanges: DataChange[] = [];
 
     switch (action.type) {
       case "INSERT_FORMULA": {
@@ -228,21 +282,24 @@ const ExcelDashboard = () => {
              if (match) {
                const colIndex = getColumnIndex(match[1]);
                const rowIndex = parseInt(match[2], 10) - 2;
-               const { data: withFormula } = setCellFormula(newData, colIndex, rowIndex, action.formula);
+               const { data: withFormula, change } = setCellFormula(newData, colIndex, rowIndex, action.formula);
                newData = withFormula;
+               generatedChanges.push(change);
                description = `Insert formula at ${action.target.ref}`;
              }
            } else if (action.newColumnName && action.target.type === "column") {
             const { data: withNewCol } = addColumn(newData, action.newColumnName);
             newData = withNewCol;
             const colIndex = newData.headers.length - 1;
-             const { data: withFormula } = applyFormulaToColumn(newData, colIndex, action.formula);
+             const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
             newData = withFormula;
+            generatedChanges.push(...changes);
             description = `Insert formula to column ${action.newColumnName}`;
           } else if (action.target.type === "column") {
              const colIndex = getColumnIndex(action.target.ref);
-             const { data: withFormula } = applyFormulaToColumn(newData, colIndex, action.formula);
+             const { data: withFormula, changes } = applyFormulaToColumn(newData, colIndex, action.formula);
             newData = withFormula;
+            generatedChanges.push(...changes);
             description = `Insert formula to column ${action.target.ref}`;
           }
         }
@@ -443,7 +500,18 @@ const ExcelDashboard = () => {
           const colIndex = getColumnIndex(action.target.ref);
           const { data: withStats } = addStatisticsRow(newData, colIndex, action.statisticsType);
           newData = withStats;
-          description = `Added ${action.statisticsType.toUpperCase()} for column ${action.target.ref}`;
+          const lastRowIndex = newData.rows.length - 1;
+          const endRowExcel = newData.rows.length;
+          const op = action.statisticsType.toUpperCase();
+          if (["SUM", "AVERAGE", "COUNT", "MIN", "MAX"].includes(op)) {
+            const formula = `=${op}(${action.target.ref}2:${action.target.ref}${endRowExcel})`;
+            const { data: withFormula, change } = setCellFormula(newData, colIndex, lastRowIndex, formula);
+            newData = withFormula;
+            generatedChanges.push(change);
+            description = `Inserted ${op} formula at ${action.target.ref}${lastRowIndex + 2}`;
+          } else {
+            description = `Added ${action.statisticsType.toUpperCase()} for column ${action.target.ref}`;
+          }
         }
         break;
       }
@@ -471,7 +539,7 @@ const ExcelDashboard = () => {
 
     newData.pendingChanges = [];
     newData.selectedCells = [];
-    const allChanges: DataChange[] = action.changes || [];
+    const allChanges: DataChange[] = [...(action.changes || []), ...generatedChanges];
     pushState(beforeData, newData, action.type, description);
     setExcelData(newData);
     setAppliedChanges(allChanges);
@@ -516,6 +584,8 @@ const ExcelDashboard = () => {
               cellSelectionMode={cellSelectionMode}
               onSheetChange={handleSheetChange}
               appliedChanges={appliedChanges}
+              onAddRow={handleAddRow}
+              onAddColumn={handleAddColumn}
             />
           )}
         </div>

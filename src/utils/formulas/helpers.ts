@@ -1,4 +1,5 @@
 import { ExcelData, getColumnIndex } from "@/types/excel";
+import { safeEvaluateMath } from "@/utils/safeMathParser";
 
 /**
  * Get cell value from a cell reference like "B2"
@@ -13,6 +14,28 @@ export function getCellValueFromRef(ref: string, data: ExcelData): number | null
   if (rowIndex < 0 || rowIndex >= data.rows.length) return null;
   if (colIndex < 0 || colIndex >= data.headers.length) return null;
   
+  const cellRef = `${match[1].toUpperCase()}${match[2]}`;
+  const existingFormula = data.formulas[cellRef];
+  if (existingFormula && existingFormula.startsWith("=")) {
+    try {
+      let expr = existingFormula.slice(1).toUpperCase();
+      expr = expr.replace(/[A-Z]+\d+/g, (innerRef) => {
+        const v = getCellValueFromRef(innerRef, data);
+        return v !== null ? String(v) : "0";
+      });
+      if (!/^[\d+\-*/().\s]+$/.test(expr)) {
+        // Non-arithmetic or unsupported expression; fallback to raw value below
+      } else {
+        const result = safeEvaluateMath(expr);
+        if (result !== null) {
+          return result;
+        }
+      }
+    } catch {
+      // Fallback to raw value
+    }
+  }
+
   const value = data.rows[rowIndex][colIndex];
   if (value === null || value === undefined) return 0;
   if (typeof value === "number") return value;

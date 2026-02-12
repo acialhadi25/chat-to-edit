@@ -22,8 +22,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown } from "lucide-react";
-import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex } from "@/types/excel";
+import { Switch } from "@/components/ui/switch";
+import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus } from "lucide-react";
+import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex, parseCellRef } from "@/types/excel";
 import { evaluateFormula } from "@/utils/formulaEvaluator";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
@@ -36,6 +37,8 @@ interface ExcelPreviewProps {
   cellSelectionMode: boolean;
   onSheetChange: (sheetName: string) => void;
   appliedChanges?: DataChange[];
+  onAddRow?: () => void;
+  onAddColumn?: () => void;
 }
 
 const ROW_HEIGHT = 36;
@@ -48,12 +51,17 @@ const ExcelPreview = ({
   cellSelectionMode,
   onSheetChange,
   appliedChanges = [],
+  onAddRow,
+  onAddColumn,
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
   const [editValue, setEditValue] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [showEmptyPlaceholders, setShowEmptyPlaceholders] = useState(false);
+  const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Create sets for quick lookup
   const pendingCellSet = useMemo(() => {
@@ -94,14 +102,25 @@ const ExcelPreview = ({
     }
   }, [editingCell]);
 
+  useEffect(() => {
+    if (appliedChanges.length > 0) {
+      const rowIndices = appliedChanges
+        .map((c) => parseCellRef(c.cellRef))
+        .filter((p): p is { col: number; row: number; excelRow: number } => !!p)
+        .map((p) => p.row);
+      if (rowIndices.length > 0) {
+        const target = Math.max(...rowIndices);
+        rowVirtualizer.scrollToIndex(target, { align: "center" });
+      }
+    }
+  }, [appliedChanges, rowVirtualizer]);
+
   const handleCellClick = useCallback(
     (colIndex: number, rowIndex: number, e: React.MouseEvent) => {
-      if (!cellSelectionMode) return;
-
       const cellRef = createCellRef(colIndex, rowIndex);
       const currentSelection = data.selectedCells;
 
-      if (e.shiftKey && currentSelection.length > 0) {
+      if (cellSelectionMode && e.shiftKey && currentSelection.length > 0) {
         const selectionStart = currentSelection[0];
         const startParts = selectionStart.match(/([A-Z]+)(\d+)/);
         const endParts = cellRef.match(/([A-Z]+)(\d+)/);
@@ -124,7 +143,7 @@ const ExcelPreview = ({
           }
           onCellSelect(selectedCells);
         }
-      } else if (e.ctrlKey || e.metaKey) {
+      } else if (cellSelectionMode && (e.ctrlKey || e.metaKey)) {
         const newSelection = selectedCellSet.has(cellRef)
           ? data.selectedCells.filter((c) => c !== cellRef)
           : [...data.selectedCells, cellRef];
@@ -135,6 +154,27 @@ const ExcelPreview = ({
     },
     [cellSelectionMode, selectedCellSet, data.selectedCells, onCellSelect]
   );
+
+  const handleCellMouseDown = useCallback((colIndex: number, rowIndex: number) => {
+    setDragStart({ col: colIndex, row: rowIndex });
+    setIsDragging(true);
+    onCellSelect([createCellRef(colIndex, rowIndex)]);
+  }, [onCellSelect]);
+
+  const handleCellMouseEnter = useCallback((colIndex: number, rowIndex: number) => {
+    if (!isDragging || !dragStart) return;
+    const minCol = Math.min(dragStart.col, colIndex);
+    const maxCol = Math.max(dragStart.col, colIndex);
+    const minRow = Math.min(dragStart.row, rowIndex);
+    const maxRow = Math.max(dragStart.row, rowIndex);
+    const selected: string[] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        selected.push(createCellRef(c, r));
+      }
+    }
+    onCellSelect(selected);
+  }, [dragStart, isDragging, onCellSelect]);
 
   const handleCellDoubleClick = useCallback(
     (colIndex: number, rowIndex: number) => {
@@ -242,7 +282,9 @@ const ExcelPreview = ({
   };
 
   const formatCellValue = (value: string | number | null | undefined): string => {
-    if (value === null || value === undefined || value === "") return "(empty)";
+    if (value === null || value === undefined || value === "") {
+      return showEmptyPlaceholders ? "(empty)" : "";
+    }
     return String(value);
   };
 
@@ -373,6 +415,11 @@ const ExcelPreview = ({
             </Badge>
           )}
 
+          <div className="flex items-center gap-2 pl-2">
+            <span className="text-xs text-muted-foreground">Tampilkan kosong</span>
+            <Switch checked={showEmptyPlaceholders} onCheckedChange={setShowEmptyPlaceholders} />
+          </div>
+
           {cellSelectionMode && (
             <Badge variant="default" className="gap-1 animate-pulse">
               <MousePointer className="h-3 w-3" />
@@ -397,6 +444,25 @@ const ExcelPreview = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onAddRow}
+            className="gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            Tambah Baris
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onAddColumn}
+            className="gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            Tambah Kolom
+          </Button>
 
           <Button
             variant="ghost"
@@ -453,6 +519,12 @@ const ExcelPreview = ({
               width: "100%",
               position: "relative",
             }}
+            onMouseUp={() => {
+              if (isDragging) {
+                setIsDragging(false);
+                setDragStart(null);
+              }
+            }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const rowIndex = virtualRow.index;
@@ -481,6 +553,8 @@ const ExcelPreview = ({
                         key={colIndex}
                         tabIndex={0}
                         role="gridcell"
+                        onMouseDown={() => handleCellMouseDown(colIndex, rowIndex)}
+                        onMouseEnter={() => handleCellMouseEnter(colIndex, rowIndex)}
                         onClick={(e) => handleCellClick(colIndex, rowIndex, e)}
                         onDoubleClick={() => handleCellDoubleClick(colIndex, rowIndex)}
                         onKeyDown={(e) => {

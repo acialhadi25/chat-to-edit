@@ -172,7 +172,7 @@ export async function extractHtmlFromDocx(file: File): Promise<string> {
       }
     );
 
-    let html = result.value;
+    const html = result.value;
 
     // Log warnings if any (style conversions that failed)
     if (result.messages && result.messages.length > 0) {
@@ -290,7 +290,7 @@ export function exportToPdf(title: string, content: string): void {
     printWindow.document.write("</style></head><body>");
 
     // Convert markdown-like formatting to HTML
-    let htmlContent = content
+    const htmlContent = content
       .replace(/^# (.*?)$/gm, "<h1>$1</h1>")
       .replace(/^## (.*?)$/gm, "<h2>$1</h2>")
       .replace(/^### (.*?)$/gm, "<h3>$1</h3>")

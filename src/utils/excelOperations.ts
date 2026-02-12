@@ -1,10 +1,12 @@
-import {
-  ExcelData,
-  DataChange,
-  getColumnLetter,
-  parseCellRef,
-  createCellRef,
+import { 
+  ExcelData, 
+  DataChange, 
+  getColumnLetter, 
+  createCellRef, 
+  parseCellRef 
 } from "@/types/excel";
+import { evaluateFormula } from "@/utils/formulas";
+import { expandRange } from "@/utils/formulas/helpers";
 
 // Clone excel data for immutability
 export function cloneExcelData(data: ExcelData): ExcelData {
@@ -79,10 +81,19 @@ export function applyFormulaToColumn(
   colIndex: number,
   formulaTemplate: string
 ): { data: ExcelData; changes: DataChange[] } {
-  let newData = cloneExcelData(data);
+  const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
 
   for (let rowIndex = 0; rowIndex < data.rows.length; rowIndex++) {
+    const firstCol = newData.rows[rowIndex]?.[0];
+    if (
+      typeof firstCol === "string" &&
+      ["SUM", "AVERAGE", "COUNT", "MIN", "MAX", "MEDIAN", "STD_DEV"].includes(
+        firstCol.toUpperCase()
+      )
+    ) {
+      continue;
+    }
      const actualRow = rowIndex + 2; // Excel rows: header=1, data starts at 2
     const formula = formulaTemplate.replace(/\{row\}/g, String(actualRow));
      const cellRef = `${getColumnLetter(colIndex)}${actualRow}`;
@@ -106,7 +117,7 @@ export function findReplace(
     columns?: number[];
   } = {}
 ): { data: ExcelData; changes: DataChange[] } {
-  let newData = cloneExcelData(data);
+  const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
   const { caseSensitive = false, wholeCell = false, columns } = options;
 
@@ -158,7 +169,7 @@ export function trimCells(
   data: ExcelData,
   columns?: number[]
 ): { data: ExcelData; changes: DataChange[] } {
-  let newData = cloneExcelData(data);
+  const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
 
   for (let rowIndex = 0; rowIndex < data.rows.length; rowIndex++) {
@@ -232,7 +243,7 @@ export function transformText(
   transform: "uppercase" | "lowercase" | "titlecase",
   columns?: number[]
 ): { data: ExcelData; changes: DataChange[] } {
-  let newData = cloneExcelData(data);
+  const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
 
   for (let rowIndex = 0; rowIndex < data.rows.length; rowIndex++) {
@@ -369,7 +380,7 @@ export function applyChanges(
   data: ExcelData,
   changes: DataChange[]
 ): ExcelData {
-  let newData = cloneExcelData(data);
+  const newData = cloneExcelData(data);
 
   for (const change of changes) {
     const parsed = parseCellRef(change.cellRef);
@@ -384,6 +395,31 @@ export function applyChanges(
 
   newData.pendingChanges = [];
   return newData;
+}
+
+export function removeFormulas(
+  data: ExcelData,
+  refs: string[]
+): { data: ExcelData; changes: DataChange[] } {
+  const newData = cloneExcelData(data);
+  const changes: DataChange[] = [];
+  const uniqueRefs = [...new Set(refs)];
+  for (const ref of uniqueRefs) {
+    const parsed = parseCellRef(ref);
+    if (!parsed) continue;
+    const existing = newData.formulas[ref];
+    if (!existing) continue;
+    const result = evaluateFormula(existing, newData);
+    newData.rows[parsed.row][parsed.col] = result !== null ? result : null;
+    delete newData.formulas[ref];
+    changes.push({
+      cellRef: ref,
+      before: existing,
+      after: result !== null ? result : null,
+      type: "value",
+    });
+  }
+  return { data: newData, changes };
 }
 
 // Find cells matching a condition
@@ -753,7 +789,7 @@ export function formatNumbers(
     const cellValue = newData.rows[rowIndex][colIndex];
     if (cellValue === null || cellValue === undefined) continue;
     
-    let numValue = typeof cellValue === "number" 
+    const numValue = typeof cellValue === "number" 
       ? cellValue 
       : parseFloat(String(cellValue).replace(/[^0-9.-]/g, ""));
     
@@ -1021,5 +1057,25 @@ export function copyColumn(
   });
 
   return { data: newData };
+}
+
+export function padSpareSpace(
+  data: ExcelData,
+  spareRows: number = 10,
+  spareCols: number = 10
+): ExcelData {
+  const newData = cloneExcelData(data);
+  if (spareCols > 0) {
+    const extraHeaders = Array(spareCols).fill("");
+    newData.headers = [...newData.headers, ...extraHeaders];
+    newData.rows = newData.rows.map((row) => [...row, ...Array(spareCols).fill(null)]);
+  }
+  if (spareRows > 0) {
+    const rowLength = newData.headers.length;
+    for (let i = 0; i < spareRows; i++) {
+      newData.rows.push(Array(rowLength).fill(null));
+    }
+  }
+  return newData;
 }
 
