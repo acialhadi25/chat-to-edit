@@ -20,6 +20,7 @@ import {
    getColumnLetter,
    parseRowRefs,
    parseColumnRefs,
+   parseCellRef,
  } from "@/types/excel";
 import { 
   applyChanges, 
@@ -50,6 +51,7 @@ import {
   addStatisticsRow,
   copyColumn,
   padSpareSpace,
+  removeFormulas,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
 
@@ -301,7 +303,60 @@ const ExcelDashboard = () => {
             newData = withFormula;
             generatedChanges.push(...changes);
             description = `Insert formula to column ${action.target.ref}`;
+          } else if (action.target.type === "range") {
+            const match = action.target.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+            if (match) {
+              const startCol = getColumnIndex(match[1]);
+              const startRow = parseInt(match[2], 10) - 2;
+              const endCol = getColumnIndex(match[3]);
+              const endRow = parseInt(match[4], 10) - 2;
+              for (let r = startRow; r <= endRow; r++) {
+                for (let c = startCol; c <= endCol; c++) {
+                  const { data: withFormula, change } = setCellFormula(newData, c, r, action.formula);
+                  newData = withFormula;
+                  generatedChanges.push(change);
+                }
+              }
+              description = `Insert formula to range ${action.target.ref}`;
+            }
           }
+        } else if (action.formula && excelData.selectedCells.length > 0) {
+          for (const ref of excelData.selectedCells) {
+            const parsed = parseCellRef(ref);
+            if (!parsed) continue;
+            const { data: withFormula, change } = setCellFormula(newData, parsed.col, parsed.row, action.formula);
+            newData = withFormula;
+            generatedChanges.push(change);
+          }
+          description = `Insert formula to ${excelData.selectedCells.length} selected cells`;
+        }
+        break;
+      }
+      case "REMOVE_FORMULA": {
+        let targets: string[] = [];
+        if (action.target?.type === "cell") {
+          targets = [action.target.ref];
+        } else if (action.target?.type === "range") {
+          const match = action.target.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+          if (match) {
+            const startCol = getColumnIndex(match[1]);
+            const startRow = parseInt(match[2], 10) - 2;
+            const endCol = getColumnIndex(match[3]);
+            const endRow = parseInt(match[4], 10) - 2;
+            for (let r = startRow; r <= endRow; r++) {
+              for (let c = startCol; c <= endCol; c++) {
+                targets.push(createCellRef(c, r));
+              }
+            }
+          }
+        } else if (excelData.selectedCells.length > 0) {
+          targets = excelData.selectedCells;
+        }
+        if (targets.length > 0) {
+          const { data: withoutFormulas, changes } = removeFormulas(newData, targets);
+          newData = withoutFormulas;
+          generatedChanges.push(...changes);
+          description = `Removed formulas from ${changes.length} cells`;
         }
         break;
       }
