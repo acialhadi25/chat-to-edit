@@ -118,6 +118,13 @@ const ExcelDashboard = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [excelData, canUndo, canRedo]);
 
+  // Listen for external open-gallery events
+  useEffect(() => {
+    const handleOpenGallery = () => setShowTemplateGallery(true);
+    window.addEventListener('open-template-gallery', handleOpenGallery);
+    return () => window.removeEventListener('open-template-gallery', handleOpenGallery);
+  }, []);
+
   const handleFileUpload = useCallback(async (data: Omit<ExcelData, "selectedCells" | "pendingChanges" | "formulas"> & { formulas?: Record<string, string> }) => {
     const uploadData = data as Omit<ExcelData, "selectedCells" | "pendingChanges" | "formulas"> & {
       formulas?: Record<string, string>;
