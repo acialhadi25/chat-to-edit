@@ -289,12 +289,41 @@ const ExcelDashboard = () => {
 
   const [formulaBarValue, setFormulaBarValue] = useState("");
   const [selectedCellRef, setSelectedCellRef] = useState("");
+  const [excelDataAtEditStart, setExcelDataAtEditStart] = useState<ExcelData | null>(null);
+
+  const handleFormulaBarChange = useCallback((newValue: string) => {
+    setFormulaBarValue(newValue);
+    if (!excelData || !selectedCellRef) return;
+
+    // Set baseline for undo if this is the start of editing
+    if (!excelDataAtEditStart) {
+      setExcelDataAtEditStart(cloneExcelData(excelData));
+    }
+
+    const parsedRef = parseCellRef(selectedCellRef);
+    if (!parsedRef) return;
+
+    // Update the data in state but DON'T push to history yet
+    setExcelData(prev => {
+      if (!prev) return prev;
+      const newData = cloneExcelData(prev);
+      if (newValue.startsWith("=")) {
+        const { data: withFormula } = setCellFormula(newData, parsedRef.col, parsedRef.row, newValue);
+        return withFormula;
+      } else {
+        const parsedVal = isNaN(Number(newValue)) || newValue === "" ? newValue : Number(newValue);
+        const { data: withValue } = setCellValue(newData, parsedRef.col, parsedRef.row, newValue === "" ? null : parsedVal);
+        return withValue;
+      }
+    });
+  }, [excelData, selectedCellRef, excelDataAtEditStart]);
 
   // Update formula bar value when selection changes
   useEffect(() => {
     if (excelData && excelData.selectedCells.length > 0) {
       const cellRef = excelData.selectedCells[0];
       setSelectedCellRef(cellRef);
+      setExcelDataAtEditStart(null); // Reset edit baseline on new selection
 
       const formula = excelData.formulas[cellRef];
       if (formula) {
@@ -343,12 +372,26 @@ const ExcelDashboard = () => {
   }, [excelData, pushState]);
 
   const handleFormulaCommit = useCallback(() => {
-    if (!excelData || !selectedCellRef) return;
-    const parsed = parseCellRef(selectedCellRef);
-    if (parsed) {
-      handleCellEdit(parsed.col, parsed.row, formulaBarValue);
+    if (!excelData || !selectedCellRef || !excelDataAtEditStart) {
+      setExcelDataAtEditStart(null);
+      return;
     }
-  }, [excelData, selectedCellRef, formulaBarValue, handleCellEdit]);
+
+    const newValue = formulaBarValue;
+    const baseData = excelDataAtEditStart;
+    const cellRef = selectedCellRef;
+
+    // Only push to history if value actually changed from the START of editing
+    const parsedRef = parseCellRef(cellRef)!;
+    const originalValue = baseData.formulas[cellRef] || baseData.rows[parsedRef.row][parsedRef.col];
+
+    if (String(originalValue) !== newValue) {
+      const label = newValue.startsWith("=") ? "INSERT_FORMULA" : "EDIT_CELL";
+      pushState(baseData, excelData, label, `Edited ${cellRef} via Formula Bar`);
+    }
+
+    setExcelDataAtEditStart(null);
+  }, [excelData, selectedCellRef, excelDataAtEditStart, formulaBarValue, pushState]);
 
   const handleDeleteSelection = useCallback((mode: "clear" | "delete") => {
     if (!excelData || excelData.selectedCells.length === 0) return;
@@ -1099,7 +1142,7 @@ Gunakan format JSON wajib berikut:
               onRunInsights={handleRunInsights}
               formulaBarValue={formulaBarValue}
               selectedCellRef={selectedCellRef}
-              onFormulaBarChange={setFormulaBarValue}
+              onFormulaBarChange={handleFormulaBarChange}
               onFormulaBarCommit={handleFormulaCommit}
             />
           )}
