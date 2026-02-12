@@ -459,7 +459,7 @@ const PdfDashboard = () => {
   );
 
   return (
-    <div className="flex flex-1 flex-col h-full">
+    <div className="flex flex-1 flex-col h-full overflow-hidden">
       <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Main Content Area */}
         <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden">
