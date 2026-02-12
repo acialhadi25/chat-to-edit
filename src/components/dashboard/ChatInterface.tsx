@@ -242,6 +242,46 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   };
 
   const handleQuickOption = (option: QuickOption) => {
+    // If the option has its own action, use it
+    if (option.action) {
+      onApplyAction(option.action);
+
+      // Track that this specific option has been applied
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.action) {
+        const currentIds = lastMsg.action.appliedActionIds || [];
+        if (!currentIds.includes(option.id)) {
+          onUpdateAction(lastMsg.id, {
+            ...lastMsg.action,
+            appliedActionIds: [...currentIds, option.id]
+          });
+        }
+      }
+      return;
+    }
+
+    // SMART FALLBACK: If this looks like an "Apply" button and we have a pending root action
+    // Many AIs put the action at the root but label the button "Terapkan" or "Apply"
+    const lastMsg = messages[messages.length - 1];
+    const isApplyLabel = option.label.toLowerCase().includes("terapkan") ||
+      option.label.toLowerCase().includes("apply") ||
+      option.isApplyAction;
+
+    if (lastMsg?.action?.status === "pending" && isApplyLabel) {
+      onApplyAction(lastMsg.action);
+
+      // Track as applied
+      const currentIds = lastMsg.action.appliedActionIds || [];
+      if (!currentIds.includes(option.id)) {
+        onUpdateAction(lastMsg.id, {
+          ...lastMsg.action,
+          appliedActionIds: [...currentIds, option.id]
+        });
+      }
+      return;
+    }
+
+    // Default: just send the message
     sendMessage(option.value);
   };
 
@@ -250,8 +290,13 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   };
 
   const handleRejectAction = () => {
-    if (excelData) onSetPendingChanges([]);
-    toast({ title: "Rejected", description: "Changes were not applied" });
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.action) {
+      onUpdateAction(lastMsg.id, {
+        ...lastMsg.action,
+        status: "rejected",
+      });
+    }
   };
 
   const copyFormula = (formula: string) => {
@@ -392,17 +437,9 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
                       options={message.quickOptions}
                       appliedActionIds={message.action?.appliedActionIds || []}
                       onOptionClick={(text, action, actionId) => {
-                        if (action) {
-                          onApplyAction(action);
-                          if (actionId) {
-                            const currentIds = message.action?.appliedActionIds || [];
-                            if (!currentIds.includes(actionId)) {
-                              onUpdateAction(message.id, {
-                                ...message.action!,
-                                appliedActionIds: [...currentIds, actionId]
-                              });
-                            }
-                          }
+                        const option = message.quickOptions?.find(o => o.id === actionId);
+                        if (option) {
+                          handleQuickOption(option);
                         } else {
                           sendMessage(text);
                         }
@@ -415,8 +452,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
                   message.action.status === "pending" &&
                   message.action.type !== "CLARIFY" &&
                   message.action.type !== "INFO" &&
-                  message.action.type !== "DATA_AUDIT" &&
-                  (!message.quickOptions || message.quickOptions.length === 0) && (
+                  message.action.type !== "DATA_AUDIT" && (
                     <div className="mt-3 flex gap-2">
                       <Button size="sm" onClick={() => handleApplyAction(message.action!)} className="gap-1">
                         <Check className="h-3 w-3" /> Apply

@@ -135,7 +135,11 @@ IMPORTANT:
 - Always clarify ambiguous requests
 - Suggest related operations
 - DON'T forget isApplyAction: true for buttons that apply changes
-- Use **markdown** in content for nice formatting`;
+- PROACTIVE SUGGESTIONS: For common PDF tasks (extract, rotate, delete), include a technical "action" object directly in the quickOption.
+    Example quickOption: 
+    { "id": "suggest-rotate", "label": "Putar 90°", "value": "Applied rotation", "isApplyAction": true, "variant": "success", "action": { "type": "ROTATE_PAGES", "rotation": 90, "target": { "type": "page", "ref": "all" } } }
+- Use **markdown** in content for nice formatting
+`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -144,10 +148,11 @@ serve(async (req) => {
 
   try {
     const { messages, pdfContext } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const LO_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const DS_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LO_KEY && !DS_KEY) {
+      throw new Error("No AI API keys configured");
     }
 
     // Build context message if PDF files are uploaded
@@ -170,45 +175,96 @@ Total Files: ${pdfContext.files?.length || 0}`;
 
     console.log("Sending PDF chat request with context:", contextMessage.slice(0, 300));
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT + contextMessage },
-          ...messages,
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-        stream: true,
-      }),
-    });
+    let response: Response;
+    let usedFallback = false;
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Try Primary (Lovable Gateway)
+    if (LO_KEY) {
+      try {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LO_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT + contextMessage },
+              ...messages,
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.3,
+            stream: true,
+          }),
+        });
+
+        if (!response.ok && [402, 429, 503, 504].includes(response.status) && DS_KEY) {
+          console.log(`Primary PDF AI failed (${response.status}). Attempting Deepseek fallback...`);
+          usedFallback = true;
+        } else if (!response.ok && DS_KEY) {
+          console.log(`Primary PDF AI returned ${response.status}. Attempting Deepseek fallback anyway...`);
+          usedFallback = true;
+        }
+      } catch (e) {
+        console.error("Primary PDF AI fetch error:", e);
+        if (DS_KEY) {
+          usedFallback = true;
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      usedFallback = true;
+    }
+
+    // Try Fallback (Deepseek)
+    if (usedFallback && DS_KEY) {
+      response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${DS_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT + contextMessage },
+            ...messages,
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          stream: true,
+        }),
+      });
+    }
+
+    if (!response! || !response.ok) {
+      const status = response?.status || 500;
+      if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (status === 402) {
         return new Response(
           JSON.stringify({ error: "AI credits exhausted. Please top up in Settings." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI gateway error");
+      const errorText = await response?.text();
+      console.error("AI gateway/fallback pdf error:", status, errorText);
+      throw new Error(`AI error: ${status}`);
     }
 
     // Stream the response back to the client
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "X-AI-Provider": usedFallback ? "deepseek" : "lovable"
+      },
     });
   } catch (error) {
     console.error("Chat PDF function error:", error);

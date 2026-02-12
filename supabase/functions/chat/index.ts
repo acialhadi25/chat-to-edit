@@ -66,8 +66,11 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 11. REQUIRED for SPLIT_COLUMN: include target.ref (column letter), "delimiter", optionally "maxParts" (default 2)
 12. REQUIRED for MERGE_COLUMNS: include "mergeColumns" (array of column indices), "separator", "newColumnName"
 13. Mark buttons that apply actions with "isApplyAction": true
-14. Use information from dataAnalysis and uniqueValuesPerColumn to provide accurate responses
-15. For DELETE_ROW, use target.ref with format "row1,row2,row3" (Excel numbers)
+14. PROACTIVE SUGGESTIONS: For common fixes (formula, cleansing, sort), include a technical "action" object directly in the quickOption.
+    Example quickOption for suggestion: 
+    { "id": "suggest-sum", "label": "Terapkan SUM(A:B)", "value": "Applied formula", "isApplyAction": true, "variant": "success", "action": { "type": "INSERT_FORMULA", "formula": "=SUM(A{row}:B{row})", "target": { "type": "range", "ref": "C2:C10" } } }
+15. Use information from dataAnalysis and uniqueValuesPerColumn to provide accurate responses
+16. For DELETE_ROW, use target.ref with format "row1,row2,row3" (Excel numbers)
 
 ## NATURAL LANGUAGE UNDERSTANDING:
 You must understand various command variations in everyday language:
@@ -182,10 +185,11 @@ serve(async (req) => {
 
   try {
     const { messages, excelContext } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const LO_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const DS_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LO_KEY && !DS_KEY) {
+      throw new Error("No AI API keys configured");
     }
 
     // Build context message if Excel file is uploaded
@@ -194,7 +198,7 @@ serve(async (req) => {
       const headerMapping = excelContext.headers
         .map((h: string, i: number) => `${getColumnLetter(i)}(index ${i})="${h}"`)
         .join(", ");
-      
+
       const sampleDataStr = excelContext.sampleRows
         ?.map((row: (string | number)[], idx: number) =>
           `Row ${idx + 2}: ${row.map((cell: string | number, i: number) => `${getColumnLetter(i)}=${JSON.stringify(cell)}`).join(", ")}`
@@ -203,7 +207,7 @@ serve(async (req) => {
 
       const emptyRowsList = excelContext.dataAnalysis?.emptyRows?.slice(0, 10).join(", ") || "none";
       const spaceCells = excelContext.dataAnalysis?.cellsWithExtraSpaces?.slice(0, 5)
-        .map((c: {cellRef: string; value: string}) => `${c.cellRef}="${c.value}"`)
+        .map((c: { cellRef: string; value: string }) => `${c.cellRef}="${c.value}"`)
         .join(", ") || "none";
 
       // Build unique values section
@@ -228,8 +232,8 @@ Total Data Rows: ${excelContext.totalRows || excelContext.sampleRows?.length || 
 Sample Data (first rows):
 ${sampleDataStr}
 ${excelContext.existingFormulas && Object.keys(excelContext.existingFormulas).length > 0
-  ? `\nExisting formulas: ${JSON.stringify(excelContext.existingFormulas)}`
-  : ""}
+          ? `\nExisting formulas: ${JSON.stringify(excelContext.existingFormulas)}`
+          : ""}
 ${excelContext.dataAnalysis ? `
 DATA ANALYSIS (use this for accurate responses):
 - Total cells: ${excelContext.dataAnalysis.totalCells || 0}
@@ -241,45 +245,96 @@ DATA ANALYSIS (use this for accurate responses):
 
     console.log("Sending request to AI with context:", contextMessage.slice(0, 500));
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT + contextMessage },
-          ...messages,
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-        stream: true,
-      }),
-    });
+    let response: Response;
+    let usedFallback = false;
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Try Primary (Lovable Gateway)
+    if (LO_KEY) {
+      try {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LO_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT + contextMessage },
+              ...messages,
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.3,
+            stream: true,
+          }),
+        });
+
+        if (!response.ok && [402, 429, 503, 504].includes(response.status) && DS_KEY) {
+          console.log(`Primary AI failed (${response.status}). Attempting Deepseek fallback...`);
+          usedFallback = true;
+        } else if (!response.ok && DS_KEY) {
+          console.log(`Primary AI returned ${response.status}. Attempting Deepseek fallback anyway...`);
+          usedFallback = true;
+        }
+      } catch (e) {
+        console.error("Primary AI fetch error:", e);
+        if (DS_KEY) {
+          usedFallback = true;
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      usedFallback = true;
+    }
+
+    // Try Fallback (Deepseek)
+    if (usedFallback && DS_KEY) {
+      response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${DS_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT + contextMessage },
+            ...messages,
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          stream: true,
+        }),
+      });
+    }
+
+    if (!response! || !response.ok) {
+      const status = response?.status || 500;
+      if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (status === 402) {
         return new Response(
           JSON.stringify({ error: "AI credits exhausted. Please top up in Settings." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI gateway error");
+      const errorText = await response?.text();
+      console.error("AI gateway/fallback error:", status, errorText);
+      throw new Error(`AI error: ${status}`);
     }
 
     // Stream the response back to the client
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "X-AI-Provider": usedFallback ? "deepseek" : "lovable"
+      },
     });
   } catch (error) {
     console.error("Chat function error:", error);
