@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Tooltip,
@@ -22,7 +23,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
 import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus, Trash2, Wand2, Sparkles } from "lucide-react";
 import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex, parseCellRef } from "@/types/excel";
 import { evaluateFormula } from "@/utils/formulaEvaluator";
@@ -76,7 +76,6 @@ const ExcelPreview = ({
   const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
   const [editValue, setEditValue] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
-  const [showEmptyPlaceholders, setShowEmptyPlaceholders] = useState(false);
   const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [colDragStart, setColDragStart] = useState<number | null>(null);
@@ -447,7 +446,7 @@ const ExcelPreview = ({
 
   const formatCellValue = (value: string | number | null | undefined): string => {
     if (value === null || value === undefined || value === "") {
-      return showEmptyPlaceholders ? "(empty)" : "";
+      return "";
     }
     return String(value);
   };
@@ -540,58 +539,22 @@ const ExcelPreview = ({
   return (
     <div className="flex flex-1 flex-col min-h-0" onMouseUp={handleGlobalMouseUp}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 bg-card">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
-            <FileSpreadsheet className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-medium text-foreground">{data.fileName}</h3>
-            <p className="text-xs text-muted-foreground">
-              {data.rows.length.toLocaleString()} rows • {data.headers.length} columns
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {data.sheets.length > 1 && (
-            <Select value={data.currentSheet} onValueChange={onSheetChange}>
-              <SelectTrigger className="w-[140px]">
-                <Sheet className="mr-2 h-4 w-4" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {data.sheets.map((sheet) => (
-                  <SelectItem key={sheet} value={sheet}>
-                    {sheet}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {appliedCount > 0 && (
-            <Badge variant="default" className="gap-1 bg-success text-success-foreground">
-              <Check className="h-3 w-3" />
-              {appliedCount} applied
-            </Badge>
-          )}
-
-          {pendingCount > 0 && (
-            <Badge variant="secondary" className="gap-1 bg-warning/20 text-warning-foreground">
-              {pendingCount} pending
-            </Badge>
-          )}
-
-          {formulaCount > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              {formulaCount} formula
-            </Badge>
-          )}
-
-          <div className="flex items-center gap-2 pl-2">
-            <span className="text-xs text-muted-foreground">Tampilkan kosong</span>
-            <Switch checked={showEmptyPlaceholders} onCheckedChange={setShowEmptyPlaceholders} />
+      <div className="flex flex-col border-b border-border bg-card">
+        {/* Top: Metadata & Filename */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-medium text-foreground">{data.fileName}</h3>
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                <span>{data.rows.length.toLocaleString()} rows • {data.headers.length} columns</span>
+                {formulaCount > 0 && <span>• {formulaCount} formulas</span>}
+                {appliedCount > 0 && <span className="text-success font-medium">• {appliedCount} applied</span>}
+                {pendingCount > 0 && <span className="text-warning font-medium">• {pendingCount} pending</span>}
+              </p>
+            </div>
           </div>
 
           {cellSelectionMode && (
@@ -600,48 +563,26 @@ const ExcelPreview = ({
               Select cells...
             </Badge>
           )}
+        </div>
 
-          {selectionInfo && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="destructive" size="sm" className="gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Hapus
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {selectionInfo.type === "cell" ? (
-                  <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
-                    Hapus isi {selectionInfo.count} cell
-                  </DropdownMenuItem>
-                ) : selectionInfo.type === "row" ? (
-                  <>
-                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
-                      Hapus isi {selectionInfo.count} baris
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDeleteSelection?.("delete")}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      Hapus {selectionInfo.count} baris secara permanen
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
-                      Hapus isi {selectionInfo.count} kolom
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDeleteSelection?.("delete")}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      Hapus {selectionInfo.count} kolom secara permanen
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <Separator className="bg-border/50" />
+
+        {/* Middle: Level 1 (Management & AI) */}
+        <div className="px-4 py-2 flex flex-wrap items-center gap-2">
+          {data.sheets.length > 1 && (
+            <Select value={data.currentSheet} onValueChange={onSheetChange}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <Sheet className="mr-2 h-3.5 w-3.5" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {data.sheets.map((sheet) => (
+                  <SelectItem key={sheet} value={sheet} className="text-xs">
+                    {sheet}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           {onRunAudit && (
@@ -649,9 +590,9 @@ const ExcelPreview = ({
               variant="outline"
               size="sm"
               onClick={onRunAudit}
-              className="gap-2 border-primary/20 hover:bg-primary/5 hover:border-primary text-primary"
+              className="h-8 gap-2 border-primary/20 hover:bg-primary/5 hover:border-primary text-primary text-xs"
             >
-              <Wand2 className="h-4 w-4" />
+              <Wand2 className="h-3.5 w-3.5" />
               Audit Data
             </Button>
           )}
@@ -661,61 +602,113 @@ const ExcelPreview = ({
               variant="outline"
               size="sm"
               onClick={onRunInsights}
-              className="gap-2 border-indigo-500/20 hover:bg-indigo-500/5 hover:border-indigo-500 text-indigo-500"
+              className="h-8 gap-2 border-indigo-500/20 hover:bg-indigo-500/5 hover:border-indigo-500 text-indigo-500 text-xs"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-3.5 w-3.5" />
               Wawasan
             </Button>
           )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="default" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
+              <Button variant="default" size="sm" className="h-8 gap-2 text-xs">
+                <Download className="h-3.5 w-3.5" />
                 Download
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleDownload("xlsx")}>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleDownload("xlsx")} className="text-xs">
                 Download as .xlsx
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload("csv")}>
+              <DropdownMenuItem onClick={() => handleDownload("csv")} className="text-xs">
                 Download as .csv
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+
+        <Separator className="bg-border" />
+
+        {/* Bottom: Level 2 (Grid Operations) */}
+        <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-2 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onAddRow}
+              className="h-8 gap-1 text-xs"
+            >
+              <Plus className="h-3 w-3" />
+              Tambah Baris
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onAddColumn}
+              className="h-8 gap-1 text-xs"
+            >
+              <Plus className="h-3 w-3" />
+              Tambah Kolom
+            </Button>
+
+            {selectionInfo && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="destructive" size="sm" className="h-8 gap-2 text-xs">
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Hapus
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {selectionInfo.type === "cell" ? (
+                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                      Hapus isi {selectionInfo.count} cell
+                    </DropdownMenuItem>
+                  ) : selectionInfo.type === "row" ? (
+                    <>
+                      <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                        Hapus isi {selectionInfo.count} baris
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteSelection?.("delete")}
+                        className="text-destructive focus:text-destructive text-xs"
+                      >
+                        Hapus {selectionInfo.count} baris secara permanen
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                        Hapus isi {selectionInfo.count} kolom
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteSelection?.("delete")}
+                        className="text-destructive focus:text-destructive text-xs"
+                      >
+                        Hapus {selectionInfo.count} kolom secara permanen
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={onAddRow}
-            className="gap-1"
-          >
-            <Plus className="h-3 w-3" />
-            Tambah Baris
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onAddColumn}
-            className="gap-1"
-          >
-            <Plus className="h-3 w-3" />
-            Tambah Kolom
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
             onClick={() => {
               if (window.confirm("Clear file and discard all changes?")) {
                 onClear();
               }
             }}
+            className="h-8 gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 hover:border-destructive text-xs font-medium"
             aria-label="Clear file and start over"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
+            Start Over
           </Button>
         </div>
       </div>
