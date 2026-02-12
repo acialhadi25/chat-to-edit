@@ -339,7 +339,7 @@ const DocsDashboard = () => {
   );
 
   return (
-    <div className="flex flex-1 flex-col h-full">
+    <div className="flex flex-1 flex-col h-full overflow-hidden">
       {docsData && (
         <UndoRedoBar
           canUndo={canUndo}

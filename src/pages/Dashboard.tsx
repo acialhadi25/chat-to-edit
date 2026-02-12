@@ -11,7 +11,7 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="flex min-h-svh w-full bg-background">
         <DashboardSidebar user={user} />
-        <SidebarInset className="flex flex-1 flex-col min-h-svh overflow-hidden min-w-0">
+        <SidebarInset className="flex flex-1 flex-col h-svh overflow-hidden min-w-0">
           {/* Mobile Header with Sidebar Trigger */}
           <div className="flex h-14 items-center gap-2 border-b border-border bg-background px-4 lg:hidden flex-shrink-0">
             <SidebarTrigger className="-ml-1" />
