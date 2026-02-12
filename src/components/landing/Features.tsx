@@ -6,9 +6,10 @@ import {
   Zap,
   FileSpreadsheet,
   MessageSquareText,
-  FileText,
-  FileType,
-  Merge,
+  Files,
+  Scissors,
+  ClipboardEdit,
+  BarChart3,
 } from "lucide-react";
 
 const Features = () => {
@@ -64,13 +65,13 @@ const Features = () => {
             </span>
           </h2>
           <p className="text-sm sm:text-lg text-muted-foreground">
-            Edit Excel, PDF, dan Dokumen lewat chat AI — cepat, mudah, dan powerful
+            Kelola data Excel Anda melalui chat AI — cepat, mudah, dan fokus pada produktivitas data
           </p>
         </motion.div>
 
         {/* Tool highlight cards */}
         <motion.div
-          className="mx-auto mb-12 sm:mb-20 grid max-w-5xl gap-4 sm:gap-6 lg:grid-cols-3"
+          className="mx-auto mb-12 sm:mb-20 grid max-w-6xl gap-4 sm:gap-6 lg:grid-cols-4"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -79,20 +80,26 @@ const Features = () => {
           <ToolHighlight
             icon={<FileSpreadsheet className="h-7 w-7" />}
             title="Chat to Excel"
-            features={["Formula generator via chat", "Data cleansing & transform", "Sort, filter, find/replace", "Inline cell editing", "Multi-sheet support"]}
+            features={["Formula generator via chat", "Data cleansing & transform", "Sort, filter, find/replace", "Conditional formatting", "AI Visualizations"]}
             index={0}
           />
           <ToolHighlight
-            icon={<FileText className="h-7 w-7" />}
-            title="Chat to PDF"
-            features={["Merge multiple PDFs", "Extract & split pages", "Rotate & reorder pages", "Add watermarks", "Extract text from PDF"]}
+            icon={<Files className="h-7 w-7" />}
+            title="Merge Excel"
+            features={["Gabungkan beberapa file", "Gabungkan antar sheet", "Pemetaan kolom otomatis", "Dukung format XLSX & CSV", "Tanpa batas ukuran file"]}
             index={1}
           />
           <ToolHighlight
-            icon={<FileType className="h-7 w-7" />}
-            title="Chat to Docs"
-            features={["AI writing assistant", "Rewrite & rephrase", "Translate documents", "Summarize content", "Export to DOCX/PDF/MD"]}
+            icon={<Scissors className="h-7 w-7" />}
+            title="Split Worksheet"
+            features={["Pecah berdasarkan kolom", "Pecah per jumlah baris", "Ekspor ke file terpisah", "Pertahankan format asli", "Otomasi penamaan file"]}
             index={2}
+          />
+          <ToolHighlight
+            icon={<ClipboardEdit className="h-7 w-7" />}
+            title="Data Entry Form"
+            features={["UI Form yang bersih", "Validasi data otomatis", "Input data panjang mudah", "Sinkronisasi real-time", "Custom input field"]}
+            index={3}
           />
         </motion.div>
 
@@ -167,18 +174,25 @@ const ToolHighlight = ({
       borderColor: "hover:border-green-500/50"
     },
     {
-      bgGradient: "from-red-500/10 to-red-500/5",
-      hoverBg: "from-red-500/20 to-red-500/10",
-      iconGradient: "from-red-500 to-red-600",
-      dotColor: "bg-red-500/60",
-      borderColor: "hover:border-red-500/50"
-    },
-    {
       bgGradient: "from-blue-500/10 to-blue-500/5",
       hoverBg: "from-blue-500/20 to-blue-500/10",
       iconGradient: "from-blue-500 to-blue-600",
       dotColor: "bg-blue-500/60",
       borderColor: "hover:border-blue-500/50"
+    },
+    {
+      bgGradient: "from-orange-500/10 to-orange-500/5",
+      hoverBg: "from-orange-500/20 to-orange-500/10",
+      iconGradient: "from-orange-500 to-orange-600",
+      dotColor: "bg-orange-500/60",
+      borderColor: "hover:border-orange-500/50"
+    },
+    {
+      bgGradient: "from-purple-500/10 to-purple-500/5",
+      hoverBg: "from-purple-500/20 to-purple-500/10",
+      iconGradient: "from-purple-500 to-purple-600",
+      dotColor: "bg-purple-500/60",
+      borderColor: "hover:border-purple-500/50"
     },
   ];
 

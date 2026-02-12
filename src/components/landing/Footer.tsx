@@ -14,7 +14,7 @@ const Footer = () => {
               <span className="text-xl font-semibold text-foreground">Chat to Edit</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              AI-powered document editing suite. Excel, PDF, dan Docs — semua lewat chat.
+              AI-powered Excel management suite. Chat, Merge, Split, dan Data Entry.
             </p>
           </div>
 
@@ -23,8 +23,9 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/products" className="text-sm text-muted-foreground hover:text-foreground">Semua Produk</Link></li>
               <li><Link to="/dashboard/excel" className="text-sm text-muted-foreground hover:text-foreground">Chat to Excel</Link></li>
-              <li><Link to="/dashboard/pdf" className="text-sm text-muted-foreground hover:text-foreground">Chat to PDF</Link></li>
-              <li><Link to="/dashboard/docs" className="text-sm text-muted-foreground hover:text-foreground">Chat to Docs</Link></li>
+              <li><Link to="/dashboard/merge" className="text-sm text-muted-foreground hover:text-foreground">Merge Excel</Link></li>
+              <li><Link to="/dashboard/split" className="text-sm text-muted-foreground hover:text-foreground">Split Worksheet</Link></li>
+              <li><Link to="/dashboard/data-entry" className="text-sm text-muted-foreground hover:text-foreground">Data Entry Form</Link></li>
             </ul>
           </div>
 

@@ -12,8 +12,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import ToolSelector from "./pages/ToolSelector";
 import ExcelDashboard from "./pages/ExcelDashboard";
-import PdfDashboard from "./pages/PdfDashboard";
-import DocsDashboard from "./pages/DocsDashboard";
+import MergeExcelDashboard from "./pages/MergeExcelDashboard";
+import SplitExcelDashboard from "./pages/SplitExcelDashboard";
+import DataEntryDashboard from "./pages/DataEntryDashboard";
 import FileHistory from "./pages/FileHistory";
 import Settings from "./pages/Settings";
 import Products from "./pages/Products";
@@ -52,8 +53,9 @@ const App = () => (
               >
                 <Route index element={<ToolSelector />} />
                 <Route path="excel" element={<ExcelDashboard />} />
-                <Route path="pdf" element={<PdfDashboard />} />
-                <Route path="docs" element={<DocsDashboard />} />
+                <Route path="merge" element={<MergeExcelDashboard />} />
+                <Route path="split" element={<SplitExcelDashboard />} />
+                <Route path="data-entry" element={<DataEntryDashboard />} />
                 <Route path="history" element={<FileHistory />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

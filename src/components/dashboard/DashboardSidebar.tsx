@@ -18,8 +18,9 @@ import { Progress } from "@/components/ui/progress";
 import { 
   Pencil,
   FileSpreadsheet, 
-  FileText,
-  FileType,
+  Files,
+  Scissors,
+  ClipboardEdit,
   History, 
   Settings, 
   LogOut,
@@ -112,18 +113,26 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/pdf")}>
-                  <Link to="/dashboard/pdf">
-                    <FileText className="h-4 w-4" />
-                    <span>Chat to PDF</span>
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/merge")}>
+                  <Link to="/dashboard/merge">
+                    <Files className="h-4 w-4" />
+                    <span>Merge Excel</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard/docs")}>
-                  <Link to="/dashboard/docs">
-                    <FileType className="h-4 w-4" />
-                    <span>Chat to Docs</span>
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/split")}>
+                  <Link to="/dashboard/split">
+                    <Scissors className="h-4 w-4" />
+                    <span>Split Worksheet</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/data-entry")}>
+                  <Link to="/dashboard/data-entry">
+                    <ClipboardEdit className="h-4 w-4" />
+                    <span>Data Entry Form</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

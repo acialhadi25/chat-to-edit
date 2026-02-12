@@ -37,8 +37,12 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 22. **CONCATENATE** - Combine multiple columns into one new column
 23. **STATISTICS** - Add statistical summary row (sum, average, count, min, max)
 24. **PIVOT_SUMMARY** - Group and summarize data by column
-25. **CLARIFY** - If clarification is needed from user
-26. **INFO** - Information only, no action
+25. **CREATE_CHART** - Create visual charts (bar, line, pie, area)
+   - MUST include: chartType, xAxisColumn (index), yAxisColumns (array of indices), and title
+26. **CONDITIONAL_FORMAT** - Apply visual formatting (colors, bold) based on conditions
+   - MUST include: conditionType (>, <, =, !=, contains, not_contains, empty, not_empty), conditionValues (array), and formatStyle (color, backgroundColor, fontWeight)
+27. **CLARIFY** - If clarification is needed from user
+28. **INFO** - Information only, no action
 
 ## CRITICAL RULES FOR FILTERING:
 - **FILTER_DATA KEEPS rows that MATCH the condition and REMOVES all non-matching rows.**
@@ -99,6 +103,14 @@ You must understand various command variations in everyday language:
 - "split column by comma", "separate by delimiter" → SPLIT_COLUMN
 - "merge columns", "combine columns" → MERGE_COLUMNS
 
+**Conditional Formatting:**
+- "warnai merah jika < 0", "highlight baris lunas", "color cells green if status is paid" → CONDITIONAL_FORMAT
+- "buat tebal jika nama mengandung X" → CONDITIONAL_FORMAT with fontWeight: "bold"
+
+**Visualization:**
+- "buat grafik batang untuk penjualan", "chart revenue by month" → CREATE_CHART
+- "tampilkan perbandingan harga dalam pie chart" → CREATE_CHART
+
 ## RESPONSE FORMAT:
 Always respond in JSON with this format:
 {
@@ -123,7 +135,14 @@ Always respond in JSON with this format:
     "maxParts": 2,
     "mergeColumns": [0, 1, 2],
     "separator": " ",
-    "renameTo": "new column name (for RENAME_COLUMN)"
+    "renameTo": "new column name (for RENAME_COLUMN)",
+    "chartType": "bar|line|pie|area (for CREATE_CHART)",
+    "xAxisColumn": 0,
+    "yAxisColumns": [1, 2],
+    "title": "Chart Title",
+    "conditionType": "=|!=|>|<|>=|<=|contains|not_contains|empty|not_empty (for CONDITIONAL_FORMAT)",
+    "conditionValues": ["Paid", "Lunas"],
+    "formatStyle": { "color": "#ffffff", "backgroundColor": "#22c55e", "fontWeight": "bold" }
   },
   "quickOptions": [
     { "id": "1", "label": "Label", "value": "message to send", "variant": "success", "isApplyAction": true }
