@@ -86,15 +86,35 @@ const ChatInterface = ({
     setStreamingContent("");
 
     const dataAnalysis = getDataAnalysis();
+    
+    // Build unique values per column (top 10) so AI knows what data exists
+    const uniqueValuesPerColumn: Record<string, string[]> = {};
+    if (excelData) {
+      excelData.headers.forEach((header, colIdx) => {
+        const uniqueVals = new Set<string>();
+        for (const row of excelData.rows) {
+          const val = row[colIdx];
+          if (val !== null && val !== undefined && String(val).trim() !== "") {
+            uniqueVals.add(String(val));
+            if (uniqueVals.size >= 10) break;
+          }
+        }
+        if (uniqueVals.size > 0 && uniqueVals.size <= 50) {
+          uniqueValuesPerColumn[header] = Array.from(uniqueVals);
+        }
+      });
+    }
+
     const context = excelData
       ? {
           fileName: excelData.fileName,
           headers: excelData.headers,
-          sampleRows: excelData.rows.slice(0, 5),
+          sampleRows: excelData.rows.slice(0, 10),
           totalRows: excelData.rows.length,
           existingFormulas: excelData.formulas,
           selectedCells: excelData.selectedCells,
           dataAnalysis,
+          uniqueValuesPerColumn,
         }
       : null;
 
