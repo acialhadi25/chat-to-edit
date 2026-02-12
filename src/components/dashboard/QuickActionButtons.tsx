@@ -4,102 +4,52 @@ import { Check, X, MousePointer } from "lucide-react";
 
 interface QuickActionButtonsProps {
   options: QuickOption[];
-  onSelect: (option: QuickOption) => void;
-  action?: AIAction;
-  onApply?: (action: AIAction) => void;
-  onReject?: () => void;
+  appliedActionIds?: string[];
+  onOptionClick: (text: string, action?: AIAction, actionId?: string) => void;
   disabled?: boolean;
 }
 
 const QuickActionButtons = ({
   options,
-  onSelect,
-  action,
-  onApply,
-  onReject,
+  appliedActionIds = [],
+  onOptionClick,
   disabled,
 }: QuickActionButtonsProps) => {
-  const getVariant = (variant: QuickOption["variant"]) => {
-    switch (variant) {
-      case "success":
-        return "default";
-      case "destructive":
-        return "destructive";
-      case "outline":
-        return "outline";
-      default:
-        return "secondary";
-    }
-  };
-
-   // Check if option should trigger apply action
-   const shouldApply = (option: QuickOption): boolean => {
-     // Use explicit flag if provided
-     if (option.isApplyAction !== undefined) {
-       return option.isApplyAction;
-     }
-     
-     // Fallback: check common patterns in multiple languages
-     const applyPatterns = [
-       "terapkan", "apply", "ganti", "hapus semua", "bersihkan",
-       "ya,", "yes,", "execute", "run", "confirm", "ok", "lakukan"
-     ];
-     const lowerValue = option.value.toLowerCase();
-     const lowerLabel = option.label.toLowerCase();
-     
-     return option.variant === "success" || applyPatterns.some(p => 
-       lowerValue.includes(p) || lowerLabel.includes(p)
-     );
-   };
-
-  const handleOptionClick = (option: QuickOption) => {
-     // If this is an apply type action
-     if (action && onApply && shouldApply(option)) {
-       // Confirm destructive actions before applying
-       if (option.variant === "destructive") {
-         if (!window.confirm(`This will apply: "${option.label}". Continue?`)) {
-           return;
-         }
-       }
-      onApply(action);
-    } else {
-      onSelect(option);
-    }
-  };
-
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {options.map((option) => (
-        <Button
-          key={option.id}
-          variant={getVariant(option.variant)}
-          size="sm"
-          onClick={() => handleOptionClick(option)}
-          disabled={disabled}
-          className="text-xs"
-        >
-           {(option.variant === "success" || option.isApplyAction) && <Check className="mr-1 h-3 w-3" />}
-          {option.label.toLowerCase().includes("pilih") && (
-            <MousePointer className="mr-1 h-3 w-3" />
-          )}
-          {option.label}
-        </Button>
-      ))}
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const isApplied = appliedActionIds.includes(option.id);
 
-      {action && action.type !== "CLARIFY" && action.type !== "INFO" && onReject && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onReject}
-          disabled={disabled}
-          className="text-xs text-muted-foreground"
-        >
-          <X className="mr-1 h-3 w-3" />
-          Batalkan
-        </Button>
-      )}
+        return (
+          <Button
+            key={option.id}
+            size="sm"
+            disabled={disabled || isApplied}
+            onClick={() => onOptionClick(option.value, option.action, option.id)}
+            className={`text-xs h-8 px-3 transition-all duration-300 border-none ${isApplied
+                ? "bg-green-600 hover:bg-green-600 text-white opacity-90 cursor-default"
+                : "bg-slate-900 hover:bg-slate-800 text-white"
+              }`}
+          >
+            {isApplied ? (
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+            ) : (
+              (option.variant === "success" || option.isApplyAction) && <Zap className="mr-1.5 h-3 w-3 fill-current" />
+            )}
+
+            {option.label.toLowerCase().includes("pilih") && !isApplied && (
+              <MousePointer className="mr-1.5 h-3 w-3" />
+            )}
+
+            {option.label}
+
+            {isApplied && <Check className="ml-1.5 h-3.5 w-3.5" />}
+          </Button>
+        );
+      })}
     </div>
   );
 };
 
+import { Zap } from "lucide-react";
 export default QuickActionButtons;

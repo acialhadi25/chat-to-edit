@@ -58,7 +58,25 @@
 - Files affected: `src/utils/formulas/`, `src/utils/excelOperations.ts`
 - Testing: Complex formula scenarios
 
-#### 1.4 Conditional Formatting Export (2-3 days)
+
+#### 1.5 Missing Prompt Features Implementation (New)
+**Goal:** Ensure all examples in the AI prompt suggestions are fully supported by the system.
+- **Files affected**: `src/pages/ExcelDashboard.tsx`, `src/utils/excelOperations.ts`
+- **Deliverables**:
+    - Implement `VLOOKUP` action handler (or ensure generic formula handler supports it robustly)
+    - Implement `DATA_VALIDATION` handler
+    - Enhance `CONDITIONAL_FORMAT` handler
+    - Add `applyDataValidation` function in utils
+    - Add `applyVLookup` helper (if needed)
+
+#### 1.6 UI Standardization & Cleanup (Current)
+**Why**: Ensure consistent user experience across all tools
+- Current: AI Generator has inconsistent styling and redundant menus
+- Solution: Standardize layout, remove unused menus
+- Deliverable: Consistent UI/UX
+- Files affected: `DashboardSidebar.tsx`, `DataEntryDashboard.tsx`
+
+#### 1.6 Conditional Formatting Export (2-3 days)
 **Why**: Conditional formatting currently doesn't export to Excel file
 - Current state: Styling shows in preview but not in downloaded file
 - Solution: Use xlsx-js-style to preserve formatting on export
@@ -66,12 +84,12 @@
 - Files affected: `src/utils/excelOperations.ts`, download handlers
 - Testing: Verify formatting in Excel desktop app
 
-#### 1.5 Macro Recording & Playback (4-5 days)
-**Why**: Power users want to automate repetitive tasks
-- Solution: Record user actions as reusable macros
-- Deliverable: Macro recorder UI + macro library + playback engine
-- Files affected: New `src/hooks/useMacroRecorder.ts`, `src/components/dashboard/MacroPanel.tsx`
-- Feature scope: Save, name, edit, delete, share macros
+#### 1.7 Advanced AI Analytics & Quality (New)
+**Why**: Universal need for one-click identification of data errors and automated business insights.
+- **Strategy**: Hybrid UX approach - toolbar triggers + contextual AI results.
+- **One-Click Audit**: Scan for outliers, inconsistent types, and missing values. 
+- **Automated Insights**: Generate plain-English narratives explaining trends and anomalies.
+- **Deliverable**: Audit/Insights toolbar buttons + `AuditReport` & `InsightSummary` UI components.
 
 **Phase 1 Outcomes**:
 - Advanced Excel features that compete with desktop Excel
@@ -79,6 +97,7 @@
 - Expanded formula support
 - Full formatting export
 - Automation via macros
+- **AI-powered data quality and business insights**
 
 ---
 

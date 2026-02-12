@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { useFileHistory } from "@/hooks/useFileHistory";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import ExcelUpload from "@/components/dashboard/ExcelUpload";
 import ExcelPreview from "@/components/dashboard/ExcelPreview";
-import ChatInterface from "@/components/dashboard/ChatInterface";
+import ChatInterface, { ChatInterfaceHandle } from "@/components/dashboard/ChatInterface";
 import UndoRedoBar from "@/components/dashboard/UndoRedoBar";
 import TemplateGallery from "@/components/dashboard/TemplateGallery";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,9 @@ import {
   padSpareSpace,
   removeFormulas,
   clearCells,
+  calculateDates,
+  applyDataValidation,
+  extractText,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
 
@@ -66,6 +69,7 @@ const ExcelDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [cellSelectionMode, setCellSelectionMode] = useState(false);
   const [appliedChanges, setAppliedChanges] = useState<DataChange[]>([]);
+  const chatRef = useRef<ChatInterfaceHandle>(null);
   const [fileHistoryId, setFileHistoryId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
@@ -270,6 +274,10 @@ const ExcelDashboard = () => {
     setMessages((prev) => [...prev, message]);
     saveChatMessage(message, fileHistoryId, message.action?.formula);
   }, [fileHistoryId, saveChatMessage]);
+
+  const handleUpdateMessageAction = useCallback((messageId: string, updatedAction: AIAction) => {
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, action: updatedAction } : m));
+  }, []);
 
   const handleCellSelect = useCallback((cellRefs: string[], isSelecting?: boolean) => {
     if (!excelData) return;
@@ -757,6 +765,69 @@ const ExcelDashboard = () => {
         description = `Generated ${changes.length} unique IDs`;
         break;
       }
+      case "DATE_CALCULATION": {
+        if (action.target?.type === "column" && action.dateOperation) {
+          const colIndex = getColumnIndex(action.target.ref);
+          const { data: dateData, newColumnName } = calculateDates(
+            newData,
+            colIndex,
+            action.dateOperation,
+            typeof action.filterValue === 'number' ? action.filterValue : undefined
+          );
+          newData = dateData;
+          description = `Calculated ${action.dateOperation} for column ${action.target.ref}`;
+        }
+        break;
+      }
+      case "DATA_VALIDATION": {
+        if (action.target && action.validationType) {
+          const refs: string[] = [];
+          if (action.target.type === "column") {
+            const colIndex = getColumnIndex(action.target.ref);
+            for (let r = 0; r < newData.rows.length; r++) {
+              refs.push(createCellRef(colIndex, r));
+            }
+          } else if (action.target.type === "range") {
+            const match = action.target.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+            if (match) {
+              const startCol = getColumnIndex(match[1]);
+              const startRow = parseInt(match[2], 10) - 2;
+              const endCol = getColumnIndex(match[3]);
+              const endRow = parseInt(match[4], 10) - 2;
+              for (let r = startRow; r <= endRow; r++) {
+                for (let c = startCol; c <= endCol; c++) {
+                  refs.push(createCellRef(c, r));
+                }
+              }
+            }
+          } else {
+            refs.push(action.target.ref);
+          }
+
+          const { data: validatedData } = applyDataValidation(newData, refs, {
+            type: action.validationType,
+            values: action.validationOptions,
+            criteria: action.validationCriteria
+          });
+          newData = validatedData;
+          description = `Applied ${action.validationType} validation to ${refs.length} cells`;
+        }
+        break;
+      }
+      case "TEXT_EXTRACTION": {
+        if (action.target?.type === "column" && action.extractionPattern) {
+          const colIndex = getColumnIndex(action.target.ref);
+          const { data: extractedData, newColumnName } = extractText(
+            newData,
+            colIndex,
+            action.extractionPattern,
+            action.extractionType || "regex"
+          );
+          newData = extractedData;
+          description = `Extracted text from column ${action.target.ref} into ${newColumnName}`;
+        }
+        break;
+      }
       case "CONCATENATE": {
         if (action.concatenateColumns && action.concatenateColumns.length > 0) {
           const { data: concatenatedData } = concatenateColumns(
@@ -843,10 +914,17 @@ const ExcelDashboard = () => {
         }
         break;
       }
+      case "DATA_AUDIT":
+      case "INSIGHTS":
+      case "INFO":
+      case "CLARIFY":
+        break;
       default:
-        return;
+        // Generic fallback for any other types
+        break;
     }
 
+    // Common cleanup for all handled actions
     newData.pendingChanges = [];
     newData.selectedCells = [];
     const allChanges: DataChange[] = [...(action.changes || []), ...generatedChanges];
@@ -856,6 +934,61 @@ const ExcelDashboard = () => {
     setTimeout(() => setAppliedChanges([]), 3000);
     toast({ title: "Applied!", description });
   }, [excelData, pushState, toast]);
+
+  const handleRunAudit = useCallback(() => {
+    if (chatRef.current) {
+      const technicalPrompt = `Lakukan audit kualitas data pada sheet ini. 
+Cari outlier, inkonsistensi tipe, dan data yang hilang. 
+Gunakan format JSON wajib berikut:
+{
+  "content": "Ringkasan temuan audit dalam bahasa Indonesia.",
+  "action": {
+    "type": "DATA_AUDIT",
+    "auditReport": {
+      "totalErrors": number,
+      "outliers": [{ "cellRef": "A2", "value": "val", "reason": "outlier" }],
+      "typeInconsistencies": [{ "cellRef": "B3", "expected": "number", "found": "string" }],
+      "missingValues": [{ "cellRef": "C4", "column": "Nama" }],
+      "suggestions": [
+        { "id": "fix1", "description": "Hapus baris kosong", "action": { "type": "REMOVE_EMPTY_ROWS" } }
+      ]
+    }
+  },
+  "quickOptions": [
+    {
+      "id": "fix_all",
+      "label": "Terapkan Perbaikan",
+      "value": "Terapkan semua saran perbaikan",
+      "variant": "success",
+      "isApplyAction": true,
+      "action": { "type": "REMOVE_EMPTY_ROWS" }
+    }
+  ]
+} `;
+      chatRef.current.sendMessage(technicalPrompt, "🔍 Melakukan Audit Kualitas Data...");
+    }
+  }, []);
+
+  const handleRunInsights = useCallback(() => {
+    if (chatRef.current) {
+      const technicalPrompt = `Berikan wawasan bisnis dan analitik dari data ini. 
+Analisis tren, soroti poin penting, dan temukan anomali. 
+Gunakan format JSON wajib berikut:
+{
+  "content": "Deskripsi umum wawasan dalam bahasa Indonesia.",
+  "action": {
+    "type": "INSIGHTS",
+    "insights": {
+      "summary": "Ringkasan eksekutif",
+      "highlights": [{ "text": "Poin penting", "type": "positive|negative|neutral" }],
+      "trends": [{ "topic": "Penjualan", "direction": "up|down|stable", "description": "deskripsi" }],
+      "anomalies": [{ "description": "anomali", "cellRefs": ["A1:B10"] }]
+    }
+  }
+}`;
+      chatRef.current.sendMessage(technicalPrompt, "📊 Menganalisis Wawasan Business...");
+    }
+  }, []);
 
   const handleSetPendingChanges = useCallback((changes: DataChange[]) => {
     if (!excelData) return;
@@ -911,6 +1044,8 @@ const ExcelDashboard = () => {
               onAddRow={handleAddRow}
               onAddColumn={handleAddColumn}
               onDeleteSelection={handleDeleteSelection}
+              onRunAudit={handleRunAudit}
+              onRunInsights={handleRunInsights}
             />
           )}
         </div>
@@ -956,6 +1091,7 @@ const ExcelDashboard = () => {
           </div>
           {excelData && (
             <ChatInterface
+              ref={chatRef}
               excelData={excelData}
               messages={messages}
               onNewMessage={handleNewMessage}
@@ -965,6 +1101,7 @@ const ExcelDashboard = () => {
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
               getDataAnalysis={getDataAnalysis}
+              onUpdateAction={handleUpdateMessageAction}
             />
           )}
         </div>
@@ -972,6 +1109,7 @@ const ExcelDashboard = () => {
         {/* Chat Panel - Desktop Sidebar (Fixed) */}
         <div className="hidden lg:flex w-[320px] xl:w-[360px] flex-col flex-shrink-0 overflow-hidden">
           <ChatInterface
+            ref={chatRef}
             excelData={excelData}
             messages={messages}
             onNewMessage={handleNewMessage}
@@ -981,6 +1119,7 @@ const ExcelDashboard = () => {
             isProcessing={isProcessing}
             setIsProcessing={setIsProcessing}
             getDataAnalysis={getDataAnalysis}
+            onUpdateAction={handleUpdateMessageAction}
           />
         </div>
       </div>

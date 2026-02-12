@@ -15,19 +15,20 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
+import {
   Pencil,
-  FileSpreadsheet, 
+  FileSpreadsheet,
   Files,
   Scissors,
   ClipboardEdit,
-  History, 
-  Settings, 
+  History,
+  Settings,
   LogOut,
   Crown,
   Sun,
   Moon,
   LayoutGrid,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -78,9 +79,9 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
               </div>
               <Progress value={usagePercent} className="h-2" />
               {usedFiles >= maxFiles && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="mt-3 w-full gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 >
                   <Crown className="h-4 w-4" />
@@ -96,14 +97,7 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/dashboard")}>
-                  <Link to="/dashboard">
-                    <LayoutGrid className="h-4 w-4" />
-                    <span>All Tools</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/excel")}>
                   <Link to="/dashboard/excel">
@@ -131,8 +125,8 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/data-entry")}>
                   <Link to="/dashboard/data-entry">
-                    <ClipboardEdit className="h-4 w-4" />
-                    <span>Data Entry Form</span>
+                    <Sparkles className="h-4 w-4" />
+                    <span>AI Excel Generator</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -145,14 +139,7 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/dashboard/history">
-                    <History className="h-4 w-4" />
-                    <span>File History</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link to="/dashboard/settings">

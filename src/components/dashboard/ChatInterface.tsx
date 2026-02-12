@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +31,8 @@ import ActionPreview from "./ActionPreview";
 import ChartPreview from "./ChartPreview";
 import DataSummaryPreview from "./DataSummaryPreview";
 import ConditionalFormatPreview from "./ConditionalFormatPreview";
+import AuditReport from "./AuditReport";
+import InsightSummary from "./InsightSummary";
 import MarkdownContent from "./MarkdownContent";
 import ExcelPromptExamples from "./ExcelPromptExamples";
 
@@ -43,16 +45,21 @@ interface ChatInterfaceProps {
   onRequestCellSelection: () => void;
   isProcessing: boolean;
   setIsProcessing: (value: boolean) => void;
-  getDataAnalysis: () => { 
-    emptyRows: number[]; 
+  getDataAnalysis: () => {
+    emptyRows: number[];
     cellsWithExtraSpaces: { cellRef: string; value: string }[];
     duplicateRows: number[][];
     totalCells: number;
     emptyCells: number;
   } | null;
+  onUpdateAction: (messageId: string, updatedAction: AIAction) => void;
 }
 
-const ChatInterface = ({
+export interface ChatInterfaceHandle {
+  sendMessage: (text: string, displayText?: string) => void;
+}
+
+const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   excelData,
   messages,
   onNewMessage,
@@ -62,7 +69,8 @@ const ChatInterface = ({
   isProcessing,
   setIsProcessing,
   getDataAnalysis,
-}: ChatInterfaceProps) => {
+  onUpdateAction,
+}, ref) => {
   const [input, setInput] = useState("");
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -77,9 +85,7 @@ const ChatInterface = ({
     if (!excelData) return;
     const isSelecting = !!excelData.isSelecting;
     const sel = excelData.selectedCells;
-    
-    // Only update chat input when selection is finished (isSelecting goes true -> false)
-    // or if selectedCells changed while not selecting (e.g. keyboard navigation)
+
     const selectionFinished = wasSelectingRef.current && !isSelecting;
     const selectionChangedWhileIdle = !isSelecting && JSON.stringify(sel) !== JSON.stringify(lastSelectedCellsRef.current);
 
@@ -95,7 +101,7 @@ const ChatInterface = ({
         const maxCol = Math.max(...indices.map(i => i.col));
         const minRow = Math.min(...indices.map(i => i.row));
         const maxRow = Math.max(...indices.map(i => i.row));
-        
+
         const getLetter = (col: number) => {
           let letter = "";
           let n = col;
@@ -124,14 +130,15 @@ const ChatInterface = ({
     }
   }, [messages, streamingContent]);
 
-  const sendMessage = useCallback(async (messageText?: string) => {
+  const sendMessage = useCallback(async (messageText?: string, displayText?: string) => {
     const text = messageText || input.trim();
+    const visibleText = displayText || text;
     if (!text || isProcessing) return;
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: text,
+      content: visibleText,
       timestamp: new Date(),
     };
 
@@ -142,8 +149,6 @@ const ChatInterface = ({
     setStreamingContent("");
 
     const dataAnalysis = getDataAnalysis();
-    
-    // Build unique values per column (top 10) so AI knows what data exists
     const uniqueValuesPerColumn: Record<string, string[]> = {};
     if (excelData) {
       excelData.headers.forEach((header, colIdx) => {
@@ -163,15 +168,15 @@ const ChatInterface = ({
 
     const context = excelData
       ? {
-          fileName: excelData.fileName,
-          headers: excelData.headers,
-          sampleRows: excelData.rows.slice(0, 10),
-          totalRows: excelData.rows.length,
-          existingFormulas: excelData.formulas,
-          selectedCells: excelData.selectedCells,
-          dataAnalysis,
-          uniqueValuesPerColumn,
-        }
+        fileName: excelData.fileName,
+        headers: excelData.headers,
+        sampleRows: excelData.rows.slice(0, 10),
+        totalRows: excelData.rows.length,
+        existingFormulas: excelData.formulas,
+        selectedCells: excelData.selectedCells,
+        dataAnalysis,
+        uniqueValuesPerColumn,
+      }
       : null;
 
     const allMessages = [
@@ -182,14 +187,10 @@ const ChatInterface = ({
     await streamChat({
       messages: allMessages,
       excelContext: context,
-      onDelta: (chunk) => {
-        setStreamingContent((prev) => prev + chunk);
-      },
+      onDelta: (chunk) => setStreamingContent((prev) => prev + chunk),
       onDone: (fullText) => {
         setIsStreaming(false);
         setStreamingContent("");
-
-        // Use robust JSON parser with fallback strategies
         const parseResult = parseAIResponse(fullText, fullText);
         logParseResult(parseResult, "Excel Chat");
 
@@ -198,42 +199,40 @@ const ChatInterface = ({
           role: "assistant",
           content: parseResult.data?.content || fullText,
           action: parseResult.data?.action ? { ...parseResult.data.action, status: "pending" as const } as AIAction : undefined,
-          quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({ id: opt.id || crypto.randomUUID(), label: opt.label, value: opt.value, variant: opt.variant || "default" })) as QuickOption[] | undefined,
+          quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({
+            id: opt.id || crypto.randomUUID(),
+            label: opt.label,
+            value: opt.value,
+            variant: opt.variant || "default",
+            action: opt.action,
+            isApplyAction: opt.isApplyAction
+          })) as QuickOption[] | undefined,
           timestamp: new Date(),
         };
 
         onNewMessage(assistantMessage);
-
         if (parseResult.data?.action?.changes && parseResult.data.action.changes.length > 0) {
           onSetPendingChanges(parseResult.data.action.changes);
         }
-
         setIsProcessing(false);
       },
       onError: async (error, status) => {
         setIsStreaming(false);
         setStreamingContent("");
         setIsProcessing(false);
-
-        // Import error mapper for better error handling
         const { mapAIError, formatErrorForToast } = await import("@/utils/errorMessages");
         const errorResponse = mapAIError(status, error, "Excel Chat");
-
-        // Show error toast
-        toast({
-          ...formatErrorForToast(errorResponse),
-        });
-
-        // Log detailed error info for debugging
-        console.error("Excel Chat Error Details:", {
-          errorResponse,
-          originalError: error,
-          status,
-          timestamp: new Date().toISOString(),
-        });
+        toast({ ...formatErrorForToast(errorResponse) });
       },
     });
   }, [input, isProcessing, excelData, messages, onNewMessage, onSetPendingChanges, setIsProcessing, getDataAnalysis, toast]);
+
+  // Expose sendMessage to parent
+  useImperativeHandle(ref, () => ({
+    sendMessage: (text: string, displayText?: string) => {
+      sendMessage(text, displayText);
+    }
+  }));
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -251,26 +250,17 @@ const ChatInterface = ({
   };
 
   const handleRejectAction = () => {
-    if (excelData) {
-      onSetPendingChanges([]);
-    }
-    toast({
-      title: "Rejected",
-      description: "Changes were not applied",
-    });
+    if (excelData) onSetPendingChanges([]);
+    toast({ title: "Rejected", description: "Changes were not applied" });
   };
 
   const copyFormula = (formula: string) => {
     navigator.clipboard.writeText(formula);
-    toast({
-      title: "Formula copied!",
-      description: "Formula has been copied to clipboard",
-    });
+    toast({ title: "Formula copied!", description: "Formula has been copied to clipboard" });
   };
 
   return (
     <div className="flex h-full flex-col border-l border-border bg-card">
-      {/* Header */}
       <div className="border-b border-border px-4 py-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -285,7 +275,6 @@ const ChatInterface = ({
         </div>
       </div>
 
-      {/* Selection Toggle */}
       <div className="px-4 py-2 border-b border-border bg-muted/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MousePointer2 className="h-4 w-4 text-primary" />
@@ -293,24 +282,23 @@ const ChatInterface = ({
             Auto-input selection
           </Label>
         </div>
-        <Switch 
-          id="auto-selection" 
-          checked={autoInputSelection} 
+        <Switch
+          id="auto-selection"
+          checked={autoInputSelection}
           onCheckedChange={setAutoInputSelection}
         />
       </div>
 
-      {/* Messages */}
       <ScrollArea className="flex-1 min-h-0 px-4">
         <div className="space-y-4 py-4">
           {messages.length === 0 && !isStreaming && (
-            <ExcelPromptExamples 
+            <ExcelPromptExamples
               onSelectPrompt={(prompt) => setInput(prompt)}
               fileName={excelData?.fileName}
             />
           )}
 
-          {messages.map((message) => (
+          {messages.map((message, idx) => (
             <div
               key={message.id}
               className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}
@@ -322,11 +310,10 @@ const ChatInterface = ({
               )}
 
               <div
-                className={`max-w-[85%] rounded-xl px-4 py-3 ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-accent text-accent-foreground"
-                }`}
+                className={`max-w-[85%] rounded-xl px-4 py-3 ${message.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-accent text-accent-foreground"
+                  }`}
               >
                 {message.role === "assistant" ? (
                   <MarkdownContent content={message.content} />
@@ -334,29 +321,18 @@ const ChatInterface = ({
                   <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                 )}
 
-                {/* Show formula if present */}
                 {message.action?.formula && (
                   <div className="mt-3 rounded-lg border border-border bg-background p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Formula:
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => copyFormula(message.action!.formula!)}
-                      >
+                      <span className="text-xs font-medium text-muted-foreground">Formula:</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyFormula(message.action!.formula!)}>
                         <Copy className="h-3 w-3" />
                       </Button>
                     </div>
-                    <code className="block font-mono text-sm text-primary">
-                      {message.action.formula}
-                    </code>
+                    <code className="block font-mono text-sm text-primary">{message.action.formula}</code>
                   </div>
                 )}
 
-                {/* Show action preview if pending */}
                 {message.action && message.action.status === "pending" && message.action.changes && (
                   <ActionPreview
                     changes={message.action.changes.slice(0, 5)}
@@ -364,59 +340,92 @@ const ChatInterface = ({
                   />
                 )}
 
-                {/* Show chart preview if present */}
                 {message.action?.type === "CREATE_CHART" && excelData && (
-                  <ChartPreview data={excelData} action={message.action} />
+                  <ChartPreview
+                    data={excelData}
+                    action={message.action}
+                    onUpdate={(updatedAction) => onUpdateAction(message.id, updatedAction)}
+                  />
                 )}
 
-                {/* Show data summary preview for statistics or pivot */}
                 {(message.action?.type === "STATISTICS" || message.action?.type === "PIVOT_SUMMARY") && excelData && (
                   <DataSummaryPreview data={excelData} action={message.action} />
                 )}
 
-                {/* Show conditional formatting preview */}
                 {message.action?.type === "CONDITIONAL_FORMAT" && (
                   <ConditionalFormatPreview action={message.action} />
                 )}
 
-                {/* Quick action buttons */}
-                {message.quickOptions && message.quickOptions.length > 0 && (
-                  <QuickActionButtons
-                    options={message.quickOptions}
-                    onSelect={handleQuickOption}
-                    action={message.action}
-                    onApply={handleApplyAction}
-                    onReject={handleRejectAction}
-                    disabled={isProcessing}
-                  />
-                )}
-
-                {/* Apply/Reject buttons for actions without quick options */}
-                {message.action && 
-                  message.action.status === "pending" && 
-                  message.action.type !== "CLARIFY" &&
-                  message.action.type !== "INFO" &&
-                  (!message.quickOptions || message.quickOptions.length === 0) && (
-                  <div className="mt-3 flex gap-2">
-                     <Button
-                       size="sm"
-                       onClick={() => handleApplyAction(message.action!)}
-                       className="gap-1"
-                     >
-                       <Check className="h-3 w-3" />
-                       Apply
-                     </Button>
-                     <Button
-                       size="sm"
-                       variant="outline"
-                       onClick={handleRejectAction}
-                       className="gap-1"
-                     >
-                       <X className="h-3 w-3" />
-                       Reject
-                     </Button>
+                {/* Specialized Audit/Insight Previews */}
+                {(message.action?.type === "DATA_AUDIT" && message.action.auditReport) && (
+                  <div className="mt-4">
+                    <AuditReport
+                      report={message.action.auditReport}
+                      appliedActionIds={message.action.appliedActionIds || []}
+                      onApplySuggestion={(action, actionId) => {
+                        onApplyAction(action);
+                        const currentIds = message.action?.appliedActionIds || [];
+                        if (actionId && !currentIds.includes(actionId)) {
+                          onUpdateAction(message.id, {
+                            ...message.action!,
+                            appliedActionIds: [...currentIds, actionId]
+                          });
+                        }
+                      }}
+                    />
                   </div>
                 )}
+
+                {(message.action?.type === "INSIGHTS" && message.action.insights) && (
+                  <div className="mt-4">
+                    <InsightSummary
+                      insights={message.action.insights}
+                      onCellFocus={(cellRefs) => onRequestCellSelection()}
+                    />
+                  </div>
+                )}
+
+                {/* Quick action buttons for the LAST message only */}
+                {idx === messages.length - 1 && message.quickOptions && message.quickOptions.length > 0 && (
+                  <div className="mt-4">
+                    <QuickActionButtons
+                      options={message.quickOptions}
+                      appliedActionIds={message.action?.appliedActionIds || []}
+                      onOptionClick={(text, action, actionId) => {
+                        if (action) {
+                          onApplyAction(action);
+                          if (actionId) {
+                            const currentIds = message.action?.appliedActionIds || [];
+                            if (!currentIds.includes(actionId)) {
+                              onUpdateAction(message.id, {
+                                ...message.action!,
+                                appliedActionIds: [...currentIds, actionId]
+                              });
+                            }
+                          }
+                        } else {
+                          sendMessage(text);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {message.action &&
+                  message.action.status === "pending" &&
+                  message.action.type !== "CLARIFY" &&
+                  message.action.type !== "INFO" &&
+                  message.action.type !== "DATA_AUDIT" &&
+                  (!message.quickOptions || message.quickOptions.length === 0) && (
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" onClick={() => handleApplyAction(message.action!)} className="gap-1">
+                        <Check className="h-3 w-3" /> Apply
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleRejectAction} className="gap-1">
+                        <X className="h-3 w-3" /> Reject
+                      </Button>
+                    </div>
+                  )}
               </div>
 
               {message.role === "user" && (
@@ -427,7 +436,6 @@ const ChatInterface = ({
             </div>
           ))}
 
-          {/* Streaming indicator */}
           {isStreaming && (
             <div className="flex gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
@@ -448,20 +456,14 @@ const ChatInterface = ({
               </div>
             </div>
           )}
-
           <div ref={scrollRef} />
         </div>
       </ScrollArea>
 
-      {/* Input */}
       <div className="border-t border-border p-3 flex-shrink-0">
         <div className="flex gap-2">
           <Textarea
-            placeholder={
-              excelData
-                ? "Type a command... (e.g., 'remove empty rows')"
-                : "Upload an Excel file first to start"
-            }
+            placeholder={excelData ? "Type a command..." : "Upload an Excel file first"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -469,24 +471,15 @@ const ChatInterface = ({
             className="max-h-[120px] min-h-[44px] resize-none"
             rows={1}
           />
-          <Button
-            size="icon"
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || !excelData || isProcessing}
-          >
-            {isProcessing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+          <Button size="icon" onClick={() => sendMessage()} disabled={!input.trim() || !excelData || isProcessing}>
+            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Enter to send • Shift+Enter new line • Ctrl+Z undo
-        </p>
       </div>
     </div>
   );
-};
+});
+
+ChatInterface.displayName = "ChatInterface";
 
 export default ChatInterface;

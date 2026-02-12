@@ -60,6 +60,11 @@ import {
   evaluateCountA,
   evaluateUnique,
   evaluateVlookup,
+  evaluateIndex,
+  evaluateMatch,
+  evaluateSumIfs,
+  evaluateCountIfs,
+  evaluateAverageIfs,
 } from "./lookupFormulas";
 
 /**
@@ -71,16 +76,16 @@ export function evaluateFormula(
   data: ExcelData
 ): string | number | null {
   if (!formula.startsWith("=")) return formula;
-  
+
   const expr = formula.slice(1); // Remove "="
-  
+
   try {
     // Handle Excel functions (case-insensitive)
     const funcMatch = expr.match(/^([A-Z_]+)\((.+)\)$/i);
     if (funcMatch) {
       const funcName = funcMatch[1].toUpperCase();
       const args = funcMatch[2];
-      
+
       switch (funcName) {
         // Math functions
         case "SUM": return evaluateSum(args, data);
@@ -99,7 +104,7 @@ export function evaluateFormula(
         case "INT": return evaluateInt(args, data);
         case "FLOOR": return evaluateFloor(args, data);
         case "CEILING": return evaluateCeiling(args, data);
-        
+
         // Text functions
         case "CONCAT": return evaluateConcat(args, data);
         case "CONCATENATE": return evaluateConcatenate(args, data);
@@ -114,7 +119,7 @@ export function evaluateFormula(
         case "SUBSTITUTE": return evaluateSubstitute(args, data);
         case "REPLACE": return evaluateReplace(args, data);
         case "TEXT": return evaluateText(args, data);
-        
+
         // Logical functions
         case "IF": return evaluateIf(args, data);
         case "AND": return evaluateAnd(args, data) ? 1 : 0;
@@ -124,7 +129,7 @@ export function evaluateFormula(
         case "ISBLANK": return evaluateIsBlank(args, data) ? 1 : 0;
         case "ISNUMBER": return evaluateIsNumber(args, data) ? 1 : 0;
         case "ISTEXT": return evaluateIsText(args, data) ? 1 : 0;
-        
+
         // Date functions
         case "TODAY": return evaluateToday();
         case "NOW": return evaluateNow();
@@ -142,9 +147,14 @@ export function evaluateFormula(
         case "COUNTA": return evaluateCountA(args, data);
         case "UNIQUE": return evaluateUnique(args, data);
         case "VLOOKUP": return evaluateVlookup(args, data);
+        case "INDEX": return evaluateIndex(args, data, evaluateFormula);
+        case "MATCH": return evaluateMatch(args, data, evaluateFormula);
+        case "SUMIFS": return evaluateSumIfs(args, data);
+        case "COUNTIFS": return evaluateCountIfs(args, data);
+        case "AVERAGEIFS": return evaluateAverageIfs(args, data);
       }
     }
-    
+
     // Handle basic arithmetic with cell references
     // Replace cell references with their values
     let exprUpper = expr.toUpperCase();
@@ -152,20 +162,20 @@ export function evaluateFormula(
       const value = getCellValueFromRef(ref, data);
       return value !== null ? String(value) : "0";
     });
-    
+
     // Safety check: only allow numbers and basic operators
     if (!/^[\d+\-*/().\s]+$/.test(exprUpper)) {
       return null;
     }
-    
+
     // Evaluate using safe recursive descent parser (no eval/new Function)
     const result = safeEvaluateMath(exprUpper);
-    
+
     if (result !== null) {
       // Round to 2 decimal places for display
       return Math.round(result * 100) / 100;
     }
-    
+
     return null;
   } catch {
     return null; // Failed to evaluate

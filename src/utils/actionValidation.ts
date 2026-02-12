@@ -3,9 +3,6 @@
  * Ensures that AI responses contain valid action objects before applying them
  */
 
-import { PDFActionType } from "@/types/pdf";
-import type { AIAction as PDFAction } from "@/types/pdf";
-
 /**
  * Validation result
  */
@@ -13,120 +10,6 @@ export interface ValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
-}
-
-/**
- * Validate PDF action object
- */
-export function validatePDFAction(action: unknown): ValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  if (!action || typeof action !== "object") {
-    errors.push("Action must be an object");
-    return { isValid: false, errors, warnings };
-  }
-
-  const a = action as Record<string, unknown>;
-
-  // Check type field
-  if (!a.type || typeof a.type !== "string") {
-    errors.push("Action must have a 'type' field");
-  } else {
-    const validTypes: PDFActionType[] = [
-      "EXTRACT_PAGES",
-      "MERGE_FILES",
-      "SPLIT_PDF",
-      "DELETE_PAGES",
-      "ROTATE_PAGES",
-      "ADD_WATERMARK",
-      "PDF_INFO",
-      "CONVERT_TO_IMAGE",
-      "CLARIFY",
-      "INFO",
-    ];
-
-    if (!validTypes.includes(a.type as PDFActionType)) {
-      errors.push(`Invalid action type: ${a.type}`);
-    }
-  }
-
-  // Validate type-specific required fields
-  const type = a.type as PDFActionType;
-
-  switch (type) {
-    case "EXTRACT_PAGES":
-    case "DELETE_PAGES":
-    case "ROTATE_PAGES":
-      if (!Array.isArray(a.pages) || a.pages.length === 0) {
-        errors.push(`${type} requires 'pages' array with at least one page`);
-      }
-      break;
-
-    case "ROTATE_PAGES":
-      if (a.rotation && ![0, 90, 180, 270].includes(a.rotation as number)) {
-        errors.push("Rotation must be 0, 90, 180, or 270 degrees");
-      }
-      break;
-
-    case "ADD_WATERMARK":
-      if (!a.watermarkText || typeof a.watermarkText !== "string") {
-        errors.push("ADD_WATERMARK requires 'watermarkText' field");
-      }
-      break;
-
-    case "MERGE_FILES":
-      if (
-        (!Array.isArray(a.fileRefs) || a.fileRefs.length === 0) &&
-        (!Array.isArray(a.pageRanges) || a.pageRanges.length === 0)
-      ) {
-        errors.push(
-          "MERGE_FILES requires either 'fileRefs' or 'pageRanges' array"
-        );
-      }
-      break;
-
-    case "CONVERT_TO_IMAGE":
-      if (a.outputFormat && !["png", "jpg"].includes(a.outputFormat as string)) {
-        warnings.push(
-          `Unknown output format: ${a.outputFormat}, defaulting to PNG`
-        );
-      }
-      break;
-
-    case "PIVOT_SUMMARY":
-      if (a.groupByColumn === undefined || a.aggregateColumn === undefined) {
-        errors.push("PIVOT_SUMMARY requires 'groupByColumn' and 'aggregateColumn' fields");
-      }
-      break;
-
-    case "CONDITIONAL_FORMAT":
-      if (!a.target || !a.conditionType || !a.formatStyle) {
-        errors.push("CONDITIONAL_FORMAT requires 'target', 'conditionType', and 'formatStyle' fields");
-      }
-      break;
-
-    case "CREATE_CHART":
-      if (!a.chartType || a.xAxisColumn === undefined || !Array.isArray(a.yAxisColumns)) {
-        errors.push("CREATE_CHART requires 'chartType', 'xAxisColumn', and 'yAxisColumns' fields");
-      }
-      break;
-
-    case "CLARIFY":
-    case "INFO":
-      // No extra fields required
-      break;
-
-    default:
-      // Other actions might not have specific validation yet
-      break;
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-  };
 }
 
 /**
@@ -169,11 +52,16 @@ export function validateExcelAction(action: unknown): ValidationResult {
       "EXTRACT_NUMBER",
       "FORMAT_NUMBER",
       "GENERATE_ID",
+      "DATE_CALCULATION",
       "CONCATENATE",
       "STATISTICS",
       "PIVOT_SUMMARY",
+      "DATA_VALIDATION",
+      "TEXT_EXTRACTION",
       "CREATE_CHART",
       "CONDITIONAL_FORMAT",
+      "DATA_AUDIT",
+      "INSIGHTS",
       "CLARIFY",
       "INFO",
     ];
@@ -228,95 +116,39 @@ export function validateExcelAction(action: unknown): ValidationResult {
       }
       break;
 
-    default:
-      // Other actions don't require specific fields
-      break;
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-  };
-}
-
-/**
- * Validate Docs action object
- */
-export function validateDocsAction(action: unknown): ValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  if (!action || typeof action !== "object") {
-    errors.push("Action must be an object");
-    return { isValid: false, errors, warnings };
-  }
-
-  const a = action as Record<string, unknown>;
-
-  // Check type field
-  if (!a.type || typeof a.type !== "string") {
-    errors.push("Action must have a 'type' field");
-  } else {
-    const validTypes = [
-      "WRITE",
-      "REWRITE",
-      "GRAMMAR_CHECK",
-      "SUMMARIZE",
-      "TRANSLATE",
-      "FORMAT",
-      "EXPAND",
-      "TONE_ADJUST",
-      "TEMPLATE",
-      "ANALYZE",
-      "SECTION_MOVE",
-      "SECTION_DELETE",
-      "CLARIFY",
-      "INFO",
-    ];
-
-    if (!validTypes.includes(a.type as string)) {
-      errors.push(`Invalid action type: ${a.type}`);
-    }
-  }
-
-  // Validate type-specific required fields
-  const type = a.type as string;
-
-  switch (type) {
-    case "WRITE":
-    case "REWRITE":
-      if (!a.fullDocument || typeof a.fullDocument !== "string") {
-        errors.push(`${type} requires 'fullDocument' field with content`);
+    case "DATA_VALIDATION":
+      if (!a.validationType || (a.validationType === "list" && !Array.isArray(a.validationOptions))) {
+        errors.push("DATA_VALIDATION requires 'validationType' and 'validationOptions' for list type");
       }
       break;
 
-    case "TRANSLATE":
-      if (!a.language || typeof a.language !== "string") {
-        errors.push("TRANSLATE requires 'language' field");
+    case "TEXT_EXTRACTION":
+      if (!a.extractionPattern) {
+        errors.push("TEXT_EXTRACTION requires 'extractionPattern' field");
       }
       break;
 
-    case "TONE_ADJUST":
-      if (
-        !a.tone ||
-        !["formal", "casual", "professional", "creative"].includes(a.tone as string)
-      ) {
-        errors.push(
-          "TONE_ADJUST requires 'tone' (formal, casual, professional, or creative)"
-        );
+    case "DATE_CALCULATION":
+      if (!a.dateOperation) {
+        errors.push("DATE_CALCULATION requires 'dateOperation' field");
       }
       break;
 
-    case "FORMAT":
-      if (!a.format || !["list", "table", "heading", "paragraph"].includes(a.format as string)) {
-        errors.push("FORMAT requires valid 'format' field");
+    case "PIVOT_SUMMARY":
+      if (a.groupByColumn === undefined || a.aggregateColumn === undefined) {
+        errors.push("PIVOT_SUMMARY requires 'groupByColumn' and 'aggregateColumn' fields");
       }
       break;
 
-    case "EXPAND":
-      if (a.expandLevel && ((a.expandLevel as number) < 1 || (a.expandLevel as number) > 3)) {
-        warnings.push("expandLevel should be 1-3, defaulting to 2");
+    case "CONDITIONAL_FORMAT":
+      if (!a.target || !a.conditionType || !a.formatStyle) {
+        errors.push("CONDITIONAL_FORMAT requires 'target', 'conditionType', and 'formatStyle' fields");
+      }
+      break;
+
+    case "CREATE_CHART":
+      if (!a.chartType || a.xAxisColumn === undefined || !Array.isArray(a.yAxisColumns)) {
+        errors.push("CREATE_CHART requires 'chartType', 'xAxisColumn', and 'yAxisColumns' fields");
       }
       break;
 

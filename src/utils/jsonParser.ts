@@ -156,15 +156,21 @@ export function parseAIResponse(
     quickOptions: [],
   };
 
-  const result = robustJsonParse<AIResponse>(text, fallbackResponse);
+  const result = robustJsonParse<any>(text, fallbackResponse);
+
+  // Handle case where AI returns an array of responses [ { content, action, ... } ]
+  let data = result.data;
+  if (Array.isArray(data) && data.length > 0) {
+    data = data[0];
+  }
 
   // Validate and normalize the parsed response
-  if (result.data) {
+  if (data && typeof data === 'object') {
     const normalized: AIResponse = {
-      content: result.data.content || defaultContent,
-      action: result.data.action || { type: "INFO" },
-      quickOptions: Array.isArray(result.data.quickOptions)
-        ? result.data.quickOptions
+      content: data.content || defaultContent,
+      action: data.action || { type: "INFO" },
+      quickOptions: Array.isArray(data.quickOptions)
+        ? data.quickOptions
         : [],
     };
     return {
@@ -173,7 +179,7 @@ export function parseAIResponse(
     };
   }
 
-  return result;
+  return { ...result, data: fallbackResponse };
 }
 
 /**

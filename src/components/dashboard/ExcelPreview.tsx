@@ -23,7 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
-import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus, Trash2, Wand2, Sparkles } from "lucide-react";
 import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex, parseCellRef } from "@/types/excel";
 import { evaluateFormula } from "@/utils/formulaEvaluator";
 import { useToast } from "@/hooks/use-toast";
@@ -41,13 +41,15 @@ interface ExcelPreviewProps {
   onAddRow?: () => void;
   onAddColumn?: () => void;
   onDeleteSelection?: (mode: "clear" | "delete") => void;
+  onRunAudit?: () => void;
+  onRunInsights?: () => void;
 }
 
 const ROW_HEIGHT = 36;
 
-const ExcelPreview = ({ 
-  data, 
-  onClear, 
+const ExcelPreview = ({
+  data,
+  onClear,
   onCellSelect,
   onCellEdit,
   cellSelectionMode,
@@ -56,6 +58,8 @@ const ExcelPreview = ({
   onAddRow,
   onAddColumn,
   onDeleteSelection,
+  onRunAudit,
+  onRunInsights,
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -315,13 +319,13 @@ const ExcelPreview = ({
         Object.entries(data.cellStyles).forEach(([cellRef, style]) => {
           if (worksheet[cellRef]) {
             const xlsxStyle: any = {};
-            
+
             if (style.backgroundColor) {
               xlsxStyle.fill = {
                 fgColor: { rgb: normalizeColor(style.backgroundColor) }
               };
             }
-            
+
             if (style.color || style.fontWeight) {
               xlsxStyle.font = {};
               if (style.color) {
@@ -384,7 +388,7 @@ const ExcelPreview = ({
 
     const rowSet = new Set<number>();
     const colSet = new Set<number>();
-    
+
     data.selectedCells.forEach(ref => {
       const parsed = parseCellRef(ref);
       if (parsed) {
@@ -393,13 +397,13 @@ const ExcelPreview = ({
       }
     });
 
-    const isFullRow = Array.from(rowSet).every(r => 
-      Array.from({length: data.headers.length}, (_, i) => createCellRef(i, r))
+    const isFullRow = Array.from(rowSet).every(r =>
+      Array.from({ length: data.headers.length }, (_, i) => createCellRef(i, r))
         .every(ref => data.selectedCells.includes(ref))
     );
 
-    const isFullCol = Array.from(colSet).every(c => 
-      Array.from({length: data.rows.length}, (_, i) => createCellRef(c, i))
+    const isFullCol = Array.from(colSet).every(c =>
+      Array.from({ length: data.rows.length }, (_, i) => createCellRef(c, i))
         .every(ref => data.selectedCells.includes(ref))
     );
 
@@ -410,20 +414,20 @@ const ExcelPreview = ({
 
   const getCellClassName = (cellRef: string) => {
     const classes: string[] = ["transition-colors"];
-    
+
     if (appliedCellSet.has(cellRef)) classes.push("cell-applied");
     if (pendingCellSet.has(cellRef)) classes.push("cell-pending");
     if (formulaCellSet.has(cellRef)) classes.push("cell-formula");
     if (selectedCellSet.has(cellRef)) classes.push("ring-2 ring-primary ring-inset bg-primary/10");
     if (cellSelectionMode) classes.push("cursor-pointer hover:bg-accent");
-    
+
     return classes.join(" ");
   };
 
   const getCellStyle = (cellRef: string) => {
     const style = data.cellStyles[cellRef];
     if (!style) return {};
-    
+
     return {
       color: style.color,
       backgroundColor: style.backgroundColor,
@@ -464,7 +468,7 @@ const ExcelPreview = ({
     if (formula) {
       const result = evaluateFormula(formula, data);
       const displayValue = result !== null ? result : "#ERROR";
-      
+
       return (
         <TooltipProvider>
           <Tooltip>
@@ -474,8 +478,8 @@ const ExcelPreview = ({
                   fx
                 </span>
                 <span className="font-medium text-primary truncate">
-                  {typeof displayValue === "number" 
-                    ? formatNumber(displayValue) 
+                  {typeof displayValue === "number"
+                    ? formatNumber(displayValue)
                     : displayValue}
                 </span>
               </div>
@@ -606,7 +610,7 @@ const ExcelPreview = ({
                     <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
                       Hapus isi {selectionInfo.count} baris
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => onDeleteSelection?.("delete")}
                       className="text-destructive focus:text-destructive"
                     >
@@ -618,7 +622,7 @@ const ExcelPreview = ({
                     <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")}>
                       Hapus isi {selectionInfo.count} kolom
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => onDeleteSelection?.("delete")}
                       className="text-destructive focus:text-destructive"
                     >
@@ -628,6 +632,30 @@ const ExcelPreview = ({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+
+          {onRunAudit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRunAudit}
+              className="gap-2 border-primary/20 hover:bg-primary/5 hover:border-primary text-primary"
+            >
+              <Wand2 className="h-4 w-4" />
+              Audit Data
+            </Button>
+          )}
+
+          {onRunInsights && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRunInsights}
+              className="gap-2 border-indigo-500/20 hover:bg-indigo-500/5 hover:border-indigo-500 text-indigo-500"
+            >
+              <Sparkles className="h-4 w-4" />
+              Wawasan
+            </Button>
           )}
 
           <DropdownMenu>
@@ -733,15 +761,14 @@ const ExcelPreview = ({
               return (
                 <div
                   key={virtualRow.key}
-                  className={`flex absolute w-full border-b border-border ${
-                    rowIndex % 2 === 0 ? "bg-background" : "bg-muted/20"
-                  }`}
+                  className={`flex absolute w-full border-b border-border ${rowIndex % 2 === 0 ? "bg-background" : "bg-muted/20"
+                    }`}
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <div 
+                  <div
                     onMouseDown={() => handleRowMouseDown(rowIndex)}
                     onMouseEnter={() => handleRowMouseEnter(rowIndex)}
                     className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none"

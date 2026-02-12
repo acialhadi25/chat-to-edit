@@ -29,7 +29,11 @@ export type ActionType =
   | "CONCATENATE"
   | "STATISTICS"
   | "PIVOT_SUMMARY"
-  | "CREATE_CHART";
+  | "DATA_VALIDATION"
+  | "TEXT_EXTRACTION"
+  | "CREATE_CHART"
+  | "DATA_AUDIT"
+  | "INSIGHTS";
 
 // Target for actions
 export interface CellTarget {
@@ -53,6 +57,7 @@ export interface QuickOption {
   variant: "default" | "success" | "destructive" | "outline";
   icon?: string;
   isApplyAction?: boolean; // Flag to indicate if this button applies the action
+  action?: AIAction; // Optional specific action to apply when clicked
 }
 
 // AI Action attached to a message
@@ -93,6 +98,11 @@ export interface AIAction {
   chartTitle?: string;
   xAxisColumn?: number;
   yAxisColumns?: number[];
+  chartColors?: string[];
+  showLegend?: boolean;
+  showGrid?: boolean;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
   // Conditional formatting
   conditionType?: "greater_than" | "less_than" | "equal_to" | "contains" | "between";
   conditionValues?: (string | number)[];
@@ -101,6 +111,29 @@ export interface AIAction {
     backgroundColor?: string;
     fontWeight?: string;
   };
+  // Data validation
+  validationType?: "list" | "number" | "date" | "text_length";
+  validationOptions?: (string | number)[];
+  validationCriteria?: string;
+  // Text extraction
+  extractionPattern?: string;
+  extractionType?: "regex" | "word" | "pattern";
+  // Data Audit fields
+  auditReport?: {
+    totalErrors: number;
+    outliers: { cellRef: string; value: any; reason: string }[];
+    typeInconsistencies: { cellRef: string; expected: string; found: string }[];
+    missingValues: { cellRef: string; column: string }[];
+    suggestions: { id: string; description: string; action: AIAction }[];
+  };
+  // Insight fields
+  insights?: {
+    summary: string;
+    highlights: { text: string; type: "positive" | "negative" | "neutral" }[];
+    trends: { topic: string; direction: "up" | "down" | "stable"; description: string }[];
+    anomalies: { description: string; cellRefs: string[] }[];
+  };
+  appliedActionIds?: string[]; // Track which suggestion or quick option IDs have been applied
   status: "pending" | "applied" | "rejected";
 }
 
@@ -131,6 +164,15 @@ export interface ExcelData {
       fontSize?: number;
       textAlign?: "left" | "center" | "right";
       border?: boolean;
+    }
+  };
+  validationRules?: {
+    [cellRef: string]: {
+      type: "list" | "number" | "date" | "text_length";
+      values?: (string | number)[];
+      criteria?: string;
+      allowBlank?: boolean;
+      showDropdown?: boolean;
     }
   };
 }

@@ -1,9 +1,9 @@
-import { 
-  ExcelData, 
-  DataChange, 
-  getColumnLetter, 
-  createCellRef, 
-  parseCellRef 
+import {
+  ExcelData,
+  DataChange,
+  getColumnLetter,
+  createCellRef,
+  parseCellRef
 } from "@/types/excel";
 import { evaluateFormula } from "@/utils/formulas";
 import { expandRange } from "@/utils/formulas/helpers";
@@ -95,9 +95,9 @@ export function applyFormulaToColumn(
     ) {
       continue;
     }
-     const actualRow = rowIndex + 2; // Excel rows: header=1, data starts at 2
+    const actualRow = rowIndex + 2; // Excel rows: header=1, data starts at 2
     const formula = formulaTemplate.replace(/\{row\}/g, String(actualRow));
-     const cellRef = `${getColumnLetter(colIndex)}${actualRow}`;
+    const cellRef = `${getColumnLetter(colIndex)}${actualRow}`;
     const before = newData.formulas[cellRef] || getCellValue(data, colIndex, rowIndex);
 
     newData.formulas[cellRef] = formula;
@@ -112,9 +112,9 @@ export function findReplace(
   data: ExcelData,
   find: string,
   replace: string,
-  options: { 
-    caseSensitive?: boolean; 
-    wholeCell?: boolean; 
+  options: {
+    caseSensitive?: boolean;
+    wholeCell?: boolean;
     columns?: number[];
   } = {}
 ): { data: ExcelData; changes: DataChange[] } {
@@ -143,7 +143,7 @@ export function findReplace(
       if (shouldReplace) {
         const cellRef = createCellRef(colIndex, rowIndex);
         let newValue: string;
-        
+
         if (wholeCell) {
           newValue = replace;
         } else {
@@ -218,7 +218,7 @@ export function removeEmptyRows(
   const filteredRows = data.rows.filter((row, index) => {
     // Check if ALL cells in row are empty (using improved isEmptyCell helper)
     const isEmpty = row.every((cell) => isEmptyCell(cell));
-    
+
     if (isEmpty) {
       removedRows.push(index + 2); // Excel row number (1-based, header=1, data starts at 2)
       // Record changes for each non-null cell in removed row (for tracking)
@@ -389,15 +389,15 @@ export function clearCells(
     if (!parsed) continue;
 
     const before = newData.formulas[ref] || newData.rows[parsed.row][parsed.col];
-    
+
     // Clear formula if exists
     if (newData.formulas[ref]) {
       delete newData.formulas[ref];
     }
-    
+
     // Clear cell value
     newData.rows[parsed.row][parsed.col] = null;
-    
+
     changes.push({
       cellRef: ref,
       before,
@@ -485,18 +485,18 @@ export function analyzeDataForCleansing(
   emptyRows: number[];
   cellsWithExtraSpaces: { cellRef: string; value: string }[];
   duplicateRows: number[][];
-   totalCells: number;
-   emptyCells: number;
+  totalCells: number;
+  emptyCells: number;
 } {
   const emptyRows: number[] = [];
   const cellsWithExtraSpaces: { cellRef: string; value: string }[] = [];
   const rowHashes = new Map<string, number[]>();
-   let totalCells = 0;
-   let emptyCells = 0;
+  let totalCells = 0;
+  let emptyCells = 0;
 
   for (let rowIndex = 0; rowIndex < data.rows.length; rowIndex++) {
     const row = data.rows[rowIndex];
-    
+
     // Check empty rows using improved isEmptyCell helper
     const isEmpty = row.every((cell) => isEmptyCell(cell));
     if (isEmpty) {
@@ -505,10 +505,10 @@ export function analyzeDataForCleansing(
 
     // Check extra spaces
     row.forEach((cell, colIndex) => {
-       totalCells++;
-       if (cell === null || cell === undefined || cell === "") {
-         emptyCells++;
-       }
+      totalCells++;
+      if (cell === null || cell === undefined || cell === "") {
+        emptyCells++;
+      }
       if (typeof cell === "string") {
         if (cell !== cell.trim() || /\s{2,}/.test(cell)) {
           cellsWithExtraSpaces.push({
@@ -531,7 +531,7 @@ export function analyzeDataForCleansing(
     (rows) => rows.length > 1
   );
 
-   return { emptyRows, cellsWithExtraSpaces, duplicateRows, totalCells, emptyCells };
+  return { emptyRows, cellsWithExtraSpaces, duplicateRows, totalCells, emptyCells };
 }
 
 // Sort data by column
@@ -541,34 +541,34 @@ export function sortData(
   direction: "asc" | "desc"
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
-  
+
   newData.rows = [...newData.rows].sort((a, b) => {
     const valA = a[colIndex];
     const valB = b[colIndex];
-    
+
     // Handle null/undefined
     if (valA === null || valA === undefined) return direction === "asc" ? 1 : -1;
     if (valB === null || valB === undefined) return direction === "asc" ? -1 : 1;
-    
+
     // Try numeric comparison first
     const numA = typeof valA === "number" ? valA : parseFloat(String(valA).replace(/[^0-9.-]/g, ""));
     const numB = typeof valB === "number" ? valB : parseFloat(String(valB).replace(/[^0-9.-]/g, ""));
-    
+
     if (!isNaN(numA) && !isNaN(numB)) {
       return direction === "asc" ? numA - numB : numB - numA;
     }
-    
+
     // String comparison
     const strA = String(valA).toLowerCase();
     const strB = String(valB).toLowerCase();
-    
+
     if (direction === "asc") {
       return strA.localeCompare(strB);
     } else {
       return strB.localeCompare(strA);
     }
   });
-  
+
   return { data: newData };
 }
 
@@ -581,10 +581,10 @@ export function filterData(
 ): { data: ExcelData; removedCount: number } {
   const newData = cloneExcelData(data);
   const originalCount = newData.rows.length;
-  
+
   newData.rows = newData.rows.filter((row) => {
     const cellValue = row[colIndex];
-    
+
     switch (operator) {
       case "empty":
         return isEmptyCell(cellValue);
@@ -601,28 +601,49 @@ export function filterData(
       case ">": {
         const numCell = typeof cellValue === "number" ? cellValue : parseFloat(String(cellValue));
         const numVal = typeof value === "number" ? value : parseFloat(String(value));
-        return !isNaN(numCell) && !isNaN(numVal) && numCell > numVal;
+        if (!isNaN(numCell) && !isNaN(numVal)) return numCell > numVal;
+
+        // Try date comparison
+        const dateCell = parseDate(cellValue);
+        const dateVal = parseDate(value);
+        if (dateCell && dateVal) return dateCell.getTime() > dateVal.getTime();
+        return false;
       }
       case "<": {
         const numCell = typeof cellValue === "number" ? cellValue : parseFloat(String(cellValue));
         const numVal = typeof value === "number" ? value : parseFloat(String(value));
-        return !isNaN(numCell) && !isNaN(numVal) && numCell < numVal;
+        if (!isNaN(numCell) && !isNaN(numVal)) return numCell < numVal;
+
+        const dateCell = parseDate(cellValue);
+        const dateVal = parseDate(value);
+        if (dateCell && dateVal) return dateCell.getTime() < dateVal.getTime();
+        return false;
       }
       case ">=": {
         const numCell = typeof cellValue === "number" ? cellValue : parseFloat(String(cellValue));
         const numVal = typeof value === "number" ? value : parseFloat(String(value));
-        return !isNaN(numCell) && !isNaN(numVal) && numCell >= numVal;
+        if (!isNaN(numCell) && !isNaN(numVal)) return numCell >= numVal;
+
+        const dateCell = parseDate(cellValue);
+        const dateVal = parseDate(value);
+        if (dateCell && dateVal) return dateCell.getTime() >= dateVal.getTime();
+        return false;
       }
       case "<=": {
         const numCell = typeof cellValue === "number" ? cellValue : parseFloat(String(cellValue));
         const numVal = typeof value === "number" ? value : parseFloat(String(value));
-        return !isNaN(numCell) && !isNaN(numVal) && numCell <= numVal;
+        if (!isNaN(numCell) && !isNaN(numVal)) return numCell <= numVal;
+
+        const dateCell = parseDate(cellValue);
+        const dateVal = parseDate(value);
+        if (dateCell && dateVal) return dateCell.getTime() <= dateVal.getTime();
+        return false;
       }
       default:
         return true;
     }
   });
-  
+
   return { data: newData, removedCount: originalCount - newData.rows.length };
 }
 
@@ -634,22 +655,22 @@ export function removeDuplicates(
   const newData = cloneExcelData(data);
   const seenHashes = new Set<string>();
   const originalCount = newData.rows.length;
-  
+
   newData.rows = newData.rows.filter((row) => {
     // Create hash based on specified columns or all columns
-    const hashParts = columns 
+    const hashParts = columns
       ? columns.map(i => JSON.stringify(row[i] ?? ""))
       : row.map(cell => JSON.stringify(cell ?? ""));
     const hash = hashParts.join("|");
-    
+
     if (seenHashes.has(hash)) {
       return false; // Duplicate, filter out
     }
-    
+
     seenHashes.add(hash);
     return true;
   });
-  
+
   return { data: newData, removedCount: originalCount - newData.rows.length };
 }
 
@@ -660,12 +681,12 @@ export function fillDown(
 ): { data: ExcelData; changes: DataChange[] } {
   const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
-  
+
   let lastValue: string | number | null = null;
-  
+
   for (let rowIndex = 0; rowIndex < newData.rows.length; rowIndex++) {
     const cellValue = newData.rows[rowIndex][colIndex];
-    
+
     if (isEmptyCell(cellValue)) {
       if (lastValue !== null) {
         const cellRef = createCellRef(colIndex, rowIndex);
@@ -681,7 +702,7 @@ export function fillDown(
       lastValue = cellValue;
     }
   }
-  
+
   return { data: newData, changes };
 }
 
@@ -695,34 +716,34 @@ export function splitColumn(
   const newData = cloneExcelData(data);
   const originalHeader = newData.headers[colIndex];
   const newColumnNames: string[] = [];
-  
+
   // Create new column names
   for (let i = 1; i <= maxParts; i++) {
     newColumnNames.push(`${originalHeader}_${i}`);
   }
-  
+
   // Insert new headers after the original column
   newData.headers = [
     ...newData.headers.slice(0, colIndex + 1),
     ...newColumnNames.slice(1), // Skip first as we'll use original column
     ...newData.headers.slice(colIndex + 1),
   ];
-  
+
   // Rename original column
   newData.headers[colIndex] = newColumnNames[0];
-  
+
   // Split data in each row
   newData.rows = newData.rows.map((row) => {
     const cellValue = row[colIndex];
     const parts = cellValue !== null && cellValue !== undefined
       ? String(cellValue).split(delimiter, maxParts)
       : [];
-    
+
     // Pad with nulls if needed
     while (parts.length < maxParts) {
       parts.push("");
     }
-    
+
     return [
       ...row.slice(0, colIndex),
       parts[0] || null,
@@ -730,7 +751,7 @@ export function splitColumn(
       ...row.slice(colIndex + 1),
     ];
   });
-  
+
   return { data: newData, newColumnNames };
 }
 
@@ -742,23 +763,23 @@ export function mergeColumns(
   newColumnName?: string
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
-  
+
   // Determine name for merged column
   const mergedName = newColumnName || colIndices.map(i => newData.headers[i]).join("_");
-  
+
   // Add merged column at end
   newData.headers.push(mergedName);
-  
+
   // Merge values for each row
   newData.rows = newData.rows.map((row) => {
     const mergedValue = colIndices
       .map(i => row[i])
       .filter(v => v !== null && v !== undefined && v !== "")
       .join(separator);
-    
+
     return [...row, mergedValue || null];
   });
-  
+
   return { data: newData };
 }
 
@@ -785,7 +806,7 @@ export function extractNumbers(
   for (let rowIndex = 0; rowIndex < newData.rows.length; rowIndex++) {
     const cellValue = newData.rows[rowIndex][colIndex];
     if (cellValue === null || cellValue === undefined) continue;
-    
+
     const strValue = String(cellValue);
     // Extract numbers including decimals and negatives
     const match = strValue.match(/-?[\d,]+\.?\d*/);
@@ -822,11 +843,11 @@ export function formatNumbers(
   for (let rowIndex = 0; rowIndex < newData.rows.length; rowIndex++) {
     const cellValue = newData.rows[rowIndex][colIndex];
     if (cellValue === null || cellValue === undefined) continue;
-    
-    const numValue = typeof cellValue === "number" 
-      ? cellValue 
+
+    const numValue = typeof cellValue === "number"
+      ? cellValue
       : parseFloat(String(cellValue).replace(/[^0-9.-]/g, ""));
-    
+
     if (isNaN(numValue)) continue;
 
     let formatted: string;
@@ -870,7 +891,7 @@ export function generateIds(
 ): { data: ExcelData; changes: DataChange[] } {
   const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
-  
+
   // If no target column, add new column
   let colIndex: number;
   if (targetColIndex === undefined) {
@@ -882,13 +903,13 @@ export function generateIds(
   }
 
   const padLength = String(startFrom + newData.rows.length - 1).length;
-  
+
   for (let rowIndex = 0; rowIndex < newData.rows.length; rowIndex++) {
     const idNum = startFrom + rowIndex;
     const idValue = `${prefix}-${String(idNum).padStart(Math.max(padLength, 3), "0")}`;
     const cellRef = createCellRef(colIndex, rowIndex);
     const before = newData.rows[rowIndex][colIndex];
-    
+
     changes.push({
       cellRef,
       before,
@@ -915,15 +936,15 @@ export function calculateStatistics(
   stdDev: number;
 } {
   const values: number[] = [];
-  
+
   for (const row of data.rows) {
     const cellValue = row[colIndex];
     if (cellValue === null || cellValue === undefined) continue;
-    
-    const numValue = typeof cellValue === "number" 
-      ? cellValue 
+
+    const numValue = typeof cellValue === "number"
+      ? cellValue
       : parseFloat(String(cellValue).replace(/[^0-9.-]/g, ""));
-    
+
     if (!isNaN(numValue)) {
       values.push(numValue);
     }
@@ -938,14 +959,14 @@ export function calculateStatistics(
   const average = sum / count;
   const min = Math.min(...values);
   const max = Math.max(...values);
-  
+
   // Median
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 !== 0 
-    ? sorted[mid] 
+  const median = sorted.length % 2 !== 0
+    ? sorted[mid]
     : (sorted[mid - 1] + sorted[mid]) / 2;
-  
+
   // Standard deviation
   const squaredDiffs = values.map(value => Math.pow(value - average, 2));
   const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / count;
@@ -962,16 +983,16 @@ export function concatenateColumns(
   newColumnName: string = "Combined"
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
-  
+
   newData.headers.push(newColumnName);
-  
+
   newData.rows = newData.rows.map((row) => {
     const combinedValue = colIndices
       .map(i => row[i])
       .filter(v => v !== null && v !== undefined && v !== "")
       .map(v => String(v))
       .join(separator);
-    
+
     return [...row, combinedValue || null];
   });
 
@@ -986,20 +1007,20 @@ export function createGroupSummary(
   operation: "sum" | "average" | "count" | "min" | "max" = "sum"
 ): { groupName: string; value: number }[] {
   const groups = new Map<string, number[]>();
-  
+
   for (const row of data.rows) {
     const groupKey = String(row[groupByColIndex] ?? "Unknown");
     const cellValue = row[valueColIndex];
-    
+
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
     }
-    
+
     if (cellValue !== null && cellValue !== undefined) {
-      const numValue = typeof cellValue === "number" 
-        ? cellValue 
+      const numValue = typeof cellValue === "number"
+        ? cellValue
         : parseFloat(String(cellValue).replace(/[^0-9.-]/g, ""));
-      
+
       if (!isNaN(numValue)) {
         groups.get(groupKey)!.push(numValue);
       }
@@ -1007,7 +1028,7 @@ export function createGroupSummary(
   }
 
   const results: { groupName: string; value: number }[] = [];
-  
+
   groups.forEach((values, groupName) => {
     let result: number;
     switch (operation) {
@@ -1029,7 +1050,7 @@ export function createGroupSummary(
       default:
         result = values.reduce((a, b) => a + b, 0);
     }
-    
+
     results.push({ groupName, value: Math.round(result * 100) / 100 });
   });
 
@@ -1044,10 +1065,10 @@ export function addStatisticsRow(
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
   const stats = calculateStatistics(data, colIndex);
-  
+
   const newRow: (string | number | null)[] = new Array(data.headers.length).fill(null);
   newRow[0] = operation.toUpperCase();
-  
+
   switch (operation) {
     case "sum":
       newRow[colIndex] = stats.sum;
@@ -1071,7 +1092,7 @@ export function addStatisticsRow(
       newRow[colIndex] = Math.round(stats.stdDev * 100) / 100;
       break;
   }
-  
+
   newData.rows.push(newRow);
   return { data: newData };
 }
@@ -1083,7 +1104,7 @@ export function copyColumn(
   targetColumnName: string
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
-  
+
   newData.headers.push(targetColumnName);
   newData.rows = newData.rows.map((row) => {
     const value = row[sourceColIndex];
@@ -1111,5 +1132,155 @@ export function padSpareSpace(
     }
   }
   return newData;
+}
+
+
+// Helper to parse date from various formats
+function parseDate(value: string | number | null | undefined): Date | null {
+  if (value === null || value === undefined) return null;
+
+  // If it's a number (Excel serial date), conversion might be needed, 
+  // but for this web-based simplified version, we'll assume ISO strings or standard date strings.
+  // If we really need Excel serial support: new Date(Math.round((value - 25569)*86400*1000))
+
+  const d = new Date(String(value));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Calculate date operations
+export function calculateDates(
+  data: ExcelData,
+  sourceColIndex: number,
+  operation: "age" | "days_until" | "days_since" | "add_days" | "year" | "month" | "day",
+  param?: number // For add_days
+): { data: ExcelData; newColumnName: string } {
+  const newData = cloneExcelData(data);
+  const sourceHeader = newData.headers[sourceColIndex];
+
+  let newHeader = "";
+  switch (operation) {
+    case "age": newHeader = `Age (${sourceHeader})`; break;
+    case "days_until": newHeader = `Days Until (${sourceHeader})`; break;
+    case "days_since": newHeader = `Days Since (${sourceHeader})`; break;
+    case "add_days": newHeader = `${sourceHeader} + ${param || 0}d`; break;
+    case "year": newHeader = `Year (${sourceHeader})`; break;
+    case "month": newHeader = `Month (${sourceHeader})`; break;
+    case "day": newHeader = `Day (${sourceHeader})`; break;
+  }
+
+  newData.headers.push(newHeader);
+  const now = new Date();
+
+  newData.rows = newData.rows.map(row => {
+    const val = row[sourceColIndex];
+    const date = parseDate(val);
+    let result: string | number | null = null;
+
+    if (date) {
+      switch (operation) {
+        case "age": // Years since date
+          let age = now.getFullYear() - date.getFullYear();
+          const m = now.getMonth() - date.getMonth();
+          if (m < 0 || (m === 0 && now.getDate() < date.getDate())) {
+            age--;
+          }
+          result = age;
+          break;
+        case "days_until": // Days from now to date
+          const diffTimeUntil = date.getTime() - now.getTime();
+          result = Math.ceil(diffTimeUntil / (1000 * 60 * 60 * 24));
+          break;
+        case "days_since": // Days from date to now
+          const diffTimeSince = now.getTime() - date.getTime();
+          result = Math.floor(diffTimeSince / (1000 * 60 * 60 * 24));
+          break;
+        case "add_days":
+          if (param !== undefined) {
+            const newDate = new Date(date);
+            newDate.setDate(date.getDate() + param);
+            result = newDate.toISOString().split('T')[0];
+          }
+          break;
+        case "year":
+          result = date.getFullYear();
+          break;
+        case "month":
+          result = date.getMonth() + 1; // 1-12
+          break;
+        case "day":
+          result = date.getDate();
+          break;
+      }
+    }
+
+    return [...row, result];
+  });
+
+  return { data: newData, newColumnName: newHeader };
+}
+
+// Apply data validation to cells
+export function applyDataValidation(
+  data: ExcelData,
+  refs: string[],
+  validation: {
+    type: "list" | "number" | "date" | "text_length";
+    values?: (string | number)[];
+    criteria?: string;
+  }
+): { data: ExcelData } {
+  const newData = cloneExcelData(data);
+  if (!newData.validationRules) {
+    newData.validationRules = {};
+  }
+
+  for (const ref of refs) {
+    newData.validationRules[ref] = {
+      ...validation,
+      allowBlank: true,
+      showDropdown: validation.type === "list",
+    };
+  }
+
+  return { data: newData };
+}
+
+// Advanced text extraction (regex or patterns)
+export function extractText(
+  data: ExcelData,
+  sourceColIndex: number,
+  pattern: string,
+  type: "regex" | "word" | "pattern" = "regex"
+): { data: ExcelData; newColumnName: string } {
+  const newData = cloneExcelData(data);
+  const sourceHeader = newData.headers[sourceColIndex];
+  const newHeader = `Extracted from ${sourceHeader}`;
+
+  newData.headers.push(newHeader);
+
+  newData.rows = newData.rows.map(row => {
+    const val = String(row[sourceColIndex] ?? "");
+    let extracted: string | null = null;
+
+    try {
+      if (type === "regex") {
+        const regex = new RegExp(pattern);
+        const match = val.match(regex);
+        extracted = match ? match[0] : null;
+      } else if (type === "word") {
+        // Extract Nth word or similar? For now simple word match
+        extracted = val.includes(pattern) ? pattern : null;
+      } else {
+        // Simple pattern match (contains)
+        extracted = val.includes(pattern) ? pattern : null;
+      }
+    } catch (e) {
+      console.error("Extraction error:", e);
+    }
+
+    return [...row, extracted];
+  });
+
+  return { data: newData, newColumnName: newHeader };
 }
 

@@ -8,6 +8,8 @@ export const useAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /* MOCK AUTH REMOVED - Reverting to original logic */
+
   useEffect(() => {
     let isMounted = true;
 
