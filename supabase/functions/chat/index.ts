@@ -16,21 +16,37 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
    - Arithmetic: +, -, *, /
 2. **EDIT_CELL** - Edit specific cell values
 3. **EDIT_COLUMN** - Edit an entire column
-4. **FIND_REPLACE** - Find and replace text (MUST include findValue & replaceValue)
-5. **DATA_CLEANSING** - Clean data (trim excess whitespace, remove double spaces)
-6. **DATA_TRANSFORM** - Transform data (MUST include transformType: uppercase/lowercase/titlecase)
-7. **ADD_COLUMN** - Add a new column
-8. **DELETE_COLUMN** - Delete a column
-9. **DELETE_ROW** - Delete specific rows by Excel row number
-10. **REMOVE_EMPTY_ROWS** - Remove ALL rows that are 100% empty
-11. **SORT_DATA** - Sort data (include sortColumn and sortDirection: asc/desc)
-12. **FILTER_DATA** - Filter data by condition (include filterOperator and filterValue)
-13. **REMOVE_DUPLICATES** - Remove duplicate rows
-14. **FILL_DOWN** - Fill empty cells with value above
-15. **SPLIT_COLUMN** - Split a column by delimiter into multiple columns (include delimiter and optionally maxParts)
-16. **MERGE_COLUMNS** - Merge multiple columns into one (include mergeColumns array of indices, separator, and newColumnName)
-17. **CLARIFY** - If clarification is needed from user
-18. **INFO** - Information only, no action
+4. **EDIT_ROW** - Edit a specific row
+5. **FIND_REPLACE** - Find and replace text (MUST include findValue & replaceValue)
+6. **DATA_CLEANSING** - Clean data (trim excess whitespace, remove double spaces)
+7. **DATA_TRANSFORM** - Transform data (MUST include transformType: uppercase/lowercase/titlecase)
+8. **ADD_COLUMN** - Add a new column
+9. **DELETE_COLUMN** - Delete a column
+10. **DELETE_ROW** - Delete specific rows by Excel row number (USE ONLY for 1-20 specific known rows, NOT for bulk filtering)
+11. **REMOVE_EMPTY_ROWS** - Remove ALL rows that are 100% empty
+12. **SORT_DATA** - Sort data (include sortColumn and sortDirection: asc/desc)
+13. **FILTER_DATA** - Filter/keep rows by condition. KEEPS rows matching the condition, REMOVES everything else.
+14. **REMOVE_DUPLICATES** - Remove duplicate rows
+15. **FILL_DOWN** - Fill empty cells with value above
+16. **SPLIT_COLUMN** - Split a column by delimiter into multiple columns (include delimiter and optionally maxParts)
+17. **MERGE_COLUMNS** - Merge multiple columns into one (include mergeColumns array of indices, separator, and newColumnName)
+18. **RENAME_COLUMN** - Rename a column (include target.ref and renameTo)
+19. **EXTRACT_NUMBER** - Extract numeric values from text cells
+20. **FORMAT_NUMBER** - Format numbers (currency, percentage, etc.)
+21. **GENERATE_ID** - Generate unique IDs for rows
+22. **CONCATENATE** - Combine multiple columns into one new column
+23. **STATISTICS** - Add statistical summary row (sum, average, count, min, max)
+24. **PIVOT_SUMMARY** - Group and summarize data by column
+25. **CLARIFY** - If clarification is needed from user
+26. **INFO** - Information only, no action
+
+## CRITICAL RULES FOR FILTERING:
+- **FILTER_DATA KEEPS rows that MATCH the condition and REMOVES all non-matching rows.**
+- For "keep only X" or "delete everything except X" → use FILTER_DATA with operator "=" or "contains" and filterValue set to the value to KEEP.
+- For "delete rows containing X" → use FILTER_DATA with operator "not_contains" and filterValue set to the value to DELETE.
+- **NEVER use DELETE_ROW for bulk filtering.** DELETE_ROW is ONLY for deleting 1-20 specific known rows.
+- The "contains" operator does case-insensitive partial match.
+- Use the uniqueValues data provided in context to understand what values exist in each column.
 
 ## IMPORTANT RULES:
 1. Detect user language (any language) and respond in the same language
@@ -46,7 +62,7 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 11. REQUIRED for SPLIT_COLUMN: include target.ref (column letter), "delimiter", optionally "maxParts" (default 2)
 12. REQUIRED for MERGE_COLUMNS: include "mergeColumns" (array of column indices), "separator", "newColumnName"
 13. Mark buttons that apply actions with "isApplyAction": true
-14. Use information from dataAnalysis to provide accurate responses
+14. Use information from dataAnalysis and uniqueValuesPerColumn to provide accurate responses
 15. For DELETE_ROW, use target.ref with format "row1,row2,row3" (Excel numbers)
 
 ## NATURAL LANGUAGE UNDERSTANDING:
@@ -55,8 +71,11 @@ You must understand various command variations in everyday language:
 **Sorting:**
 - "sort descending", "sort A-Z", "order by largest" → SORT_DATA
 
-**Filtering:**
+**Filtering (ALWAYS use FILTER_DATA, NEVER DELETE_ROW for bulk operations):**
+- "keep only department X" → FILTER_DATA with operator "contains" and filterValue "X"
 - "show only > 100", "filter values above 50" → FILTER_DATA
+- "delete all except X" → FILTER_DATA with operator "contains" and filterValue "X" (keeps X)
+- "hapus selain X", "hanya ambil X" → FILTER_DATA with operator "contains" and filterValue "X"
 
 **Formula:**
 - "sum", "total" → SUM
@@ -103,7 +122,8 @@ Always respond in JSON with this format:
     "delimiter": "delimiter string (for SPLIT_COLUMN)",
     "maxParts": 2,
     "mergeColumns": [0, 1, 2],
-    "separator": " "
+    "separator": " ",
+    "renameTo": "new column name (for RENAME_COLUMN)"
   },
   "quickOptions": [
     { "id": "1", "label": "Label", "value": "message to send", "variant": "success", "isApplyAction": true }
@@ -116,6 +136,7 @@ When given Excel context:
 - Understand data types and ranges
 - Provide accurate previews based on actual data
 - Use dataAnalysis if available for empty rows, extra spaces, etc.
+- Use uniqueValuesPerColumn to know what distinct values exist in each column — this is critical for filtering operations
 
 IMPORTANT: 
 - If there is ambiguity, ALWAYS ask with CLARIFY
@@ -166,14 +187,26 @@ serve(async (req) => {
         .map((c: {cellRef: string; value: string}) => `${c.cellRef}="${c.value}"`)
         .join(", ") || "none";
 
+      // Build unique values section
+      let uniqueValuesStr = "";
+      if (excelContext.uniqueValuesPerColumn) {
+        const entries = Object.entries(excelContext.uniqueValuesPerColumn);
+        if (entries.length > 0) {
+          uniqueValuesStr = `\nUNIQUE VALUES PER COLUMN (use these to understand what data exists):`;
+          for (const [colName, values] of entries) {
+            uniqueValuesStr += `\n- ${colName}: ${JSON.stringify(values)}`;
+          }
+        }
+      }
+
       contextMessage = `
 
 CURRENT EXCEL FILE CONTEXT:
 File: ${excelContext.fileName}
 Sheet: ${excelContext.currentSheet || "Sheet1"}
 Headers (Columns): ${headerMapping}
-Total Data Rows: ${excelContext.totalRows || excelContext.sampleRows?.length || 0}
-Sample Data (first 5 rows, row 2-6 in Excel):
+Total Data Rows: ${excelContext.totalRows || excelContext.sampleRows?.length || 0} (IMPORTANT: there may be hundreds of rows beyond the sample shown below)
+Sample Data (first rows):
 ${sampleDataStr}
 ${excelContext.existingFormulas && Object.keys(excelContext.existingFormulas).length > 0
   ? `\nExisting formulas: ${JSON.stringify(excelContext.existingFormulas)}`
@@ -184,7 +217,7 @@ DATA ANALYSIS (use this for accurate responses):
 - Empty cells: ${excelContext.dataAnalysis.emptyCells || 0}
 - 100% empty rows (Excel row): [${emptyRowsList}] (${excelContext.dataAnalysis.emptyRows?.length || 0} rows)
 - Cells with extra spaces: ${spaceCells} (${excelContext.dataAnalysis.cellsWithExtraSpaces?.length || 0} total)
-- Duplicate row groups: ${excelContext.dataAnalysis.duplicateRows?.length || 0} groups` : ""}`;
+- Duplicate row groups: ${excelContext.dataAnalysis.duplicateRows?.length || 0} groups` : ""}${uniqueValuesStr}`;
     }
 
     console.log("Sending request to AI with context:", contextMessage.slice(0, 500));
