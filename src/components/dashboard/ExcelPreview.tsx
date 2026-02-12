@@ -62,6 +62,8 @@ const ExcelPreview = ({
   const [showEmptyPlaceholders, setShowEmptyPlaceholders] = useState(false);
   const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [colDragStart, setColDragStart] = useState<number | null>(null);
+  const [rowDragStart, setRowDragStart] = useState<number | null>(null);
 
   // Create sets for quick lookup
   const pendingCellSet = useMemo(() => {
@@ -220,21 +222,49 @@ const ExcelPreview = ({
     [commitEdit, cancelEdit, editingCell, data.headers.length, data.rows]
   );
 
-  const handleColumnSelect = useCallback((colIndex: number) => {
+  const handleColumnMouseDown = useCallback((colIndex: number) => {
+    setColDragStart(colIndex);
     const selectedCells: string[] = [];
     for (let r = 0; r < data.rows.length; r++) {
       selectedCells.push(createCellRef(colIndex, r));
     }
-    onCellSelect(selectedCells, false);
+    onCellSelect(selectedCells, true);
   }, [data.rows.length, onCellSelect]);
 
-  const handleRowSelect = useCallback((rowIndex: number) => {
+  const handleColumnMouseEnter = useCallback((colIndex: number) => {
+    if (colDragStart === null) return;
+    const minCol = Math.min(colDragStart, colIndex);
+    const maxCol = Math.max(colDragStart, colIndex);
+    const selectedCells: string[] = [];
+    for (let c = minCol; c <= maxCol; c++) {
+      for (let r = 0; r < data.rows.length; r++) {
+        selectedCells.push(createCellRef(c, r));
+      }
+    }
+    onCellSelect(selectedCells, true);
+  }, [colDragStart, data.rows.length, onCellSelect]);
+
+  const handleRowMouseDown = useCallback((rowIndex: number) => {
+    setRowDragStart(rowIndex);
     const selectedCells: string[] = [];
     for (let c = 0; c < data.headers.length; c++) {
       selectedCells.push(createCellRef(c, rowIndex));
     }
-    onCellSelect(selectedCells, false);
+    onCellSelect(selectedCells, true);
   }, [data.headers.length, onCellSelect]);
+
+  const handleRowMouseEnter = useCallback((rowIndex: number) => {
+    if (rowDragStart === null) return;
+    const minRow = Math.min(rowDragStart, rowIndex);
+    const maxRow = Math.max(rowDragStart, rowIndex);
+    const selectedCells: string[] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = 0; c < data.headers.length; c++) {
+        selectedCells.push(createCellRef(c, r));
+      }
+    }
+    onCellSelect(selectedCells, true);
+  }, [rowDragStart, data.headers.length, onCellSelect]);
 
   const handleDownload = (format: "xlsx" | "csv") => {
     try {
@@ -379,8 +409,18 @@ const ExcelPreview = ({
     return <span className="truncate block">{formatCellValue(cellValue)}</span>;
   };
 
+  const handleGlobalMouseUp = useCallback(() => {
+    if (isDragging || colDragStart !== null || rowDragStart !== null) {
+      onCellSelect(data.selectedCells, false);
+      setIsDragging(false);
+      setDragStart(null);
+      setColDragStart(null);
+      setRowDragStart(null);
+    }
+  }, [isDragging, colDragStart, rowDragStart, onCellSelect, data.selectedCells]);
+
   return (
-    <div className="flex flex-1 flex-col min-h-0">
+    <div className="flex flex-1 flex-col min-h-0" onMouseUp={handleGlobalMouseUp}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 bg-card">
         <div className="flex items-center gap-3">
@@ -514,8 +554,9 @@ const ExcelPreview = ({
             {data.headers.map((header, index) => (
               <div
                 key={index}
-                onClick={() => handleColumnSelect(index)}
-                className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative"
+                onMouseDown={() => handleColumnMouseDown(index)}
+                onMouseEnter={() => handleColumnMouseEnter(index)}
+                className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative select-none"
                 style={{ cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M12 5v14M19 12l-7 7-7-7\'/></svg>") 8 8, s-resize' }}
               >
                 <div className="flex flex-col gap-0.5">
@@ -537,13 +578,6 @@ const ExcelPreview = ({
               width: "100%",
               position: "relative",
             }}
-            onMouseUp={() => {
-              if (isDragging) {
-                onCellSelect(data.selectedCells, false);
-                setIsDragging(false);
-                setDragStart(null);
-              }
-            }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const rowIndex = virtualRow.index;
@@ -561,8 +595,9 @@ const ExcelPreview = ({
                   }}
                 >
                   <div 
-                    onClick={() => handleRowSelect(rowIndex)}
-                    className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors"
+                    onMouseDown={() => handleRowMouseDown(rowIndex)}
+                    onMouseEnter={() => handleRowMouseEnter(rowIndex)}
+                    className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none"
                     style={{ cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M5 12h14M12 5l7 7-7 7\'/></svg>") 8 8, e-resize' }}
                   >
                     {rowIndex + 2}

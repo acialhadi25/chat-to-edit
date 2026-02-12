@@ -11,13 +11,17 @@ import {
   Check,
   Copy,
   X,
+  MousePointer2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   ChatMessage,
   ExcelData,
   AIAction,
   QuickOption,
   DataChange,
+  getColumnIndex,
 } from "@/types/excel";
 import { useToast } from "@/hooks/use-toast";
 import { streamChat } from "@/utils/streamChat";
@@ -59,8 +63,57 @@ const ChatInterface = ({
   const [input, setInput] = useState("");
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [autoInputSelection, setAutoInputSelection] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const wasSelectingRef = useRef<boolean>(false);
+  const lastSelectedCellsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (!excelData) return;
+    const isSelecting = !!excelData.isSelecting;
+    const sel = excelData.selectedCells;
+    
+    // Only update chat input when selection is finished (isSelecting goes true -> false)
+    // or if selectedCells changed while not selecting (e.g. keyboard navigation)
+    const selectionFinished = wasSelectingRef.current && !isSelecting;
+    const selectionChangedWhileIdle = !isSelecting && JSON.stringify(sel) !== JSON.stringify(lastSelectedCellsRef.current);
+
+    if (autoInputSelection && (selectionFinished || selectionChangedWhileIdle) && sel.length > 0) {
+      const toIndex = (ref: string) => {
+        const m = ref.match(/^([A-Z]+)(\d+)$/i);
+        if (!m) return null;
+        return { col: getColumnIndex(m[1].toUpperCase()), row: parseInt(m[2], 10) - 2, excelRow: parseInt(m[2], 10) };
+      };
+      const indices = sel.map(toIndex).filter(Boolean) as { col: number; row: number; excelRow: number }[];
+      if (indices.length > 0) {
+        const minCol = Math.min(...indices.map(i => i.col));
+        const maxCol = Math.max(...indices.map(i => i.col));
+        const minRow = Math.min(...indices.map(i => i.row));
+        const maxRow = Math.max(...indices.map(i => i.row));
+        
+        const getLetter = (col: number) => {
+          let letter = "";
+          let n = col;
+          while (n >= 0) {
+            letter = String.fromCharCode(65 + (n % 26)) + letter;
+            n = Math.floor(n / 26) - 1;
+          }
+          return letter;
+        };
+
+        const startLetter = getLetter(minCol);
+        const endLetter = getLetter(maxCol);
+        const rangeRef = `${startLetter}${minRow + 2}:${endLetter}${maxRow + 2}`;
+        const refToInsert = sel.length === 1 ? `${startLetter}${minRow + 2}` : rangeRef;
+        setInput((prev) => (prev.trim() ? `${prev} ${refToInsert}` : refToInsert));
+      }
+    }
+
+    wasSelectingRef.current = isSelecting;
+    lastSelectedCellsRef.current = sel;
+  }, [excelData, autoInputSelection]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -227,6 +280,21 @@ const ChatInterface = ({
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Selection Toggle */}
+      <div className="px-4 py-2 border-b border-border bg-muted/30 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MousePointer2 className="h-4 w-4 text-primary" />
+          <Label htmlFor="auto-selection" className="text-xs font-medium cursor-pointer">
+            Auto-input selection
+          </Label>
+        </div>
+        <Switch 
+          id="auto-selection" 
+          checked={autoInputSelection} 
+          onCheckedChange={setAutoInputSelection}
+        />
       </div>
 
       {/* Messages */}
