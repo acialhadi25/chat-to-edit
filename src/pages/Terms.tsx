@@ -20,7 +20,7 @@ const Terms = () => {
           <section className="space-y-4 mb-8">
             <h2 className="text-xl font-semibold text-foreground">2. Deskripsi Layanan</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Chat to Edit menyediakan platform berbasis AI untuk mengedit dan mengelola dokumen Excel, PDF, dan DOCX melalui antarmuka chat. Layanan ini tersedia dalam paket gratis dan berbayar dengan batasan penggunaan yang berbeda.
+              Chat to Edit menyediakan platform berbasis AI untuk mengedit dan mengelola data Excel melalui antarmuka chat. Layanan ini tersedia dalam paket gratis dan berbayar dengan batasan penggunaan yang berbeda.
             </p>
           </section>
 

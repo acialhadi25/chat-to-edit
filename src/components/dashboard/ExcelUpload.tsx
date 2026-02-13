@@ -93,11 +93,12 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
           title: "File uploaded successfully!",
           description: `${file.name} - ${allSheets[firstSheet].rows.length} rows, ${sheets.length} sheet(s)`,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : undefined;
         toast({
           variant: "destructive",
           title: "Failed to process file",
-          description: error.message || "Please ensure the Excel file is valid",
+          description: message || "Please ensure the Excel file is valid",
         });
         setSelectedFile(null);
       } finally {
@@ -123,15 +124,18 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
     [processExcelFile, checkCanUpload]
   );
 
-  const onDropRejected = useCallback((rejectedFiles: any[]) => {
+  type DropzoneError = { code: string; message: string };
+  type FileRejection = { file: File; errors: DropzoneError[] };
+
+  const onDropRejected = useCallback((rejectedFiles: FileRejection[]) => {
     rejectedFiles.forEach((rejection) => {
       const { file, errors } = rejection;
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
 
       // Check for specific rejection reasons
-      const hasFileTooLarge = errors.some((e: any) => e.code === "file-too-large");
-      const hasFileInvalidType = errors.some((e: any) => e.code === "file-invalid-type");
-      const hasTooManyFiles = errors.some((e: any) => e.code === "too-many-files");
+      const hasFileTooLarge = errors.some((e) => e.code === "file-too-large");
+      const hasFileInvalidType = errors.some((e) => e.code === "file-invalid-type");
+      const hasTooManyFiles = errors.some((e) => e.code === "too-many-files");
 
       if (hasFileTooLarge) {
         toast({
@@ -154,7 +158,7 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
       } else {
         toast({
           title: "File rejected",
-          description: `${file.name} could not be accepted. ${errors.map((e: any) => e.message).join(", ")}`,
+          description: `${file.name} could not be accepted. ${errors.map((e) => e.message).join(", ")}`,
           variant: "destructive",
         });
       }
@@ -211,7 +215,7 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
                   // We'll expose this via a prop or handle it in the parent?
                   // Actually, the Gallery state is in ExcelDashboard. 
                   // Let's check how to trigger it.
-                  (window as any).dispatchEvent(new CustomEvent('open-template-gallery'));
+                  window.dispatchEvent(new CustomEvent('open-template-gallery'));
                 }}
               >
                 Browse Templates

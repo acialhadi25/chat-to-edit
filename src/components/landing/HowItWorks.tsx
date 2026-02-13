@@ -7,7 +7,7 @@ const HowItWorks = () => {
       icon: <Upload className="h-8 w-8" />,
       number: "1",
       title: "Upload",
-      description: "Drag & drop atau pilih file Excel, PDF, atau DOCX",
+      description: "Drag & drop atau pilih file Excel (XLSX/XLS)",
       color: "from-blue-500 to-blue-600",
     },
     {
@@ -21,7 +21,7 @@ const HowItWorks = () => {
       icon: <Download className="h-8 w-8" />,
       number: "3",
       title: "Download",
-      description: "Dapatkan file hasil editing dalam hitungan detik",
+      description: "Dapatkan file Excel hasil editing dalam hitungan detik",
       color: "from-emerald-500 to-emerald-600",
     },
   ];
@@ -59,7 +59,7 @@ const HowItWorks = () => {
             Gimana Cara Kerjanya?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Tiga langkah mudah untuk mengedit dokumen dengan AI
+            Tiga langkah mudah untuk mengedit Excel dengan AI
           </p>
         </motion.div>
 

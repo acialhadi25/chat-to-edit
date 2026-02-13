@@ -199,20 +199,25 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
           role: "assistant",
           content: parseResult.data?.content || fullText,
           action: parseResult.data?.action ? { ...parseResult.data.action, status: "pending" as const } as AIAction : undefined,
-          quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({
-            id: opt.id || crypto.randomUUID(),
-            label: opt.label,
-            value: opt.value,
-            variant: opt.variant || "default",
-            action: opt.action,
-            isApplyAction: opt.isApplyAction
-          })) as QuickOption[] | undefined,
+          quickOptions: parseResult.data?.quickOptions?.map((opt: unknown) => {
+            const o = (typeof opt === "object" && opt !== null ? (opt as Record<string, unknown>) : {});
+            return {
+              id: (typeof o.id === "string" && o.id) ? o.id : crypto.randomUUID(),
+              label: typeof o.label === "string" ? o.label : "Option",
+              value: typeof o.value === "string" ? o.value : "",
+              variant: (o.variant === "success" || o.variant === "destructive" || o.variant === "outline" || o.variant === "default") ? o.variant : "default",
+              action: (typeof o.action === "object" && o.action !== null ? (o.action as AIAction) : undefined),
+              isApplyAction: typeof o.isApplyAction === "boolean" ? o.isApplyAction : undefined,
+            };
+          }) as QuickOption[] | undefined,
           timestamp: new Date(),
         };
 
         onNewMessage(assistantMessage);
-        if (parseResult.data?.action?.changes && parseResult.data.action.changes.length > 0) {
-          onSetPendingChanges(parseResult.data.action.changes);
+        const changesRaw = parseResult.data?.action?.changes;
+        const changes = Array.isArray(changesRaw) ? (changesRaw as DataChange[]) : undefined;
+        if (changes && changes.length > 0) {
+          onSetPendingChanges(changes);
         }
         setIsProcessing(false);
       },

@@ -122,7 +122,7 @@ export interface AIAction {
   // Data Audit fields
   auditReport?: {
     totalErrors: number;
-    outliers: { cellRef: string; value: any; reason: string }[];
+    outliers: { cellRef: string; value: unknown; reason: string }[];
     typeInconsistencies: { cellRef: string; expected: string; found: string }[];
     missingValues: { cellRef: string; column: string }[];
     suggestions: { id: string; description: string; action: AIAction }[];

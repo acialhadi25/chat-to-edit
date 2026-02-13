@@ -13,7 +13,7 @@ const FAQ = () => {
     },
     {
       question: "Tools apa saja yang tersedia?",
-      answer: "Saat ini tersedia Chat to Excel untuk manipulasi spreadsheet. Chat to PDF dan Chat to Docs sedang dalam pengembangan dan akan segera hadir."
+      answer: "Saat ini tersedia Chat to Excel untuk manipulasi spreadsheet, termasuk formula, cleansing, transform, sort, filter, dan fitur lainnya."
     },
     {
       question: "Bisa bahasa Indonesia atau harus English?",
@@ -25,7 +25,7 @@ const FAQ = () => {
     },
     {
       question: "Apakah hasilnya benar-benar berfungsi?",
-      answer: "Ya! Untuk Excel, formula langsung diterapkan ke file .xlsx. Untuk PDF, operasi merge/split/extract menghasilkan file PDF yang valid. Tinggal download dan pakai."
+      answer: "Ya! Untuk Excel, perubahan (termasuk formula) langsung diterapkan ke file .xlsx. Tinggal download dan pakai."
     },
     {
       question: "Apa yang terjadi kalau hasilnya salah?",

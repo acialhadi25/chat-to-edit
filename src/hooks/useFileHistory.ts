@@ -32,7 +32,7 @@ export const useFileHistory = () => {
         supabase
           .from("profiles")
           .update({
-            files_used_this_month: (data as any)?.files_used_this_month ?? 1,
+            files_used_this_month: 1,
           })
           .eq("user_id", user.id);
       });

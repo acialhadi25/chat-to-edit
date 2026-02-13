@@ -39,9 +39,11 @@ export const useProfile = () => {
 
         if (queryError) {
           // Improved error logging for debugging
-          const errorCode = (queryError as any)?.code || "UNKNOWN";
-          const errorMessage = (queryError as any)?.message || "Unknown error";
-          const errorStatus = (queryError as any)?.status || "UNKNOWN";
+          const qe = queryError as unknown;
+          const qeObj = (typeof qe === "object" && qe !== null ? (qe as Record<string, unknown>) : null);
+          const errorCode = (qeObj?.code as string | undefined) || "UNKNOWN";
+          const errorMessage = (qeObj?.message as string | undefined) || "Unknown error";
+          const errorStatus = (qeObj?.status as number | string | undefined) || "UNKNOWN";
 
           console.error("Profile fetch error:", {
             code: errorCode,

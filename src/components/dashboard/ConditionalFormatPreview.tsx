@@ -48,7 +48,7 @@ const ConditionalFormatPreview = ({ action }: ConditionalFormatPreviewProps) => 
             style={{
               color: action.formatStyle.color,
               backgroundColor: action.formatStyle.backgroundColor,
-              fontWeight: action.formatStyle.fontWeight as any,
+              fontWeight: action.formatStyle.fontWeight as "normal" | "bold" | undefined,
               border: `1px solid ${action.formatStyle.color || '#ccc'}`
             }}
           >

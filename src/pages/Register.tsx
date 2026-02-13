@@ -55,11 +55,12 @@ const Register = () => {
         description: "Silakan cek email untuk verifikasi akun.",
       });
       navigate("/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Registrasi gagal",
-        description: error.message || "Terjadi kesalahan. Silakan coba lagi.",
+        description: message || "Terjadi kesalahan. Silakan coba lagi.",
       });
     } finally {
       setIsLoading(false);
@@ -76,11 +77,12 @@ const Register = () => {
       });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Registrasi gagal",
-        description: error.message || "Terjadi kesalahan dengan Google signup.",
+        description: message || "Terjadi kesalahan dengan Google signup.",
       });
     }
   };

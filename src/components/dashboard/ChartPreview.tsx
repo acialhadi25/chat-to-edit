@@ -26,6 +26,8 @@ interface ChartPreviewProps {
   onUpdate?: (updatedAction: AIAction) => void;
 }
 
+type ChartPoint = { name: string } & Record<string, number>;
+
 const COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
 const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
@@ -33,7 +35,7 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
     if (action.xAxisColumn !== undefined && action.yAxisColumns) {
       // Limit to first 30 rows for better visualization
       return data.rows.slice(0, 30).map((row) => {
-        const item: any = {
+        const item: ChartPoint = {
           name: String(row[action.xAxisColumn!] || ""),
         };
         action.yAxisColumns!.forEach((colIdx) => {
@@ -148,9 +150,10 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
         );
 
       case "pie":
-        const pieData = chartData.map(item => ({
+      {
+        const pieData = chartData.map((item) => ({
           name: item.name,
-          value: item[data.headers[action.yAxisColumns![0]]]
+          value: item[data.headers[action.yAxisColumns![0]]],
         }));
         return (
           <PieChart>
@@ -173,6 +176,7 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
             {showLegend && <Legend wrapperStyle={{ fontSize: "10px" }} />}
           </PieChart>
         );
+      }
 
       case "scatter":
         return (

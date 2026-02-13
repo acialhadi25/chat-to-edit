@@ -32,11 +32,12 @@ const Login = () => {
         description: "Welcome back to Chat to Edit.",
       });
       navigate("/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Login gagal",
-        description: error.message || "Terjadi kesalahan. Silakan coba lagi.",
+        description: message || "Terjadi kesalahan. Silakan coba lagi.",
       });
     } finally {
       setIsLoading(false);
@@ -53,11 +54,12 @@ const Login = () => {
       });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Login gagal",
-        description: error.message || "Terjadi kesalahan dengan Google login.",
+        description: message || "Terjadi kesalahan dengan Google login.",
       });
     }
   };

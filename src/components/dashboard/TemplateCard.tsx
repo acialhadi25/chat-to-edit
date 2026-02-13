@@ -16,7 +16,8 @@ const TemplateCard = ({ template, onUseTemplate }: TemplateCardProps) => {
     const { toast } = useToast();
 
     // Get icon component dynamically
-    const IconComponent = (LucideIcons as any)[template.icon] || LucideIcons.FileSpreadsheet;
+    const iconMap = LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>;
+    const IconComponent = iconMap[template.icon] || LucideIcons.FileSpreadsheet;
     const categoryInfo = TEMPLATE_CATEGORIES[template.category];
 
     const handleDownloadTemplate = (e: React.MouseEvent) => {

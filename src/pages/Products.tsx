@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import { FileSpreadsheet, FileText, FileType, Check } from "lucide-react";
+import { FileSpreadsheet, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const products = [
@@ -23,42 +23,6 @@ const products = [
     ],
     link: "/dashboard/excel",
   },
-  {
-    icon: <FileText className="h-8 w-8" />,
-    title: "Chat to PDF",
-    description: "Kelola file PDF dengan mudah. Merge, split, extract halaman, tambah watermark, dan konversi — semua lewat chat.",
-    color: "text-red-600",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-    features: [
-      "Merge beberapa PDF jadi satu",
-      "Split PDF per halaman",
-      "Extract halaman tertentu",
-      "Hapus halaman yang tidak dibutuhkan",
-      "Rotate halaman",
-      "Tambah watermark teks",
-      "Konversi ke gambar (PNG/JPG)",
-    ],
-    link: "/dashboard/pdf",
-  },
-  {
-    icon: <FileType className="h-8 w-8" />,
-    title: "Chat to Docs",
-    description: "Asisten penulisan AI untuk dokumen. Tulis, rewrite, translate, summarize, dan improve dokumen dengan chat.",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    features: [
-      "Tulis dokumen dari nol",
-      "Rewrite & paraphrase konten",
-      "Translate ke berbagai bahasa",
-      "Summarize dokumen panjang",
-      "Grammar check & proofread",
-      "Ubah tone (formal, casual, professional)",
-      "Expand & simplify konten",
-    ],
-    link: "/dashboard/docs",
-  },
 ];
 
 const Products = () => {
@@ -69,7 +33,7 @@ const Products = () => {
         <div className="mx-auto max-w-4xl text-center mb-16">
           <h1 className="text-4xl font-bold text-foreground mb-4">Produk Kami</h1>
           <p className="text-lg text-muted-foreground">
-            Tiga tools AI yang powerful untuk mengelola dokumen Anda sehari-hari.
+            Excel copilot yang membantu kamu mengelola data spreadsheet lewat chat AI.
           </p>
         </div>
 

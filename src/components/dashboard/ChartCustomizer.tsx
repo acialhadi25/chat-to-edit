@@ -36,7 +36,7 @@ const ChartCustomizer = ({ action, data, onUpdate }: ChartCustomizerProps) => {
         setIsOpen(false);
     };
 
-    const updateField = (field: keyof AIAction, value: any) => {
+    const updateField = (field: keyof AIAction, value: unknown) => {
         setLocalAction((prev) => ({ ...prev, [field]: value }));
     };
 

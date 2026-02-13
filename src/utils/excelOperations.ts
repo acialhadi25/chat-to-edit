@@ -1179,6 +1179,7 @@ export function calculateDates(
     if (date) {
       switch (operation) {
         case "age": // Years since date
+        {
           let age = now.getFullYear() - date.getFullYear();
           const m = now.getMonth() - date.getMonth();
           if (m < 0 || (m === 0 && now.getDate() < date.getDate())) {
@@ -1186,14 +1187,19 @@ export function calculateDates(
           }
           result = age;
           break;
+        }
         case "days_until": // Days from now to date
+        {
           const diffTimeUntil = date.getTime() - now.getTime();
           result = Math.ceil(diffTimeUntil / (1000 * 60 * 60 * 24));
           break;
+        }
         case "days_since": // Days from date to now
+        {
           const diffTimeSince = now.getTime() - date.getTime();
           result = Math.floor(diffTimeSince / (1000 * 60 * 60 * 24));
           break;
+        }
         case "add_days":
           if (param !== undefined) {
             const newDate = new Date(date);

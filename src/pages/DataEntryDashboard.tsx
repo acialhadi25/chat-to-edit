@@ -71,7 +71,7 @@ const DataEntryDashboard = () => {
   const [showGallery, setShowGallery] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState<{
     fileName: string;
-    sheets: { name: string; headers: string[]; data: any[][]; formulas?: { col: string; formula: string }[] }[];
+    sheets: { name: string; headers: string[]; data: (string | number | null)[][]; formulas?: { col: string; formula: string }[] }[];
   } | null>(null);
   const { toast } = useToast();
 
@@ -91,7 +91,7 @@ const DataEntryDashboard = () => {
     setTimeout(() => {
       const p = prompt.toLowerCase();
       let fileName = "Generasi_Excel_AI";
-      let sheets: { name: string; headers: string[]; data: any[][]; formulas?: { col: string; formula: string }[] }[] = [];
+      const sheets: { name: string; headers: string[]; data: (string | number | null)[][]; formulas?: { col: string; formula: string }[] }[] = [];
 
       // Logic Deteksi Topik & Kolom
       if (p.includes("jual") || p.includes("sales") || p.includes("dagang")) {
@@ -291,7 +291,7 @@ const DataEntryDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-muted/50"><TableRow>{generatedPlan.sheets[0].headers.map((h, i) => <TableHead key={i} className="font-bold text-foreground">{h}</TableHead>)}</TableRow></TableHeader>
-                  <TableBody>{generatedPlan.sheets[0].data.map((row, i) => <TableRow key={i}>{row.map((cell: any, j: number) => <TableCell key={j} className="text-muted-foreground">{cell}</TableCell>)}</TableRow>)}</TableBody>
+                  <TableBody>{generatedPlan.sheets[0].data.map((row, i) => <TableRow key={i}>{row.map((cell, j) => <TableCell key={j} className="text-muted-foreground">{cell}</TableCell>)}</TableRow>)}</TableBody>
                 </Table>
               </div>
             </CardContent>

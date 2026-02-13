@@ -55,11 +55,12 @@ const MergeExcelDashboard = () => {
         title: "Success",
         description: "Excel files merged and downloaded successfully!",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Merge failed",
-        description: error.message || "An error occurred during merging",
+        description: message || "An error occurred during merging",
       });
     }
   };

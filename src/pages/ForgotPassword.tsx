@@ -26,11 +26,12 @@ const ForgotPassword = () => {
       if (error) throw error;
 
       setIsSent(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
+        description: message || "Something went wrong. Please try again.",
       });
     } finally {
       setIsLoading(false);

@@ -74,11 +74,12 @@ const MultiExcelUpload = ({ onFilesUpload }: MultiExcelUploadProps) => {
         title: "Files uploaded successfully!",
         description: `${files.length} files processed.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         variant: "destructive",
         title: "Failed to process files",
-        description: error.message || "Please ensure the Excel files are valid",
+        description: message || "Please ensure the Excel files are valid",
       });
       setSelectedFiles([]);
     } finally {
