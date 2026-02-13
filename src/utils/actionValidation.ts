@@ -106,11 +106,24 @@ export function validateExcelAction(action: unknown): ValidationResult {
       }
       break;
 
-    case "FILTER_DATA":
-      if (!a.filterOperator || a.filterValue === undefined) {
-        errors.push("FILTER_DATA requires 'filterOperator' and 'filterValue' fields");
+    case "FILTER_DATA": {
+      // Validasi operator dan value
+      const validFilterOperators = ["=", "!=", ">", "<", ">=", "<=", "contains", "not_contains", "empty", "not_empty"];
+      if (!a.filterOperator || !validFilterOperators.includes(a.filterOperator as string)) {
+        errors.push(`FILTER_DATA requires valid 'filterOperator' (${validFilterOperators.join(", ")})`);
+      }
+      // Validasi target kolom
+      const target = a.target as Record<string, unknown>;
+      if (!target || (target.type !== "column" && target.type !== "range")) {
+        errors.push("FILTER_DATA requires 'target' with type 'column' or 'range'");
+      }
+      // Validasi value untuk operator yang membutuhkan nilai
+      const needsValue = !["empty", "not_empty"].includes(a.filterOperator as string);
+      if (needsValue && a.filterValue === undefined) {
+        errors.push(`FILTER_DATA with operator '${a.filterOperator}' requires 'filterValue'`);
       }
       break;
+    }
 
     case "ADD_COLUMN":
       if (!a.newColumnName || typeof a.newColumnName !== "string") {
@@ -142,17 +155,50 @@ export function validateExcelAction(action: unknown): ValidationResult {
       }
       break;
 
-    case "CONDITIONAL_FORMAT":
-      if (!a.target || !a.conditionType || !a.formatStyle) {
+    case "CONDITIONAL_FORMAT": {
+      const condTarget = a.target as Record<string, unknown>;
+      const condStyle = a.formatStyle as Record<string, unknown>;
+      if (!condTarget || !a.conditionType || !condStyle) {
         errors.push("CONDITIONAL_FORMAT requires 'target', 'conditionType', and 'formatStyle' fields");
+      } else {
+        // Validasi conditionType
+        const validConditions = [">", "<", ">=", "<=", "=", "!=", "contains", "not_contains", "between", "empty", "not_empty", "greater_than", "less_than", "equal_to", "not_equal"];
+        if (!validConditions.includes(a.conditionType as string)) {
+          errors.push(`Invalid conditionType: ${a.conditionType}`);
+        }
+        // Validasi conditionValues untuk operator yang membutuhkan nilai
+        const needsConditionValue = !["empty", "not_empty"].includes(a.conditionType as string);
+        if (needsConditionValue && (!Array.isArray(a.conditionValues) || a.conditionValues.length === 0)) {
+          errors.push(`CONDITIONAL_FORMAT with '${a.conditionType}' requires 'conditionValues' array`);
+        }
+        // Validasi between membutuhkan 2 nilai
+        if ((a.conditionType === "between" || a.conditionType === ">= <=") && (!Array.isArray(a.conditionValues) || a.conditionValues.length < 2)) {
+          errors.push("CONDITIONAL_FORMAT 'between' requires 2 values in 'conditionValues'");
+        }
+        // Validasi formatStyle minimal punya satu property
+        if (!condStyle.color && !condStyle.backgroundColor && !condStyle.fontWeight) {
+          warnings.push("formatStyle should specify at least color, backgroundColor, or fontWeight");
+        }
       }
       break;
+    }
 
     case "CREATE_CHART":
       if (!a.chartType || a.xAxisColumn === undefined || !Array.isArray(a.yAxisColumns)) {
         errors.push("CREATE_CHART requires 'chartType', 'xAxisColumn', and 'yAxisColumns' fields");
       }
       break;
+
+    case "COPY_COLUMN": {
+      const copyTarget = a.target as Record<string, unknown>;
+      if (!copyTarget || copyTarget.type !== "column") {
+        errors.push("COPY_COLUMN requires 'target' with type 'column'");
+      }
+      if (!a.newColumnName || typeof a.newColumnName !== "string") {
+        errors.push("COPY_COLUMN requires 'newColumnName' for the copied column");
+      }
+      break;
+    }
 
     default:
       // Other actions don't require specific fields
