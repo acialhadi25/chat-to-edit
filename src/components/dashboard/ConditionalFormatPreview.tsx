@@ -12,10 +12,20 @@ const ConditionalFormatPreview = ({ action }: ConditionalFormatPreviewProps) => 
 
   const formatCondition = (type: string, values?: (string | number)[]) => {
     switch (type) {
+      case ">":
       case "greater_than": return `Lebih besar dari ${values?.[0]}`;
+      case "<":
       case "less_than": return `Kurang dari ${values?.[0]}`;
+      case ">=": return `Lebih besar atau sama dengan ${values?.[0]}`;
+      case "<=": return `Kurang dari atau sama dengan ${values?.[0]}`;
+      case "=":
       case "equal_to": return `Sama dengan "${values?.[0]}"`;
+      case "!=":
+      case "not_equal": return `Tidak sama dengan "${values?.[0]}"`;
       case "contains": return `Mengandung "${values?.[0]}"`;
+      case "not_contains": return `Tidak mengandung "${values?.[0]}"`;
+      case "empty": return `Kosong`;
+      case "not_empty": return `Tidak kosong`;
       case "between": return `Antara ${values?.[0]} dan ${values?.[1]}`;
       default: return type;
     }

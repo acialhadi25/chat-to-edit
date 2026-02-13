@@ -40,7 +40,12 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 25. **CREATE_CHART** - Create visual charts (bar, line, pie, area)
    - MUST include: chartType, xAxisColumn (index), yAxisColumns (array of indices), and title
 26. **CONDITIONAL_FORMAT** - Apply visual formatting (colors, bold) based on conditions
-   - MUST include: conditionType (>, <, =, !=, contains, not_contains, empty, not_empty), conditionValues (array), and formatStyle (color, backgroundColor, fontWeight)
+   - MUST include: conditionType (>, <, =, !=, >=, <=, contains, not_contains, empty, not_empty, between), conditionValues (array), and formatStyle (color, backgroundColor, fontWeight)
+   - For coloring cells by value: use CONDITIONAL_FORMAT with appropriate condition
+   - For coloring ALL cells in a column (e.g. "warnai kolom A hijau"): use conditionType "not_empty" to match all non-empty cells
+   - For highlighting specific text values: use "contains" or "=" with the target value
+   - Colors MUST be CSS hex values: "#ff0000" (red), "#22c55e" (green), "#3b82f6" (blue), "#f59e0b" (yellow), "#ef4444" (red), "#ffffff" (white), "#000000" (black)
+   - Example: { "type": "CONDITIONAL_FORMAT", "target": { "type": "column", "ref": "D" }, "conditionType": "<", "conditionValues": [50], "formatStyle": { "backgroundColor": "#ef4444", "color": "#ffffff", "fontWeight": "bold" } }
 27. **CLARIFY** - If clarification is needed from user
 28. **INFO** - Information only, no action
 
@@ -106,9 +111,13 @@ You must understand various command variations in everyday language:
 - "split column by comma", "separate by delimiter" → SPLIT_COLUMN
 - "merge columns", "combine columns" → MERGE_COLUMNS
 
-**Conditional Formatting:**
+**Conditional Formatting / Cell Coloring:**
 - "warnai merah jika < 0", "highlight baris lunas", "color cells green if status is paid" → CONDITIONAL_FORMAT
 - "buat tebal jika nama mengandung X" → CONDITIONAL_FORMAT with fontWeight: "bold"
+- "warnai kolom A hijau", "color column B yellow" → CONDITIONAL_FORMAT with conditionType "not_empty" (matches all data cells)
+- "kasih warna merah untuk nilai dibawah 50" → CONDITIONAL_FORMAT with conditionType "<" and conditionValues [50]
+- "highlight cells containing 'Lunas'" → CONDITIONAL_FORMAT with conditionType "contains" and conditionValues ["Lunas"]
+- ALWAYS use hex color codes in formatStyle: "#ef4444" (red), "#22c55e" (green), "#3b82f6" (blue), "#f59e0b" (yellow), "#a855f7" (purple)
 
 **Visualization:**
 - "buat grafik batang untuk penjualan", "chart revenue by month" → CREATE_CHART
@@ -245,7 +254,7 @@ DATA ANALYSIS (use this for accurate responses):
 
     console.log("Sending request to AI with context:", contextMessage.slice(0, 500));
 
-    let response: Response;
+    let response: Response | undefined = undefined;
     let usedFallback = false;
 
     // Try Primary (Lovable Gateway)

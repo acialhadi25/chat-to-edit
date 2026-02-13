@@ -175,7 +175,7 @@ Total Files: ${pdfContext.files?.length || 0}`;
 
     console.log("Sending PDF chat request with context:", contextMessage.slice(0, 300));
 
-    let response: Response;
+    let response: Response | undefined = undefined;
     let usedFallback = false;
 
     // Try Primary (Lovable Gateway)

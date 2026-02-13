@@ -171,7 +171,7 @@ ${preview}`;
 
     console.log("Sending docs chat request with context:", contextMessage.slice(0, 300));
 
-    let response: Response;
+    let response: Response | undefined = undefined;
     let usedFallback = false;
 
     // Try Primary (Lovable Gateway)
