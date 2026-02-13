@@ -26,6 +26,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { streamChat } from "@/utils/streamChat";
+import { enhancedStreamChat, withRetry, CircuitBreaker } from "@/utils/aiRetry";
+import { attemptRecovery, logAIQualityMetrics, sanitizeAIAction } from "@/utils/aiErrorRecovery";
 import { parseAIResponse, logParseResult } from "@/utils/jsonParser";
 import QuickActionButtons from "./QuickActionButtons";
 import ActionPreview from "./ActionPreview";
@@ -137,6 +139,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
     const visibleText = displayText || text;
     if (!text || isProcessing) return;
 
+    const startTime = Date.now();
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -186,11 +190,12 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
       { role: "user", content: text },
     ];
 
-    await streamChat({
+    await enhancedStreamChat({
       messages: allMessages,
       excelContext: context,
       onDelta: (chunk) => setStreamingContent((prev) => prev + chunk),
       onDone: (fullText) => {
+        const processingTime = Date.now() - startTime;
         setIsStreaming(false);
         setStreamingContent("");
         const parseResult = parseAIResponse(fullText, fullText);
@@ -223,17 +228,47 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
         }
         setIsProcessing(false);
         
+        // Log AI quality metrics for successful request
+        if (parseResult.data?.action) {
+          const action = parseResult.data.action as unknown as AIAction;
+          logAIQualityMetrics(action, true, undefined, processingTime);
+        }
+        
         // Log AI request for usage tracking
         logAIRequest(parseResult.data?.action?.type as string);
       },
       onError: async (error, status) => {
+        const processingTime = Date.now() - startTime;
         setIsStreaming(false);
         setStreamingContent("");
         setIsProcessing(false);
-        const { mapAIError, formatErrorForToast } = await import("@/utils/errorMessages");
-        const errorResponse = mapAIError(status, error, "Excel Chat");
-        toast({ ...formatErrorForToast(errorResponse) });
+        
+        // Log AI quality metrics for failed request
+        const failedAction: AIAction = { type: "CLARIFY", status: "pending" };
+        logAIQualityMetrics(failedAction, false, error, processingTime);
+        
+        // Attempt to recover from error
+        const recoveryResult = await attemptRecovery(error);
+        
+        if (recoveryResult.success && recoveryResult.recoveredAction) {
+          // Show recovered action as message
+          const recoveredMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: recoveryResult.message || "I couldn't process that request. Let me try a different approach.",
+            action: recoveryResult.recoveredAction,
+            timestamp: new Date(),
+          };
+          onNewMessage(recoveredMessage);
+        } else {
+          // Show error toast
+          const { mapAIError, formatErrorForToast } = await import("@/utils/errorMessages");
+          const errorResponse = mapAIError(status, error, "Excel Chat");
+          toast({ ...formatErrorForToast(errorResponse) });
+        }
       },
+      timeoutMs: 30000, // 30 second timeout
+      maxRetries: 2,
     });
   }, [input, isProcessing, excelData, messages, onNewMessage, onSetPendingChanges, setIsProcessing, getDataAnalysis, toast]);
 

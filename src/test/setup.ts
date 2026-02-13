@@ -2,6 +2,9 @@ import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
 // Mock Supabase
+const mockUnsubscribe = vi.fn();
+const mockSubscription = { unsubscribe: mockUnsubscribe };
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn(() => ({
@@ -17,7 +20,14 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: mockSubscription } }),
     },
+    channel: vi.fn().mockReturnValue({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn(),
+    }),
+    removeChannel: vi.fn(),
   },
 }));
 

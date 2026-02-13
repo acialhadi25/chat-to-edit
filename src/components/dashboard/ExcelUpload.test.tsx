@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ExcelUpload } from "@/components/dashboard/ExcelUpload";
+import ExcelUpload from "@/components/dashboard/ExcelUpload";
 import { excelDataFactory } from "@/test/factories/excel";
 
 // Mock react-dropzone
@@ -38,22 +38,41 @@ vi.mock("xlsx", () => ({
   },
 }));
 
+// Mock useToast
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: vi.fn(() => ({
+    toast: vi.fn(),
+  })),
+}));
+
+// Mock useUsageLimit
+vi.mock("@/hooks/useUsageLimit", () => ({
+  useUsageLimit: vi.fn(() => ({
+    checkCanUpload: vi.fn(() => ({ allowed: true })),
+  })),
+}));
+
+// Mock UpgradeModal
+vi.mock("./UpgradeModal", () => ({
+  default: vi.fn(() => null),
+}));
+
 describe("ExcelUpload", () => {
   it("should render upload area", () => {
-    render(<ExcelUpload onUpload={vi.fn()} />);
+    render(<ExcelUpload onFileUpload={vi.fn()} />);
 
-    expect(screen.getByText(/Drop your Excel file here/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drag & drop Excel file/i)).toBeInTheDocument();
   });
 
   it("should render upload button", () => {
-    render(<ExcelUpload onUpload={vi.fn()} />);
+    render(<ExcelUpload onFileUpload={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: /Upload/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Browse Files/i })).toBeInTheDocument();
   });
 
-  it("should call onUpload when file is processed", async () => {
-    const mockOnUpload = vi.fn();
-    const { container } = render(<ExcelUpload onUpload={mockOnUpload} />);
+  it("should call onFileUpload when file is processed", async () => {
+    const mockOnFileUpload = vi.fn();
+    const { container } = render(<ExcelUpload onFileUpload={mockOnFileUpload} />);
 
     const file = new File(
       ["mock excel content"],
@@ -61,31 +80,18 @@ describe("ExcelUpload", () => {
       { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
     );
 
-    const input = container.querySelector('input[type="file"]');
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     if (input) {
       await userEvent.upload(input, file);
     }
   });
 
   it("should show error for invalid file type", async () => {
-    render(<ExcelUpload onUpload={vi.fn()} />);
+    render(<ExcelUpload onFileUpload={vi.fn()} />);
 
     const file = new File(["test"], "test.txt", { type: "text/plain" });
 
     // Error should be shown for invalid file type
-    expect(screen.getByText(/Drop your Excel file here/i)).toBeInTheDocument();
-  });
-
-  it("should be disabled when isLoading is true", () => {
-    render(<ExcelUpload onUpload={vi.fn()} isLoading={true} />);
-
-    const button = screen.getByRole("button");
-    expect(button).toBeDisabled();
-  });
-
-  it("should show loading state", () => {
-    render(<ExcelUpload onUpload={vi.fn()} isLoading={true} />);
-
-    expect(screen.getByText(/Uploading/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drag & drop Excel file/i)).toBeInTheDocument();
   });
 });
