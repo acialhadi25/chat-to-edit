@@ -569,10 +569,20 @@ const ExcelDashboard = () => {
             const condNum = typeof condVal === "number" ? condVal : parseFloat(String(condVal));
 
             switch (action.conditionType) {
+              case ">":
               case "greater_than": match = !isNaN(numVal) && !isNaN(condNum) && numVal > condNum; break;
+              case "<":
               case "less_than": match = !isNaN(numVal) && !isNaN(condNum) && numVal < condNum; break;
+              case ">=": match = !isNaN(numVal) && !isNaN(condNum) && numVal >= condNum; break;
+              case "<=": match = !isNaN(numVal) && !isNaN(condNum) && numVal <= condNum; break;
+              case "=":
               case "equal_to": match = String(val) === String(condVal); break;
-              case "contains": match = String(val).includes(String(condVal)); break;
+              case "!=":
+              case "not_equal": match = String(val) !== String(condVal); break;
+              case "contains": match = String(val).toLowerCase().includes(String(condVal).toLowerCase()); break;
+              case "not_contains": match = !String(val).toLowerCase().includes(String(condVal).toLowerCase()); break;
+              case "empty": match = val === null || val === undefined || String(val).trim() === ""; break;
+              case "not_empty": match = val !== null && val !== undefined && String(val).trim() !== ""; break;
               case "between": {
                 const condVal2 = action.conditionValues?.[1];
                 const condNum2 = typeof condVal2 === "number" ? condVal2 : parseFloat(String(condVal2));
@@ -748,11 +758,21 @@ const ExcelDashboard = () => {
         break;
       }
       case "FILTER_DATA": {
-        if (action.target?.type === "column" && action.filterOperator) {
-          const colIndex = getColumnIndex(action.target.ref);
+        if (action.filterOperator) {
+          let colIndex: number;
+          if (action.target?.type === "column") {
+            colIndex = getColumnIndex(action.target.ref);
+          } else if (action.target?.type === "range") {
+            const colLetter = action.target.ref.match(/^([A-Z]+)/);
+            colIndex = colLetter ? getColumnIndex(colLetter[1]) : 0;
+          } else if (action.sortColumn) {
+            colIndex = getColumnIndex(action.sortColumn);
+          } else {
+            colIndex = 0;
+          }
           const { data: filteredData, removedCount } = filterData(newData, colIndex, action.filterOperator, action.filterValue);
           newData = filteredData;
-          description = `Filter column ${action.target.ref}: ${removedCount} rows removed`;
+          description = `Filter: ${removedCount} rows removed`;
         }
         break;
       }
@@ -1008,6 +1028,15 @@ const ExcelDashboard = () => {
         }
         break;
       }
+      case "COPY_COLUMN": {
+        if (action.target?.type === "column") {
+          const colIndex = getColumnIndex(action.target.ref);
+          const { data: copiedData } = copyColumn(newData, colIndex, action.newColumnName);
+          newData = copiedData;
+          description = `Copied column ${action.target.ref}`;
+        }
+        break;
+      }
       case "DATA_AUDIT":
       case "INSIGHTS":
       case "INFO":
@@ -1024,6 +1053,14 @@ const ExcelDashboard = () => {
     const allChanges: DataChange[] = [...(action.changes || []), ...generatedChanges];
     pushState(beforeData, newData, action.type, description);
     setExcelData(newData);
+
+    // Sync allSheets with current sheet data after operation
+    if (newData.allSheets && newData.currentSheet) {
+      newData.allSheets[newData.currentSheet] = {
+        headers: newData.headers,
+        rows: newData.rows,
+      };
+    }
     setAppliedChanges(allChanges);
     setTimeout(() => setAppliedChanges([]), 3000);
     toast({ title: "Applied!", description });

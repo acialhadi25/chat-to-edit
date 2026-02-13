@@ -235,7 +235,7 @@ ${preview}`;
       });
     }
 
-    if (!response! || !response.ok) {
+    if (!response || !response.ok) {
       const status = response?.status || 500;
       if (status === 429) {
         return new Response(

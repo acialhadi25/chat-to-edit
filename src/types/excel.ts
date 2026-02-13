@@ -33,7 +33,8 @@ export type ActionType =
   | "TEXT_EXTRACTION"
   | "CREATE_CHART"
   | "DATA_AUDIT"
-  | "INSIGHTS";
+  | "INSIGHTS"
+  | "COPY_COLUMN";
 
 // Target for actions
 export interface CellTarget {
@@ -104,7 +105,7 @@ export interface AIAction {
   xAxisLabel?: string;
   yAxisLabel?: string;
   // Conditional formatting
-  conditionType?: "greater_than" | "less_than" | "equal_to" | "contains" | "between";
+  conditionType?: "greater_than" | "less_than" | "equal_to" | "contains" | "between" | ">" | "<" | ">=" | "<=" | "=" | "!=" | "not_equal" | "not_contains" | "empty" | "not_empty";
   conditionValues?: (string | number)[];
   formatStyle?: {
     color?: string;
