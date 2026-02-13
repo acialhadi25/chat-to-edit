@@ -487,12 +487,22 @@ const ExcelDashboard = () => {
     if (!excelData || !excelData.allSheets) return;
     const sheetData = excelData.allSheets[sheetName];
     if (!sheetData) return;
+    
+    // Save current sheet's formulas and styles before switching
+    const currentSheetData = excelData.allSheets[excelData.currentSheet];
+    if (currentSheetData) {
+      currentSheetData.formulas = { ...excelData.formulas };
+      currentSheetData.cellStyles = { ...excelData.cellStyles };
+    }
+    
+    // Switch to new sheet with its formulas and styles
     setExcelData({
       ...excelData,
       currentSheet: sheetName,
       headers: sheetData.headers,
       rows: sheetData.rows,
-      formulas: {},
+      formulas: sheetData.formulas || {},
+      cellStyles: sheetData.cellStyles || {},
       selectedCells: [],
       pendingChanges: [],
     });
@@ -1059,6 +1069,8 @@ const ExcelDashboard = () => {
       newData.allSheets[newData.currentSheet] = {
         headers: newData.headers,
         rows: newData.rows,
+        formulas: { ...newData.formulas },
+        cellStyles: { ...newData.cellStyles },
       };
     }
     setAppliedChanges(allChanges);

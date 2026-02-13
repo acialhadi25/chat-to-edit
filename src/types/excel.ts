@@ -138,10 +138,22 @@ export interface AIAction {
   status: "pending" | "applied" | "rejected";
 }
 
-// Sheet data structure
+// Sheet data structure with formulas and styles per sheet
 export interface SheetData {
   headers: string[];
   rows: (string | number | null)[][];
+  formulas?: { [cellRef: string]: string };
+  cellStyles?: {
+    [cellRef: string]: {
+      color?: string;
+      backgroundColor?: string;
+      fontColor?: string;
+      fontWeight?: string;
+      fontSize?: number;
+      textAlign?: "left" | "center" | "right";
+      border?: boolean;
+    }
+  };
 }
 
 // Excel data structure
