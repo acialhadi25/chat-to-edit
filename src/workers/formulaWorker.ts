@@ -9,6 +9,7 @@
  */
 
 import { evaluateFormula } from '@/utils/formulas';
+import { FormulaCache } from '@/utils/formulaCache';
 import type { ExcelData } from '@/types/excel';
 
 /**
@@ -21,10 +22,31 @@ interface FormulaEvaluationRequest {
   data: ExcelData;
 }
 
+interface CacheInvalidationRequest {
+  type: 'invalidate';
+}
+
+interface CacheStatsRequest {
+  type: 'stats';
+  id: string;
+}
+
 interface FormulaEvaluationSuccess {
   type: 'success';
   id: string;
   result: string | number | null;
+  cached?: boolean;
+}
+
+interface CacheStatsResponse {
+  type: 'stats';
+  id: string;
+  stats: {
+    size: number;
+    maxSize: number;
+    hitRate: number;
+    dataVersion: number;
+  };
 }
 
 interface FormulaEvaluationError {
@@ -33,8 +55,13 @@ interface FormulaEvaluationError {
   error: string;
 }
 
-type WorkerRequest = FormulaEvaluationRequest;
-type WorkerResponse = FormulaEvaluationSuccess | FormulaEvaluationError;
+type WorkerRequest = FormulaEvaluationRequest | CacheInvalidationRequest | CacheStatsRequest;
+type WorkerResponse = FormulaEvaluationSuccess | FormulaEvaluationError | CacheStatsResponse;
+
+/**
+ * Worker-specific formula cache instance
+ */
+const formulaCache = new FormulaCache({ maxSize: 1000, ttl: 5 * 60 * 1000 });
 
 /**
  * Handle incoming messages from the main thread
@@ -44,14 +71,33 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
 
   if (request.type === 'evaluate') {
     try {
-      // Evaluate the formula with the provided data
+      // Check cache first
+      const cachedResult = formulaCache.get(request.formula, request.data);
+      
+      if (cachedResult !== null) {
+        // Cache hit - return cached result
+        const response: FormulaEvaluationSuccess = {
+          type: 'success',
+          id: request.id,
+          result: cachedResult,
+          cached: true,
+        };
+        self.postMessage(response);
+        return;
+      }
+
+      // Cache miss - evaluate the formula
       const result = evaluateFormula(request.formula, request.data);
+
+      // Store result in cache
+      formulaCache.set(request.formula, request.data, result);
 
       // Send success response
       const response: FormulaEvaluationSuccess = {
         type: 'success',
         id: request.id,
         result,
+        cached: false,
       };
       self.postMessage(response);
     } catch (error) {
@@ -63,6 +109,18 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       };
       self.postMessage(response);
     }
+  } else if (request.type === 'invalidate') {
+    // Invalidate the cache when data changes
+    formulaCache.invalidate();
+  } else if (request.type === 'stats') {
+    // Return cache statistics
+    const stats = formulaCache.getStats();
+    const response: CacheStatsResponse = {
+      type: 'stats',
+      id: request.id,
+      stats,
+    };
+    self.postMessage(response);
   }
 };
 
@@ -83,4 +141,13 @@ self.onerror = (event: string | Event) => {
 };
 
 // Export types for use in main thread
-export type { WorkerRequest, WorkerResponse, FormulaEvaluationRequest, FormulaEvaluationSuccess, FormulaEvaluationError };
+export type { 
+  WorkerRequest, 
+  WorkerResponse, 
+  FormulaEvaluationRequest, 
+  FormulaEvaluationSuccess, 
+  FormulaEvaluationError,
+  CacheInvalidationRequest,
+  CacheStatsRequest,
+  CacheStatsResponse,
+};

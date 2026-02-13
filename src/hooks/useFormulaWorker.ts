@@ -19,6 +19,7 @@ import type { ExcelData } from '@/types/excel';
 import type {
   WorkerRequest,
   WorkerResponse,
+  CacheStatsResponse,
 } from '@/workers/formulaWorker';
 
 /**
@@ -45,6 +46,21 @@ interface UseFormulaWorkerReturn {
   ) => Promise<string | number | null>;
 
   /**
+   * Invalidate the formula cache (call when data changes)
+   */
+  invalidateCache: () => void;
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats: () => Promise<{
+    size: number;
+    maxSize: number;
+    hitRate: number;
+    dataVersion: number;
+  }>;
+
+  /**
    * Check if the worker is ready
    */
   isReady: boolean;
@@ -59,7 +75,7 @@ interface UseFormulaWorkerReturn {
  * Pending request tracker
  */
 interface PendingRequest {
-  resolve: (value: string | number | null) => void;
+  resolve: (value: string | number | null | { size: number; maxSize: number; hitRate: number; dataVersion: number }) => void;
   reject: (error: Error) => void;
   timeoutId?: number;
 }
@@ -69,7 +85,7 @@ interface PendingRequest {
  * 
  * @example
  * ```tsx
- * const { evaluateAsync, isReady } = useFormulaWorker();
+ * const { evaluateAsync, invalidateCache, isReady } = useFormulaWorker();
  * 
  * const handleCalculate = async () => {
  *   if (!isReady) return;
@@ -80,6 +96,11 @@ interface PendingRequest {
  *   } catch (error) {
  *     console.error('Evaluation failed:', error);
  *   }
+ * };
+ * 
+ * const handleDataChange = () => {
+ *   // Invalidate cache when data changes
+ *   invalidateCache();
  * };
  * ```
  */
@@ -101,7 +122,7 @@ export function useFormulaWorker(): UseFormulaWorkerReturn {
       );
 
       // Set up message handler
-      workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      workerRef.current.onmessage = (e: MessageEvent<WorkerResponse | CacheStatsResponse>) => {
         const response = e.data;
         const pending = pendingRequestsRef.current.get(response.id);
 
@@ -123,6 +144,8 @@ export function useFormulaWorker(): UseFormulaWorkerReturn {
           pending.resolve(response.result);
         } else if (response.type === 'error') {
           pending.reject(new Error(response.error));
+        } else if (response.type === 'stats') {
+          pending.resolve(response.stats);
         }
       };
 
@@ -214,6 +237,56 @@ export function useFormulaWorker(): UseFormulaWorkerReturn {
   );
 
   /**
+   * Invalidate the formula cache
+   * 
+   * Call this when the Excel data changes to ensure fresh calculations
+   */
+  const invalidateCache = useCallback(() => {
+    if (!workerRef.current || !isReady) {
+      console.warn('Worker not initialized, cannot invalidate cache');
+      return;
+    }
+
+    workerRef.current.postMessage({ type: 'invalidate' });
+  }, [isReady]);
+
+  /**
+   * Get cache statistics
+   */
+  const getCacheStats = useCallback((): Promise<{
+    size: number;
+    maxSize: number;
+    hitRate: number;
+    dataVersion: number;
+  }> => {
+    return new Promise((resolve, reject) => {
+      if (!workerRef.current || !isReady) {
+        reject(new Error('Worker not initialized'));
+        return;
+      }
+
+      // Generate unique request ID
+      const id = `stats_${++requestIdCounter.current}`;
+
+      // Set up timeout
+      const timeoutId = window.setTimeout(() => {
+        pendingRequestsRef.current.delete(id);
+        reject(new Error('Cache stats request timed out'));
+      }, 1000);
+
+      // Store pending request
+      pendingRequestsRef.current.set(id, {
+        resolve: resolve as (value: string | number | null | { size: number; maxSize: number; hitRate: number; dataVersion: number }) => void,
+        reject,
+        timeoutId,
+      });
+
+      // Send request to worker
+      workerRef.current.postMessage({ type: 'stats', id });
+    });
+  }, [isReady]);
+
+  /**
    * Terminate the worker manually
    */
   const terminate = useCallback(() => {
@@ -236,6 +309,8 @@ export function useFormulaWorker(): UseFormulaWorkerReturn {
 
   return {
     evaluateAsync,
+    invalidateCache,
+    getCacheStats,
     isReady,
     terminate,
   };

@@ -388,4 +388,144 @@ describe('useFormulaWorker', () => {
       await expect(promise).rejects.toThrow('Formula evaluation timed out');
     });
   });
+
+  describe('cache operations', () => {
+    it('should send invalidate message to worker', async () => {
+      const mockPostMessage = vi.fn();
+
+      (global.Worker as any).mockImplementation(() => ({
+        postMessage: mockPostMessage,
+        terminate: vi.fn(),
+        onmessage: null,
+        onerror: null,
+      }));
+
+      const { result } = renderHook(() => useFormulaWorker());
+
+      // Wait for worker to be ready
+      await waitFor(() => {
+        expect(result.current.isReady).toBe(true);
+      });
+
+      // Invalidate cache
+      result.current.invalidateCache();
+
+      // Verify invalidate message was sent
+      expect(mockPostMessage).toHaveBeenCalledWith({ type: 'invalidate' });
+    });
+
+    it('should get cache statistics', async () => {
+      const mockPostMessage = vi.fn();
+      let messageHandler: ((e: MessageEvent) => void) | null = null;
+
+      (global.Worker as any).mockImplementation(() => ({
+        postMessage: mockPostMessage,
+        terminate: vi.fn(),
+        set onmessage(handler: (e: MessageEvent) => void) {
+          messageHandler = handler;
+        },
+        get onmessage() {
+          return messageHandler!;
+        },
+        onerror: null,
+      }));
+
+      const { result } = renderHook(() => useFormulaWorker());
+
+      // Wait for worker to be ready
+      await waitFor(() => {
+        expect(result.current.isReady).toBe(true);
+      });
+
+      // Request cache stats
+      const promise = result.current.getCacheStats();
+
+      // Wait for postMessage
+      await waitFor(() => {
+        expect(mockPostMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'stats',
+            id: expect.stringMatching(/^stats_\d+$/),
+          })
+        );
+      });
+
+      // Simulate worker response
+      const request = mockPostMessage.mock.calls[mockPostMessage.mock.calls.length - 1][0];
+      if (messageHandler) {
+        (messageHandler as (e: MessageEvent) => void)({
+          data: {
+            type: 'stats',
+            id: request.id,
+            stats: {
+              size: 5,
+              maxSize: 1000,
+              hitRate: 0.75,
+              dataVersion: 2,
+            },
+          },
+        } as MessageEvent);
+      }
+
+      // Wait for promise to resolve
+      const stats = await promise;
+      expect(stats).toEqual({
+        size: 5,
+        maxSize: 1000,
+        hitRate: 0.75,
+        dataVersion: 2,
+      });
+    });
+
+    it('should handle cache stats timeout', async () => {
+      const mockPostMessage = vi.fn();
+
+      (global.Worker as any).mockImplementation(() => ({
+        postMessage: mockPostMessage,
+        terminate: vi.fn(),
+        onmessage: null,
+        onerror: null,
+      }));
+
+      const { result } = renderHook(() => useFormulaWorker());
+
+      // Wait for worker to be ready
+      await waitFor(() => {
+        expect(result.current.isReady).toBe(true);
+      });
+
+      // Request cache stats
+      const promise = result.current.getCacheStats();
+
+      // Don't send response - let it timeout
+      await expect(promise).rejects.toThrow('Cache stats request timed out');
+    });
+
+    it('should not invalidate cache when worker is not ready', async () => {
+      // Mock Worker to throw error
+      (global.Worker as any).mockImplementation(() => {
+        throw new Error('Worker initialization failed');
+      });
+
+      const { result } = renderHook(() => useFormulaWorker());
+
+      // Try to invalidate cache
+      result.current.invalidateCache();
+
+      // Should not throw, just log warning
+      expect(result.current.isReady).toBe(false);
+    });
+
+    it('should reject getCacheStats when worker is not ready', async () => {
+      // Mock Worker to throw error
+      (global.Worker as any).mockImplementation(() => {
+        throw new Error('Worker initialization failed');
+      });
+
+      const { result } = renderHook(() => useFormulaWorker());
+
+      // Try to get cache stats
+      await expect(result.current.getCacheStats()).rejects.toThrow('Worker not initialized');
+    });
+  });
 });

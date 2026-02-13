@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGesture } from "@use-gesture/react";
-import { ExcelData, DataChange, getColumnLetter, createCellRef } from "@/types/excel";
+import { ExcelData, createCellRef } from "@/types/excel";
 import { cn } from "@/lib/utils";
 
 interface ResponsiveExcelGridProps {
@@ -31,25 +31,37 @@ export function ResponsiveExcelGrid({
   const [editValue, setEditValue] = useState("");
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const rowHeight = isMobile ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
   const colWidth = isMobile ? MOBILE_COL_WIDTH : DESKTOP_COL_WIDTH;
 
-  // Virtual scrolling for rows
+  // Optimized virtual scrolling for rows
+  // Higher overscan for smoother scrolling, especially on mobile
   const rowVirtualizer = useVirtualizer({
     count: data.rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => rowHeight,
-    overscan: 5,
+    estimateSize: useCallback(() => rowHeight, [rowHeight]),
+    overscan: isMobile ? 10 : 8, // More overscan on mobile for smoother touch scrolling
+    measureElement:
+      typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
+        ? (element) => element?.getBoundingClientRect().height
+        : undefined,
   });
 
-  // Virtual scrolling for columns
+  // Optimized virtual scrolling for columns
+  // Lower overscan for columns since horizontal scrolling is less frequent
   const colVirtualizer = useVirtualizer({
     horizontal: true,
     count: data.headers.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => colWidth,
-    overscan: 3,
+    estimateSize: useCallback(() => colWidth, [colWidth]),
+    overscan: isMobile ? 5 : 4, // Slightly more overscan on mobile
+    measureElement:
+      typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
+        ? (element) => element?.getBoundingClientRect().width
+        : undefined,
   });
 
   // Touch gestures for mobile
@@ -137,12 +149,39 @@ export function ResponsiveExcelGrid({
     return value?.toString() || "";
   };
 
+  // Handle scroll events to show loading indicator
+  useEffect(() => {
+    const scrollElement = parentRef.current;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      setIsScrolling(true);
+      
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, 150);
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      scrollElement.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       ref={parentRef}
       {...(isMobile ? bind() : {})}
       className={cn(
-        "excel-grid overflow-auto border rounded-lg bg-white",
+        "excel-grid overflow-auto border rounded-lg bg-white relative",
         isMobile && "touch-pan-y touch-pan-x",
         className
       )}
@@ -151,6 +190,13 @@ export function ResponsiveExcelGrid({
         touchAction: isMobile ? "none" : "auto",
       }}
     >
+      {/* Loading indicator during scroll */}
+      {isScrolling && (
+        <div className="absolute top-2 right-2 z-30 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          Loading...
+        </div>
+      )}
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
