@@ -7,11 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sun, Moon, Monitor, Crown, Mail, Shield } from "lucide-react";
+import { UsageStats } from "@/components/dashboard/UsageStats";
+import { UpgradeDialog } from "@/components/dashboard/UpgradeDialog";
+import { useState } from "react";
 
 const Settings = () => {
   const { user } = useAuth();
   const { profile, isLoading } = useProfile();
   const { theme, setTheme } = useTheme();
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -65,13 +69,19 @@ const Settings = () => {
             </Badge>
           </div>
           {profile?.plan !== "pro" && (
-            <Button className="w-full gap-2">
+            <Button 
+              className="w-full gap-2" 
+              onClick={() => setUpgradeDialogOpen(true)}
+            >
               <Crown className="h-4 w-4" />
               Upgrade to Pro
             </Button>
           )}
         </CardContent>
       </Card>
+
+      {/* Usage Statistics */}
+      <UsageStats onUpgradeClick={() => setUpgradeDialogOpen(true)} />
 
       {/* Theme */}
       <Card>
@@ -113,6 +123,11 @@ const Settings = () => {
           </p>
         </CardContent>
       </Card>
+      {/* Upgrade Dialog */}
+      <UpgradeDialog 
+        open={upgradeDialogOpen} 
+        onOpenChange={setUpgradeDialogOpen} 
+      />
     </div>
   );
 };

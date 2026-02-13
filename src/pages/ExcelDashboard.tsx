@@ -61,6 +61,7 @@ import {
   extractText,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
+import { useUsageTracking } from "@/hooks/useUsageTracking";
 
 const ExcelDashboard = () => {
   const { user } = useAuth();
@@ -77,6 +78,7 @@ const ExcelDashboard = () => {
 
   const { saveFileRecord } = useFileHistory();
   const { saveChatMessage } = useChatHistory();
+  const { logFileUpload, logAIRequest, logActionApplied } = useUsageTracking();
 
   const {
     pushState,
@@ -169,6 +171,14 @@ const ExcelDashboard = () => {
       uploadData.allSheets ? Object.values(uploadData.allSheets)[0]?.rows.length ?? 0 : 0,
       data.sheets.length
     );
+    
+    // Log file upload for usage tracking
+    await logFileUpload(
+      data.fileName,
+      uploadData.allSheets ? Object.values(uploadData.allSheets)[0]?.rows.length ?? 0 : 0,
+      data.sheets.length
+    );
+    
     if (record) {
       setFileHistoryId(record.id);
     }
@@ -1073,6 +1083,9 @@ const ExcelDashboard = () => {
         cellStyles: { ...newData.cellStyles },
       };
     }
+    // Log AI action for usage tracking
+    await logActionApplied(action.type, generatedChanges.length || action.changes?.length);
+    
     setAppliedChanges(allChanges);
     setTimeout(() => setAppliedChanges([]), 3000);
     toast({ title: "Applied!", description });

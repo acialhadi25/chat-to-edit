@@ -24,6 +24,7 @@ import {
   getColumnIndex,
 } from "@/types/excel";
 import { useToast } from "@/hooks/use-toast";
+import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { streamChat } from "@/utils/streamChat";
 import { parseAIResponse, logParseResult } from "@/utils/jsonParser";
 import QuickActionButtons from "./QuickActionButtons";
@@ -77,6 +78,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   const [autoInputSelection, setAutoInputSelection] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { logAIRequest } = useUsageTracking();
 
   const wasSelectingRef = useRef<boolean>(false);
   const lastSelectedCellsRef = useRef<string[]>([]);
@@ -220,6 +222,9 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
           onSetPendingChanges(changes);
         }
         setIsProcessing(false);
+        
+        // Log AI request for usage tracking
+        logAIRequest(parseResult.data?.action?.type as string);
       },
       onError: async (error, status) => {
         setIsStreaming(false);
