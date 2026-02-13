@@ -1,11 +1,18 @@
 import { useState } from "react";
-import { Files, Download, Plus } from "lucide-react";
+import { Files, Download, Plus, AlertTriangle } from "lucide-react";
 import MultiExcelUpload from "@/components/dashboard/MultiExcelUpload";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SheetData } from "@/types/excel";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  validateMergeOperation,
+  checkDuplicateSheetNames,
+  generateUniqueSheetName,
+  sanitizeSheetName,
+} from "@/utils/mergeValidation";
 
 interface ProcessedFile {
   name: string;
@@ -14,33 +21,79 @@ interface ProcessedFile {
 
 const MergeExcelDashboard = () => {
   const [files, setFiles] = useState<ProcessedFile[]>([]);
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } | null>(null);
   const { toast } = useToast();
+
+  const handleFilesUpload = (newFiles: ProcessedFile[]) => {
+    setFiles(newFiles);
+    
+    // Validate both merge modes
+    const sheetsValidation = validateMergeOperation(newFiles, "sheets");
+    const singleValidation = validateMergeOperation(newFiles, "single");
+    
+    // Combine validation results
+    const combinedValidation = {
+      valid: sheetsValidation.valid && singleValidation.valid,
+      errors: [...sheetsValidation.errors, ...singleValidation.errors],
+      warnings: [...sheetsValidation.warnings, ...singleValidation.warnings],
+    };
+    
+    setValidationResult(combinedValidation);
+  };
 
   const handleMerge = (mode: "sheets" | "single") => {
     if (files.length === 0) return;
+
+    // Validate before merge
+    const validation = validateMergeOperation(files, mode);
+    if (!validation.valid) {
+      toast({
+        variant: "destructive",
+        title: "Cannot merge files",
+        description: validation.errors.join(". "),
+      });
+      return;
+    }
 
     try {
       const newWorkbook = XLSX.utils.book_new();
 
       if (mode === "sheets") {
+        // Check for duplicates and generate unique names
+        const { duplicates } = checkDuplicateSheetNames(files);
+        const usedNames: string[] = [];
+
         // Merge as separate sheets
         files.forEach((file) => {
           Object.entries(file.data).forEach(([sheetName, sheetData]) => {
-            // Avoid duplicate sheet names
-            let finalName = `${file.name.replace(/\.[^/.]+$/, "")}_${sheetName}`;
-            if (finalName.length > 31) finalName = finalName.substring(0, 31);
+            // Generate unique sheet name
+            const baseName = `${file.name.replace(/\.[^/.]+$/, "")}_${sheetName}`;
+            const finalName = generateUniqueSheetName(baseName, usedNames, 31);
+            usedNames.push(finalName);
             
             const wsData = [sheetData.headers, ...sheetData.rows];
             const worksheet = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(newWorkbook, worksheet, finalName);
           });
         });
+
+        if (duplicates.length > 0) {
+          toast({
+            title: "Duplicate sheet names detected",
+            description: `${duplicates.length} sheets were renamed to avoid conflicts.`,
+          });
+        }
       } else {
-        // Merge into a single sheet (assuming same headers)
+        // Validate header compatibility for single mode
         const firstFile = files[0];
         const firstSheetName = Object.keys(firstFile.data)[0];
         const headers = firstFile.data[firstSheetName].headers;
         
+        // Merge into a single sheet
         const combinedRows = files.flatMap(file => 
           Object.values(file.data).flatMap(sheet => sheet.rows)
         );
@@ -78,12 +131,26 @@ const MergeExcelDashboard = () => {
           </p>
         </div>
 
-        <MultiExcelUpload onFilesUpload={setFiles} />
+        <MultiExcelUpload onFilesUpload={handleFilesUpload} />
+
+        {validationResult && validationResult.warnings.length > 0 && (
+          <Alert variant="warning" className="max-w-2xl">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <ul className="list-disc pl-4 mt-2">
+                {validationResult.warnings.map((warning, idx) => (
+                  <li key={idx} className="text-sm">{warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {files.length > 0 && (
           <div className="flex flex-wrap gap-4 justify-center mt-6">
             <Button 
               onClick={() => handleMerge("sheets")}
+              disabled={validationResult?.valid === false}
               className="gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -91,6 +158,7 @@ const MergeExcelDashboard = () => {
             </Button>
             <Button 
               onClick={() => handleMerge("single")}
+              disabled={validationResult?.valid === false}
               variant="outline"
               className="gap-2 border-primary text-primary hover:bg-primary/5"
             >
