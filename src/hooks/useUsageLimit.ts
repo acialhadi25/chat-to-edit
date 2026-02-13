@@ -6,7 +6,17 @@ const PLAN_LIMITS: Record<string, number> = {
   pro: 50,
 };
 
-export const useUsageLimit = () => {
+interface UseUsageLimitReturn {
+  checkCanUpload: () => { allowed: boolean; message?: string };
+  isAtLimit: boolean;
+  remaining: number;
+  maxFiles: number;
+  usedFiles: number;
+  plan: string;
+  isLoading: boolean;
+}
+
+export const useUsageLimit = (): UseUsageLimitReturn => {
   const { profile, isLoading } = useProfile();
 
   const maxFiles = PLAN_LIMITS[profile?.plan || "free"] || 5;

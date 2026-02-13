@@ -2,7 +2,26 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export const useFileHistory = () => {
+interface FileHistoryRecord {
+  id: string;
+  user_id: string;
+  file_name: string;
+  rows_count: number;
+  sheets_count: number;
+  formulas_applied: number;
+  created_at: string;
+}
+
+interface UseFileHistoryReturn {
+  saveFileRecord: (
+    fileName: string,
+    rowsCount: number,
+    sheetsCount: number
+  ) => Promise<FileHistoryRecord | null>;
+  updateFormulasCount: (fileHistoryId: string, count: number) => Promise<void>;
+}
+
+export const useFileHistory = (): UseFileHistoryReturn => {
   const { user } = useAuth();
 
   const saveFileRecord = useCallback(

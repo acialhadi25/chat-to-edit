@@ -37,7 +37,7 @@ export function getCellValueFromRef(ref: string, data: ExcelData): number | null
   }
 
   const value = data.rows[rowIndex][colIndex];
-  if (value === null || value === undefined) return 0;
+  if (value === null || value === undefined) return null;
   if (typeof value === "number") return value;
   
   // Try to parse as number (remove currency symbols, commas, etc.)

@@ -241,8 +241,8 @@ export function removeEmptyRows(
 // Transform text (uppercase, lowercase, title case)
 export function transformText(
   data: ExcelData,
-  transform: "uppercase" | "lowercase" | "titlecase",
-  columns?: number[]
+  columns: number[],
+  transform: "uppercase" | "lowercase" | "titlecase"
 ): { data: ExcelData; changes: DataChange[] } {
   const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
@@ -289,11 +289,11 @@ export function transformText(
 // Add new column
 export function addColumn(
   data: ExcelData,
-  columnName: string,
-  position?: number
+  position: number,
+  columnName: string
 ): { data: ExcelData } {
   const newData = cloneExcelData(data);
-  const insertAt = position ?? data.headers.length;
+  const insertAt = Math.min(position, data.headers.length);
 
   // Add header
   newData.headers = [
@@ -319,6 +319,11 @@ export function deleteColumn(
 ): { data: ExcelData; changes: DataChange[] } {
   const newData = cloneExcelData(data);
   const changes: DataChange[] = [];
+
+  // Don't delete if only one column remains
+  if (data.headers.length <= 1) {
+    return { data: newData, changes };
+  }
 
   // Record changes
   for (let rowIndex = 0; rowIndex < data.rows.length; rowIndex++) {
@@ -711,36 +716,48 @@ export function splitColumn(
   data: ExcelData,
   colIndex: number,
   delimiter: string,
-  maxParts: number = 2
+  newColumnNames: string[],
+  maxParts?: number
 ): { data: ExcelData; newColumnNames: string[] } {
   const newData = cloneExcelData(data);
   const originalHeader = newData.headers[colIndex];
-  const newColumnNames: string[] = [];
+  const numParts = maxParts || newColumnNames.length;
 
-  // Create new column names
-  for (let i = 1; i <= maxParts; i++) {
-    newColumnNames.push(`${originalHeader}_${i}`);
-  }
-
-  // Insert new headers after the original column
-  newData.headers = [
-    ...newData.headers.slice(0, colIndex + 1),
-    ...newColumnNames.slice(1), // Skip first as we'll use original column
-    ...newData.headers.slice(colIndex + 1),
-  ];
-
-  // Rename original column
+  // Replace original column header with first new name
   newData.headers[colIndex] = newColumnNames[0];
+  
+  // Insert additional headers after the original column
+  if (newColumnNames.length > 1) {
+    newData.headers = [
+      ...newData.headers.slice(0, colIndex + 1),
+      ...newColumnNames.slice(1),
+      ...newData.headers.slice(colIndex + 1),
+    ];
+  }
 
   // Split data in each row
   newData.rows = newData.rows.map((row) => {
     const cellValue = row[colIndex];
-    const parts = cellValue !== null && cellValue !== undefined
-      ? String(cellValue).split(delimiter, maxParts)
-      : [];
+    let parts: string[] = [];
+    
+    if (cellValue !== null && cellValue !== undefined) {
+      const strValue = String(cellValue);
+      if (maxParts && maxParts > 0) {
+        // Custom split that keeps remainder together
+        const allParts = strValue.split(delimiter);
+        parts = allParts.slice(0, maxParts - 1);
+        if (allParts.length >= maxParts) {
+          parts.push(allParts.slice(maxParts - 1).join(delimiter));
+        } else {
+          parts.push(...allParts.slice(maxParts - 1));
+        }
+      } else {
+        parts = strValue.split(delimiter);
+      }
+    }
 
     // Pad with nulls if needed
-    while (parts.length < maxParts) {
+    while (parts.length < numParts) {
       parts.push("");
     }
 
@@ -1178,7 +1195,7 @@ export function calculateDates(
 
     if (date) {
       switch (operation) {
-        case "age": // Years since date
+        case "age": { // Years since date
           let age = now.getFullYear() - date.getFullYear();
           const m = now.getMonth() - date.getMonth();
           if (m < 0 || (m === 0 && now.getDate() < date.getDate())) {
@@ -1186,21 +1203,25 @@ export function calculateDates(
           }
           result = age;
           break;
-        case "days_until": // Days from now to date
+        }
+        case "days_until": { // Days from now to date
           const diffTimeUntil = date.getTime() - now.getTime();
           result = Math.ceil(diffTimeUntil / (1000 * 60 * 60 * 24));
           break;
-        case "days_since": // Days from date to now
+        }
+        case "days_since": { // Days from date to now
           const diffTimeSince = now.getTime() - date.getTime();
           result = Math.floor(diffTimeSince / (1000 * 60 * 60 * 24));
           break;
-        case "add_days":
+        }
+        case "add_days": {
           if (param !== undefined) {
             const newDate = new Date(date);
             newDate.setDate(date.getDate() + param);
             result = newDate.toISOString().split('T')[0];
           }
           break;
+        }
         case "year":
           result = date.getFullYear();
           break;

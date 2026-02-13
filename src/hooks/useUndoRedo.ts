@@ -4,7 +4,24 @@ import { cloneExcelData } from "@/utils/excelOperations";
 
 const MAX_HISTORY = 50;
 
-export function useUndoRedo(initialData: ExcelData | null) {
+interface UseUndoRedoReturn {
+  pushState: (
+    before: ExcelData,
+    after: ExcelData,
+    actionType: ActionType,
+    description: string
+  ) => void;
+  undo: () => ExcelData | null;
+  redo: () => ExcelData | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  clearHistory: () => void;
+  getCurrentDescription: () => string | null;
+  getNextDescription: () => string | null;
+  historyLength: number;
+}
+
+export function useUndoRedo(initialData: ExcelData | null): UseUndoRedoReturn {
   const [history, setHistory] = useState<EditHistory[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
 

@@ -1,4 +1,4 @@
-import { ExcelData } from "@/types/excel";
+import { ExcelData, getColumnIndex } from "@/types/excel";
 import { getCellValueFromRef } from "./helpers";
 
 /**
@@ -24,12 +24,20 @@ export function evaluateYear(args: string, data: ExcelData): number {
   let dateValue: string | number | null = null;
   
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    dateValue = getCellValueFromRef(ref, data);
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        dateValue = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     dateValue = ref.replace(/^["']|["']$/g, "");
   }
   
-  if (dateValue === null) return 0;
+  if (dateValue === null || dateValue === undefined) return 0;
   
   const date = new Date(dateValue);
   if (isNaN(date.getTime())) return 0;
@@ -45,12 +53,20 @@ export function evaluateMonth(args: string, data: ExcelData): number {
   let dateValue: string | number | null = null;
   
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    dateValue = getCellValueFromRef(ref, data);
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        dateValue = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     dateValue = ref.replace(/^["']|["']$/g, "");
   }
   
-  if (dateValue === null) return 0;
+  if (dateValue === null || dateValue === undefined) return 0;
   
   const date = new Date(dateValue);
   if (isNaN(date.getTime())) return 0;
@@ -66,12 +82,20 @@ export function evaluateDay(args: string, data: ExcelData): number {
   let dateValue: string | number | null = null;
   
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    dateValue = getCellValueFromRef(ref, data);
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        dateValue = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     dateValue = ref.replace(/^["']|["']$/g, "");
   }
   
-  if (dateValue === null) return 0;
+  if (dateValue === null || dateValue === undefined) return 0;
   
   const date = new Date(dateValue);
   if (isNaN(date.getTime())) return 0;
@@ -90,12 +114,20 @@ export function evaluateWeekday(args: string, data: ExcelData): number {
   let dateValue: string | number | null = null;
   
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    dateValue = getCellValueFromRef(ref, data);
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        dateValue = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     dateValue = ref.replace(/^["']|["']$/g, "");
   }
   
-  if (dateValue === null) return 0;
+  if (dateValue === null || dateValue === undefined) return 0;
   
   const date = new Date(dateValue);
   if (isNaN(date.getTime())) return 0;
@@ -120,7 +152,7 @@ export function evaluateDate(args: string, data: ExcelData): string {
   const month = parts[1] ? (getCellValueFromRef(parts[1], data) ?? parseInt(parts[1], 10) ?? 1) : 1;
   const day = parts[2] ? (getCellValueFromRef(parts[2], data) ?? parseInt(parts[2], 10) ?? 1) : 1;
   
-  const date = new Date(year, month - 1, day);
+  const date = new Date(Date.UTC(year, month - 1, day));
   return date.toISOString().split("T")[0];
 }
 
@@ -136,20 +168,36 @@ export function evaluateDateDif(args: string, data: ExcelData): number | string 
   let endDate: string | number | null = null;
   
   if (/^[A-Z]+\d+$/i.test(parts[0])) {
-    startDate = getCellValueFromRef(parts[0], data);
+    const match = parts[0].match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        startDate = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     startDate = parts[0].replace(/^["']|["']$/g, "");
   }
   
   if (/^[A-Z]+\d+$/i.test(parts[1])) {
-    endDate = getCellValueFromRef(parts[1], data);
+    const match = parts[1].match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        endDate = data.rows[rowIndex][colIndex];
+      }
+    }
   } else {
     endDate = parts[1].replace(/^["']|["']$/g, "");
   }
   
   const unit = parts[2].replace(/^["']|["']$/g, "").toUpperCase();
   
-  if (startDate === null || endDate === null) return "#VALUE!";
+  if (startDate === null || startDate === undefined || endDate === null || endDate === undefined) return "#VALUE!";
   
   const start = new Date(startDate);
   const end = new Date(endDate);

@@ -1,4 +1,4 @@
-import { ExcelData } from "@/types/excel";
+import { ExcelData, getColumnIndex } from "@/types/excel";
 import { getCellValueFromRef, getStringValue, expandRange } from "./helpers";
 
 /**
@@ -9,8 +9,17 @@ export function evaluateConcat(args: string, data: ExcelData): string {
   return parts.map(part => {
     // Check if it's a cell reference
     if (/^[A-Z]+\d+$/i.test(part)) {
-      const value = getCellValueFromRef(part, data);
-      return value !== null ? String(value) : "";
+      const match = part.match(/^([A-Z]+)(\d+)$/i);
+      if (match) {
+        const colIndex = getColumnIndex(match[1].toUpperCase());
+        const rowIndex = parseInt(match[2], 10) - 2;
+        
+        if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+          const value = data.rows[rowIndex][colIndex];
+          return value !== null && value !== undefined ? String(value) : "";
+        }
+      }
+      return "";
     }
     // It's a string literal (may have quotes)
     return part.replace(/^["']|["']$/g, "");

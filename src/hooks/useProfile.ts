@@ -8,7 +8,13 @@ interface Profile {
   email: string | null;
 }
 
-export const useProfile = () => {
+interface UseProfileReturn {
+  profile: Profile | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export const useProfile = (): UseProfileReturn => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);

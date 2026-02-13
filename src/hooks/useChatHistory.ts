@@ -9,7 +9,16 @@ interface GenericChatMessage {
   timestamp: Date;
 }
 
-export const useChatHistory = () => {
+interface UseChatHistoryReturn {
+  saveChatMessage: (
+    message: Pick<GenericChatMessage, "role" | "content">,
+    fileHistoryId: string | null,
+    formula?: string
+  ) => Promise<void>;
+  loadChatHistory: (fileHistoryId: string) => Promise<GenericChatMessage[]>;
+}
+
+export const useChatHistory = (): UseChatHistoryReturn => {
   const { user } = useAuth();
 
   const saveChatMessage = useCallback(

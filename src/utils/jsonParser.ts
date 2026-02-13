@@ -18,7 +18,7 @@ export interface ParseResult<T> {
  * 3. Use regex to find JSON object patterns
  * 4. Return fallback object
  */
-export function robustJsonParse<T extends Record<string, any>>(
+export function robustJsonParse<T extends Record<string, unknown>>(
   text: string,
   fallback: T
 ): ParseResult<T> {
@@ -142,7 +142,7 @@ function findJsonObjectInText(text: string): string | null {
  */
 export interface AIResponse {
   content?: string;
-  action?: Record<string, any>;
+  action?: Record<string, unknown>;
   quickOptions?: Array<{ label: string; value: string }>;
 }
 
@@ -156,7 +156,7 @@ export function parseAIResponse(
     quickOptions: [],
   };
 
-  const result = robustJsonParse<any>(text, fallbackResponse);
+  const result = robustJsonParse<AIResponse>(text, fallbackResponse);
 
   // Handle case where AI returns an array of responses [ { content, action, ... } ]
   let data = result.data;
@@ -187,7 +187,7 @@ export function parseAIResponse(
  * Useful when AI returns something like:
  * "Here's what I'll do: {\"type\": \"INSERT_FORMULA\", ...}"
  */
-export function extractActionFromText(text: string): Record<string, any> | null {
+export function extractActionFromText(text: string): Record<string, unknown> | null {
   const jsonMatch = findJsonObjectInText(text);
   if (!jsonMatch) return null;
 

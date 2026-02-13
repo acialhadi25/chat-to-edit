@@ -1,4 +1,4 @@
-import { ExcelData } from "@/types/excel";
+import { ExcelData, getColumnIndex } from "@/types/excel";
 import { getCellValueFromRef, getStringValue } from "./helpers";
 
 /**
@@ -12,12 +12,39 @@ function parseCondition(condition: string, data: ExcelData): boolean {
     if (condition.includes(op)) {
       const [left, right] = condition.split(op).map(s => s.trim());
       
-      // Get values
-      let leftVal: string | number | null = getCellValueFromRef(left, data);
-      if (leftVal === null) leftVal = parseFloat(left) || left.replace(/^["']|["']$/g, "");
+      // Get left value
+      let leftVal: string | number | null = null;
+      if (/^[A-Z]+\d+$/i.test(left)) {
+        const match = left.match(/^([A-Z]+)(\d+)$/i);
+        if (match) {
+          const colIndex = getColumnIndex(match[1].toUpperCase());
+          const rowIndex = parseInt(match[2], 10) - 2;
+          
+          if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+            leftVal = data.rows[rowIndex][colIndex];
+          }
+        }
+      } else {
+        const numVal = parseFloat(left);
+        leftVal = isNaN(numVal) ? left.replace(/^["']|["']$/g, "") : numVal;
+      }
       
-      let rightVal: string | number | null = getCellValueFromRef(right, data);
-      if (rightVal === null) rightVal = parseFloat(right) || right.replace(/^["']|["']$/g, "");
+      // Get right value
+      let rightVal: string | number | null = null;
+      if (/^[A-Z]+\d+$/i.test(right)) {
+        const match = right.match(/^([A-Z]+)(\d+)$/i);
+        if (match) {
+          const colIndex = getColumnIndex(match[1].toUpperCase());
+          const rowIndex = parseInt(match[2], 10) - 2;
+          
+          if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+            rightVal = data.rows[rowIndex][colIndex];
+          }
+        }
+      } else {
+        const numVal = parseFloat(right);
+        rightVal = isNaN(numVal) ? right.replace(/^["']|["']$/g, "") : numVal;
+      }
       
       // Compare
       switch (op) {
@@ -25,7 +52,7 @@ function parseCondition(condition: string, data: ExcelData): boolean {
         case "<=": return Number(leftVal) <= Number(rightVal);
         case "<>":
         case "!=": return leftVal !== rightVal;
-        case "=": return leftVal === rightVal || String(leftVal) === String(rightVal);
+        case "=": return String(leftVal) === String(rightVal);
         case ">": return Number(leftVal) > Number(rightVal);
         case "<": return Number(leftVal) < Number(rightVal);
       }
@@ -168,8 +195,16 @@ export function evaluateIfError(args: string, data: ExcelData, evaluator: (formu
 export function evaluateIsBlank(args: string, data: ExcelData): boolean {
   const ref = args.trim();
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    const value = getCellValueFromRef(ref, data);
-    return value === null || value === 0;
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        const value = data.rows[rowIndex][colIndex];
+        return value === null || value === undefined || value === "" || value === 0;
+      }
+    }
   }
   return false;
 }
@@ -180,8 +215,17 @@ export function evaluateIsBlank(args: string, data: ExcelData): boolean {
 export function evaluateIsNumber(args: string, data: ExcelData): boolean {
   const ref = args.trim();
   if (/^[A-Z]+\d+$/i.test(ref)) {
-    const value = getCellValueFromRef(ref, data);
-    return value !== null;
+    const match = ref.match(/^([A-Z]+)(\d+)$/i);
+    if (match) {
+      const colIndex = getColumnIndex(match[1].toUpperCase());
+      const rowIndex = parseInt(match[2], 10) - 2;
+      
+      if (rowIndex >= 0 && rowIndex < data.rows.length && colIndex >= 0 && colIndex < data.headers.length) {
+        const value = data.rows[rowIndex][colIndex];
+        return typeof value === "number";
+      }
+    }
+    return false;
   }
   return !isNaN(parseFloat(ref));
 }
