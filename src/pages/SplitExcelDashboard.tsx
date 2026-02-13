@@ -14,7 +14,7 @@ const SplitExcelDashboard = () => {
   const [rowsPerFile, setRowsPerFile] = useState<number>(100);
   const { toast } = useToast();
 
-  const handleFileUpload = (data: ExcelData) => {
+  const handleFileUpload = (data: any) => {
     setExcelData(data);
   };
 
@@ -34,12 +34,11 @@ const SplitExcelDashboard = () => {
         title: "Success",
         description: `Split into ${excelData.sheets.length} files (one per sheet).`,
       });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : undefined;
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Split failed",
-        description: message || "An error occurred while splitting by sheets",
+        description: error.message || "An error occurred while splitting by sheets",
       });
     }
   };
@@ -69,12 +68,11 @@ const SplitExcelDashboard = () => {
         title: "Success",
         description: `Split into ${numFiles} files based on ${rowsPerFile} rows per file.`,
       });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : undefined;
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Split failed",
-        description: message || "An error occurred while splitting by rows",
+        description: error.message || "An error occurred while splitting by rows",
       });
     }
   };

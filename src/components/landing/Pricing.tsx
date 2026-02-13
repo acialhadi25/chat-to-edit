@@ -51,7 +51,7 @@ const Pricing = () => {
             </div>
             <ul className="mb-8 space-y-3">
               <PricingFeature>Unlimited file</PricingFeature>
-              <PricingFeature>Chat to Excel (full access)</PricingFeature>
+              <PricingFeature>Semua tools (Excel, PDF, Docs)</PricingFeature>
               <PricingFeature>Unlimited baris per file</PricingFeature>
               <PricingFeature>Conversation history selamanya</PricingFeature>
               <PricingFeature>Priority support</PricingFeature>

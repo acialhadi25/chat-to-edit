@@ -122,7 +122,7 @@ export interface AIAction {
   // Data Audit fields
   auditReport?: {
     totalErrors: number;
-    outliers: { cellRef: string; value: unknown; reason: string }[];
+    outliers: { cellRef: string; value: any; reason: string }[];
     typeInconsistencies: { cellRef: string; expected: string; found: string }[];
     missingValues: { cellRef: string; column: string }[];
     suggestions: { id: string; description: string; action: AIAction }[];
@@ -138,22 +138,10 @@ export interface AIAction {
   status: "pending" | "applied" | "rejected";
 }
 
-// Sheet data structure with formulas and styles per sheet
+// Sheet data structure
 export interface SheetData {
   headers: string[];
   rows: (string | number | null)[][];
-  formulas?: { [cellRef: string]: string };
-  cellStyles?: {
-    [cellRef: string]: {
-      color?: string;
-      backgroundColor?: string;
-      fontColor?: string;
-      fontWeight?: string;
-      fontSize?: number;
-      textAlign?: "left" | "center" | "right";
-      border?: boolean;
-    }
-  };
 }
 
 // Excel data structure

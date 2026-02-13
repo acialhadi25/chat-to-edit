@@ -18,7 +18,7 @@ export interface ParseResult<T> {
  * 3. Use regex to find JSON object patterns
  * 4. Return fallback object
  */
-export function robustJsonParse<T>(
+export function robustJsonParse<T extends Record<string, any>>(
   text: string,
   fallback: T
 ): ParseResult<T> {
@@ -142,7 +142,7 @@ function findJsonObjectInText(text: string): string | null {
  */
 export interface AIResponse {
   content?: string;
-  action?: Record<string, unknown>;
+  action?: Record<string, any>;
   quickOptions?: Array<{ label: string; value: string }>;
 }
 
@@ -156,7 +156,7 @@ export function parseAIResponse(
     quickOptions: [],
   };
 
-  const result = robustJsonParse<AIResponse>(text, fallbackResponse);
+  const result = robustJsonParse<any>(text, fallbackResponse);
 
   // Handle case where AI returns an array of responses [ { content, action, ... } ]
   let data = result.data;
@@ -187,20 +187,15 @@ export function parseAIResponse(
  * Useful when AI returns something like:
  * "Here's what I'll do: {\"type\": \"INSERT_FORMULA\", ...}"
  */
-export function extractActionFromText(text: string): Record<string, unknown> | null {
+export function extractActionFromText(text: string): Record<string, any> | null {
   const jsonMatch = findJsonObjectInText(text);
   if (!jsonMatch) return null;
 
   try {
-    const parsed: unknown = JSON.parse(jsonMatch);
+    const parsed = JSON.parse(jsonMatch);
     // Check if it looks like an action (has a type field)
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "type" in parsed &&
-      typeof (parsed as { type?: unknown }).type === "string"
-    ) {
-      return parsed as Record<string, unknown>;
+    if (parsed.type && typeof parsed.type === "string") {
+      return parsed;
     }
   } catch (e) {
     // Ignore parse errors

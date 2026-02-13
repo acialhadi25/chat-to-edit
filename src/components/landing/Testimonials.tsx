@@ -24,7 +24,15 @@ const Testimonials = () => {
       role: "Student",
       avatar: "AW",
       content:
-        "Perfect untuk tugas kuliah. Bisa rapihin data Excel dengan cepat dan hasil outputnya rapi. Recommended!",
+        "Perfect untuk tugas kuliah. Bisa format dokumen dengan cepat dan hasil outputnya rapi. Recommended!",
+      rating: 5,
+    },
+    {
+      name: "Linda Wijaya",
+      role: "Office Manager",
+      avatar: "LW",
+      content:
+        "Fitur PDF-nya top banget. Bisa merge ratusan dokumen jadi satu tanpa ribet. Saving our team hours every day.",
       rating: 5,
     },
   ];

@@ -192,3 +192,57 @@
     @apply bg-primary/5;
   }
 }
+
+/* ============= DOCX PREVIEW - Prevent Tailwind CSS Reset from breaking rendered documents ============= */
+/* docx-preview generates its own CSS from the actual OOXML styles.
+   Tailwind's CSS reset (preflight) strips default browser styles which docx-preview depends on.
+   These rules restore the necessary defaults ONLY within the docx-preview container. */
+
+.docx-preview-wrapper .docx-wrapper,
+.docx-preview-wrapper .docx-wrapper * {
+  box-sizing: border-box;
+}
+
+/* Restore heading sizes that Tailwind reset removes */
+.docx-preview-wrapper h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; }
+.docx-preview-wrapper h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
+.docx-preview-wrapper h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; }
+.docx-preview-wrapper h4 { font-size: 1em; font-weight: bold; margin: 1.33em 0; }
+.docx-preview-wrapper h5 { font-size: 0.83em; font-weight: bold; margin: 1.67em 0; }
+.docx-preview-wrapper h6 { font-size: 0.67em; font-weight: bold; margin: 2.33em 0; }
+
+/* Restore list styles that Tailwind reset removes */
+.docx-preview-wrapper ul { list-style-type: disc; padding-left: 40px; margin: 1em 0; }
+.docx-preview-wrapper ol { list-style-type: decimal; padding-left: 40px; margin: 1em 0; }
+.docx-preview-wrapper li { display: list-item; }
+
+/* Restore table defaults */
+.docx-preview-wrapper table { border-collapse: collapse; }
+.docx-preview-wrapper td, .docx-preview-wrapper th { padding: 1px; }
+
+/* Restore blockquote */
+.docx-preview-wrapper blockquote {
+  margin: 1em 40px;
+  padding-left: 10px;
+  border-left: 3px solid #ccc;
+}
+
+/* Restore paragraph margins */
+.docx-preview-wrapper p { margin: 1em 0; }
+
+/* Restore strong/em */
+.docx-preview-wrapper strong, .docx-preview-wrapper b { font-weight: bold; }
+.docx-preview-wrapper em, .docx-preview-wrapper i { font-style: italic; }
+
+/* Restore links */
+.docx-preview-wrapper a { color: #0563C1; text-decoration: underline; }
+
+/* Ensure images display properly */
+.docx-preview-wrapper img { max-width: 100%; height: auto; border-style: none; }
+
+/* Restore hr */
+.docx-preview-wrapper hr { border: none; border-top: 1px solid #ccc; margin: 1em 0; }
+
+/* Restore sub/sup */
+.docx-preview-wrapper sub { vertical-align: sub; font-size: smaller; }
+.docx-preview-wrapper sup { vertical-align: super; font-size: smaller; }

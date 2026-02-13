@@ -139,7 +139,7 @@ const Features = () => {
           <FeatureCard
             icon={<Merge className="h-6 w-6" />}
             title="Multi-File Support"
-            description="Upload dan kelola beberapa file Excel untuk workflow yang lebih cepat."
+            description="Upload dan gabungkan beberapa file sekaligus untuk PDF tools."
             index={4}
           />
           <FeatureCard
@@ -165,7 +165,7 @@ const ToolHighlight = ({
   features: string[];
   index: number;
 }) => {
-  // Color config for each tool
+  // Color config for each tool: Excel (Green), PDF (Red), Docs (Blue)
   const colorConfig = [
     {
       bgGradient: "from-green-500/10 to-green-500/5",

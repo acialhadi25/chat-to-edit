@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileSpreadsheet, Calendar, Hash, Layers } from "lucide-react";
+import { FileSpreadsheet, FileText, FileType, Calendar, Hash, Layers } from "lucide-react";
 import { format } from "date-fns";
 
 interface FileRecord {
@@ -20,6 +20,8 @@ interface FileRecord {
 
 const toolConfig: Record<string, { icon: React.ElementType; label: string; color: string }> = {
   excel: { icon: FileSpreadsheet, label: "Excel", color: "bg-emerald-500/10 text-emerald-600" },
+  pdf: { icon: FileText, label: "PDF", color: "bg-red-500/10 text-red-600" },
+  docs: { icon: FileType, label: "Docs", color: "bg-blue-500/10 text-blue-600" },
 };
 
 const FileHistory = () => {
@@ -62,6 +64,8 @@ const FileHistory = () => {
   const filters = [
     { value: "all", label: "All" },
     { value: "excel", label: "Excel" },
+    { value: "pdf", label: "PDF" },
+    { value: "docs", label: "Docs" },
   ];
 
   return (
@@ -95,7 +99,7 @@ const FileHistory = () => {
       ) : files.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <FileSpreadsheet className="mb-3 h-12 w-12 text-muted-foreground" />
+            <FileText className="mb-3 h-12 w-12 text-muted-foreground" />
             <h3 className="font-medium text-foreground">No files yet</h3>
             <p className="text-sm text-muted-foreground">Files you edit will appear here</p>
           </CardContent>

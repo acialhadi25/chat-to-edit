@@ -23,7 +23,7 @@ const Contact = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("contact_messages").insert({
+      const { error } = await supabase.from("contact_messages" as any).insert({
         name: form.name.trim().slice(0, 100),
         email: form.email.trim().slice(0, 255),
         subject: form.subject.trim().slice(0, 200),

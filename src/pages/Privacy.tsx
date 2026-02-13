@@ -13,7 +13,7 @@ const Privacy = () => {
           <section className="space-y-4 mb-8">
             <h2 className="text-xl font-semibold text-foreground">1. Informasi yang Kami Kumpulkan</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Kami mengumpulkan informasi yang Anda berikan secara langsung, termasuk nama, alamat email, dan data yang Anda unggah ke platform kami (file Excel). Kami juga mengumpulkan data penggunaan secara otomatis seperti alamat IP, jenis browser, dan pola penggunaan layanan.
+              Kami mengumpulkan informasi yang Anda berikan secara langsung, termasuk nama, alamat email, dan data yang Anda unggah ke platform kami (file Excel, PDF, dan dokumen). Kami juga mengumpulkan data penggunaan secara otomatis seperti alamat IP, jenis browser, dan pola penggunaan layanan.
             </p>
           </section>
 

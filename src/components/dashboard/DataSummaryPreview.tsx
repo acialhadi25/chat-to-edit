@@ -3,20 +3,13 @@ import { ExcelData, AIAction } from "@/types/excel";
 import { calculateStatistics, createGroupSummary } from "@/utils/excelOperations";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-type StatisticsRow = { label: string; value: number };
-type PivotRow = { groupName: string; value: number };
-
-type SummaryData =
-  | { type: "statistics"; columnName: string; data: StatisticsRow[] }
-  | { type: "pivot"; groupBy: string; aggregate: string; operation: string; data: PivotRow[] };
-
 interface DataSummaryPreviewProps {
   data: ExcelData;
   action: AIAction;
 }
 
 const DataSummaryPreview = ({ data, action }: DataSummaryPreviewProps) => {
-  const summaryData = useMemo<SummaryData | null>(() => {
+  const summaryData = useMemo(() => {
     if (action.type === "STATISTICS" && action.target?.type === "column") {
       const colIndex = data.headers.findIndex(h => h === action.target?.ref) 
         || (action.target.ref.match(/^[A-Z]+$/) ? data.headers.findIndex((_, i) => {
@@ -52,7 +45,7 @@ const DataSummaryPreview = ({ data, action }: DataSummaryPreviewProps) => {
         data,
         action.groupByColumn,
         action.aggregateColumn,
-        (action.statisticsType as "sum" | "average" | "count" | "min" | "max" | undefined) || "sum"
+        (action.statisticsType as any) || "sum"
       );
       
       return {
@@ -89,7 +82,7 @@ const DataSummaryPreview = ({ data, action }: DataSummaryPreviewProps) => {
           </TableHeader>
           <TableBody>
             {summaryData.type === "statistics" ? (
-              summaryData.data.map((item, i) => (
+              (summaryData as any).data.map((item: any, i: number) => (
                 <TableRow key={i} className="hover:bg-muted/30">
                   <TableCell className="py-1.5 text-xs">{item.label}</TableCell>
                   <TableCell className="py-1.5 text-xs text-right font-medium">
@@ -98,7 +91,7 @@ const DataSummaryPreview = ({ data, action }: DataSummaryPreviewProps) => {
                 </TableRow>
               ))
             ) : (
-              summaryData.data.map((item, i) => (
+              (summaryData as any).data.map((item: any, i: number) => (
                 <TableRow key={i} className="hover:bg-muted/30">
                   <TableCell className="py-1.5 text-xs truncate max-w-[120px]">{item.groupName}</TableCell>
                   <TableCell className="py-1.5 text-xs text-right font-medium">
@@ -109,7 +102,7 @@ const DataSummaryPreview = ({ data, action }: DataSummaryPreviewProps) => {
             )}
           </TableBody>
         </Table>
-        {summaryData.type === "pivot" && summaryData.data.length >= 10 && (
+        {summaryData.type === "pivot" && (summaryData as any).data.length >= 10 && (
           <div className="px-3 py-1.5 border-t border-border bg-muted/20">
             <p className="text-[10px] text-muted-foreground text-center italic">
               Menampilkan 10 grup pertama...

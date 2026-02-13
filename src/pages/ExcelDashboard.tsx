@@ -61,7 +61,6 @@ import {
   extractText,
 } from "@/utils/excelOperations";
 import { useToast } from "@/hooks/use-toast";
-import { useUsageTracking } from "@/hooks/useUsageTracking";
 
 const ExcelDashboard = () => {
   const { user } = useAuth();
@@ -78,7 +77,6 @@ const ExcelDashboard = () => {
 
   const { saveFileRecord } = useFileHistory();
   const { saveChatMessage } = useChatHistory();
-  const { logFileUpload, logAIRequest, logActionApplied } = useUsageTracking();
 
   const {
     pushState,
@@ -171,14 +169,6 @@ const ExcelDashboard = () => {
       uploadData.allSheets ? Object.values(uploadData.allSheets)[0]?.rows.length ?? 0 : 0,
       data.sheets.length
     );
-    
-    // Log file upload for usage tracking
-    await logFileUpload(
-      data.fileName,
-      uploadData.allSheets ? Object.values(uploadData.allSheets)[0]?.rows.length ?? 0 : 0,
-      data.sheets.length
-    );
-    
     if (record) {
       setFileHistoryId(record.id);
     }
@@ -497,22 +487,12 @@ const ExcelDashboard = () => {
     if (!excelData || !excelData.allSheets) return;
     const sheetData = excelData.allSheets[sheetName];
     if (!sheetData) return;
-    
-    // Save current sheet's formulas and styles before switching
-    const currentSheetData = excelData.allSheets[excelData.currentSheet];
-    if (currentSheetData) {
-      currentSheetData.formulas = { ...excelData.formulas };
-      currentSheetData.cellStyles = { ...excelData.cellStyles };
-    }
-    
-    // Switch to new sheet with its formulas and styles
     setExcelData({
       ...excelData,
       currentSheet: sheetName,
       headers: sheetData.headers,
       rows: sheetData.rows,
-      formulas: sheetData.formulas || {},
-      cellStyles: sheetData.cellStyles || {},
+      formulas: {},
       selectedCells: [],
       pendingChanges: [],
     });
@@ -1079,13 +1059,8 @@ const ExcelDashboard = () => {
       newData.allSheets[newData.currentSheet] = {
         headers: newData.headers,
         rows: newData.rows,
-        formulas: { ...newData.formulas },
-        cellStyles: { ...newData.cellStyles },
       };
     }
-    // Log AI action for usage tracking
-    await logActionApplied(action.type, generatedChanges.length || action.changes?.length);
-    
     setAppliedChanges(allChanges);
     setTimeout(() => setAppliedChanges([]), 3000);
     toast({ title: "Applied!", description });

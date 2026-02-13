@@ -53,16 +53,6 @@ interface ExcelPreviewProps {
 
 const ROW_HEIGHT = 36;
 
-type XlsxCellStyle = {
-  fill?: {
-    fgColor?: { rgb?: string };
-  };
-  font?: {
-    color?: { rgb?: string };
-    bold?: boolean;
-  };
-};
-
 const ExcelPreview = ({
   data,
   onClear,
@@ -144,11 +134,7 @@ const ExcelPreview = ({
   }, [appliedChanges, rowVirtualizer]);
 
   const handleCellClick = useCallback(
-    (
-      colIndex: number,
-      rowIndex: number,
-      e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
-    ) => {
+    (colIndex: number, rowIndex: number, e: React.MouseEvent) => {
       const cellRef = createCellRef(colIndex, rowIndex);
       const currentSelection = data.selectedCells;
 
@@ -341,7 +327,7 @@ const ExcelPreview = ({
 
         Object.entries(data.cellStyles).forEach(([cellRef, style]) => {
           if (worksheet[cellRef]) {
-            const xlsxStyle: XlsxCellStyle = {};
+            const xlsxStyle: any = {};
 
             if (style.backgroundColor) {
               xlsxStyle.fill = {
@@ -454,7 +440,7 @@ const ExcelPreview = ({
     return {
       color: style.color,
       backgroundColor: style.backgroundColor,
-      fontWeight: style.fontWeight as "normal" | "bold" | undefined,
+      fontWeight: style.fontWeight as any,
     };
   };
 
@@ -821,7 +807,7 @@ const ExcelPreview = ({
                             handleCellDoubleClick(colIndex, rowIndex);
                           } else if (e.key === " ") {
                             e.preventDefault();
-                            handleCellClick(colIndex, rowIndex, e);
+                            handleCellClick(colIndex, rowIndex, e as any);
                           }
                         }}
                         className={`min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}

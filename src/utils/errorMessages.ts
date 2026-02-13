@@ -170,7 +170,7 @@ export function mapAIError(
       suggestions: [
         'Try uploading a different file',
         'Check that the file is not corrupted',
-        'Ensure the file is in a supported Excel format (XLSX/XLS)',
+        'Ensure the file is in a supported format (PDF, Excel, DOCX)',
         'Try a smaller file first',
       ],
       recoveryAction: 'none',

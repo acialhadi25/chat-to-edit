@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: process.env.TEMPO === "true" ? "0.0.0.0" : "::",
-    // @ts-expect-error allowedHosts is not typed in this Vite server config shape
+    // @ts-ignore
     allowedHosts: process.env.TEMPO === "true" ? true : undefined,
     port: 8080,
     hmr: {

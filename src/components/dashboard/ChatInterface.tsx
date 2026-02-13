@@ -24,10 +24,7 @@ import {
   getColumnIndex,
 } from "@/types/excel";
 import { useToast } from "@/hooks/use-toast";
-import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { streamChat } from "@/utils/streamChat";
-import { enhancedStreamChat, withRetry, CircuitBreaker } from "@/utils/aiRetry";
-import { attemptRecovery, logAIQualityMetrics, sanitizeAIAction } from "@/utils/aiErrorRecovery";
 import { parseAIResponse, logParseResult } from "@/utils/jsonParser";
 import QuickActionButtons from "./QuickActionButtons";
 import ActionPreview from "./ActionPreview";
@@ -80,7 +77,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   const [autoInputSelection, setAutoInputSelection] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { logAIRequest } = useUsageTracking();
 
   const wasSelectingRef = useRef<boolean>(false);
   const lastSelectedCellsRef = useRef<string[]>([]);
@@ -139,8 +135,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
     const visibleText = displayText || text;
     if (!text || isProcessing) return;
 
-    const startTime = Date.now();
-
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -190,12 +184,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
       { role: "user", content: text },
     ];
 
-    await enhancedStreamChat({
+    await streamChat({
       messages: allMessages,
       excelContext: context,
       onDelta: (chunk) => setStreamingContent((prev) => prev + chunk),
       onDone: (fullText) => {
-        const processingTime = Date.now() - startTime;
         setIsStreaming(false);
         setStreamingContent("");
         const parseResult = parseAIResponse(fullText, fullText);
@@ -206,69 +199,31 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
           role: "assistant",
           content: parseResult.data?.content || fullText,
           action: parseResult.data?.action ? { ...parseResult.data.action, status: "pending" as const } as AIAction : undefined,
-          quickOptions: parseResult.data?.quickOptions?.map((opt: unknown) => {
-            const o = (typeof opt === "object" && opt !== null ? (opt as Record<string, unknown>) : {});
-            return {
-              id: (typeof o.id === "string" && o.id) ? o.id : crypto.randomUUID(),
-              label: typeof o.label === "string" ? o.label : "Option",
-              value: typeof o.value === "string" ? o.value : "",
-              variant: (o.variant === "success" || o.variant === "destructive" || o.variant === "outline" || o.variant === "default") ? o.variant : "default",
-              action: (typeof o.action === "object" && o.action !== null ? (o.action as AIAction) : undefined),
-              isApplyAction: typeof o.isApplyAction === "boolean" ? o.isApplyAction : undefined,
-            };
-          }) as QuickOption[] | undefined,
+          quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({
+            id: opt.id || crypto.randomUUID(),
+            label: opt.label,
+            value: opt.value,
+            variant: opt.variant || "default",
+            action: opt.action,
+            isApplyAction: opt.isApplyAction
+          })) as QuickOption[] | undefined,
           timestamp: new Date(),
         };
 
         onNewMessage(assistantMessage);
-        const changesRaw = parseResult.data?.action?.changes;
-        const changes = Array.isArray(changesRaw) ? (changesRaw as DataChange[]) : undefined;
-        if (changes && changes.length > 0) {
-          onSetPendingChanges(changes);
+        if (parseResult.data?.action?.changes && parseResult.data.action.changes.length > 0) {
+          onSetPendingChanges(parseResult.data.action.changes);
         }
         setIsProcessing(false);
-        
-        // Log AI quality metrics for successful request
-        if (parseResult.data?.action) {
-          const action = parseResult.data.action as unknown as AIAction;
-          logAIQualityMetrics(action, true, undefined, processingTime);
-        }
-        
-        // Log AI request for usage tracking
-        logAIRequest(parseResult.data?.action?.type as string);
       },
       onError: async (error, status) => {
-        const processingTime = Date.now() - startTime;
         setIsStreaming(false);
         setStreamingContent("");
         setIsProcessing(false);
-        
-        // Log AI quality metrics for failed request
-        const failedAction: AIAction = { type: "CLARIFY", status: "pending" };
-        logAIQualityMetrics(failedAction, false, error, processingTime);
-        
-        // Attempt to recover from error
-        const recoveryResult = await attemptRecovery(error);
-        
-        if (recoveryResult.success && recoveryResult.recoveredAction) {
-          // Show recovered action as message
-          const recoveredMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: recoveryResult.message || "I couldn't process that request. Let me try a different approach.",
-            action: recoveryResult.recoveredAction,
-            timestamp: new Date(),
-          };
-          onNewMessage(recoveredMessage);
-        } else {
-          // Show error toast
-          const { mapAIError, formatErrorForToast } = await import("@/utils/errorMessages");
-          const errorResponse = mapAIError(status, error, "Excel Chat");
-          toast({ ...formatErrorForToast(errorResponse) });
-        }
+        const { mapAIError, formatErrorForToast } = await import("@/utils/errorMessages");
+        const errorResponse = mapAIError(status, error, "Excel Chat");
+        toast({ ...formatErrorForToast(errorResponse) });
       },
-      timeoutMs: 30000, // 30 second timeout
-      maxRetries: 2,
     });
   }, [input, isProcessing, excelData, messages, onNewMessage, onSetPendingChanges, setIsProcessing, getDataAnalysis, toast]);
 
