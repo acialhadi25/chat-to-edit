@@ -1,94 +1,110 @@
 
 
-# Fix: AI Tools Intelligence and Data Filtering
+# Rencana Aksi: Perbaikan Build Errors dan Peningkatan Kualitas Tools
 
-## Problem Analysis
+## Ringkasan Masalah
 
-The root cause of the filtering failure is a combination of issues:
+Ada 7 build errors yang harus diperbaiki terlebih dahulu, kemudian beberapa peningkatan kualitas tools yang perlu dilakukan.
 
-1. **AI only sees 5 sample rows** -- In `ChatInterface.tsx` line 93, only `excelData.rows.slice(0, 5)` is sent. With hundreds of rows, the AI has no idea what values exist beyond those 5 rows.
+---
 
-2. **AI uses DELETE_ROW instead of FILTER_DATA** -- The AI tries to enumerate specific row numbers to delete, but since it only sees 5 rows, it can only identify 1 matching/non-matching row. The correct approach is `FILTER_DATA` which operates programmatically on ALL rows.
+## Bagian 1: Perbaikan Build Errors (Kritis)
 
-3. **FILTER_DATA logic is inverted for "keep only" requests** -- The current `filterData()` function KEEPS rows matching the condition. When user says "keep only department X, delete the rest", the AI needs to use `operator: "="` with `filterValue: "Sekretariat..."` to keep matching rows. But the system prompt doesn't clearly explain this semantic.
+### 1.1 TS2454 - Variable 'response' used before assigned (3 file edge functions)
 
-4. **Missing action types in validation** -- `actionValidation.ts` doesn't include `RENAME_COLUMN`, `EXTRACT_NUMBER`, `FORMAT_NUMBER`, `GENERATE_ID`, `CONCATENATE`, `STATISTICS`, `PIVOT_SUMMARY` -- causing valid actions to be rejected.
+File `chat/index.ts`, `chat-pdf/index.ts`, dan `chat-docs/index.ts` memiliki bug yang sama: variabel `response` dideklarasikan dengan `let` tapi bisa sampai ke blok pengecekan `if (!response! || !response.ok)` tanpa pernah di-assign (jika primary gagal fetch dan tidak ada fallback key).
 
-5. **No column unique values sent to AI** -- The AI has no way to know what unique department names exist in the data.
+**Perbaikan:** Tambahkan `let response: Response | undefined;` di awal, lalu ubah pengecekan menjadi `if (!response || !response.ok)` (tanpa non-null assertion `!`).
 
-## Solution (7 files)
+### 1.2 TS2304 - Cannot find name 'Merge' di Features.tsx
 
-### 1. `src/components/dashboard/ChatInterface.tsx` -- Send richer context
+Icon `Merge` dipakai di line 139 tapi tidak di-import dari lucide-react.
 
-- Increase sample rows from 5 to 10
-- Add **unique values per column** (top 10 unique values for text columns) so the AI knows what data exists
-- Add total row count emphasis
+**Perbaikan:** Tambahkan `Merge` ke import statement, atau ganti dengan icon `Files` yang sudah di-import.
 
-### 2. `supabase/functions/chat/index.ts` -- Improve system prompt
+---
 
-- Add explicit instruction: "For bulk filtering (keep only / delete all except), ALWAYS use FILTER_DATA with contains/= operator, NEVER enumerate rows with DELETE_ROW"
-- Add FILTER_DATA semantic explanation: "FILTER_DATA KEEPS rows that match the condition and removes the rest"
-- Clarify that `contains` operator does case-insensitive partial match
-- Add instruction to use `not_contains` for "delete rows containing X"
-- Add section about unique values context
+## Bagian 2: Peningkatan Kualitas Chat to Excel
 
-### 3. `src/utils/actionValidation.ts` -- Add missing action types
+### 2.1 Masalah CONDITIONAL_FORMAT Operator Mismatch
 
-Add these to the valid types list:
-- `RENAME_COLUMN`
-- `EXTRACT_NUMBER`
-- `FORMAT_NUMBER`
-- `GENERATE_ID`
-- `CONCATENATE`
-- `STATISTICS`
-- `PIVOT_SUMMARY`
-- `EDIT_ROW`
+Pada `ExcelDashboard.tsx`, handler `CONDITIONAL_FORMAT` menggunakan operator `greater_than`, `less_than`, `equal_to`, `contains` -- tapi system prompt AI mengirim operator `>`, `<`, `=`, `contains`. Ini menyebabkan conditional formatting tidak pernah match.
 
-### 4. `src/utils/excelOperations.ts` -- Add helper for unique values
+**Perbaikan:** Update switch case di handler untuk mendukung kedua format operator (`>` DAN `greater_than`, `<` DAN `less_than`, dll).
 
-Add `getColumnUniqueValues()` function that returns top N unique values per column (for sending to AI context).
+### 2.2 FILTER_DATA Target Type Flexibility
 
-### 5. `supabase/functions/chat-pdf/index.ts` -- Improve PDF prompt
+Saat ini `FILTER_DATA` hanya bekerja jika `action.target?.type === "column"`. Tapi AI kadang mengirim `target.type === "range"` atau bahkan tidak mengirim target sama sekali tapi menyertakan `sortColumn`/column letter di field lain.
 
-- Add clearer instructions for multi-file operations
-- Add better natural language examples for Indonesian
+**Perbaikan:** Tambahkan fallback: jika target tidak ada tapi ada `sortColumn` atau `filterColumn`, gunakan itu sebagai kolom referensi.
 
-### 6. `supabase/functions/chat-docs/index.ts` -- Improve Docs prompt
+### 2.3 getDataAnalysis Tidak Mengembalikan uniqueValuesPerColumn
 
-- Send more document content (increase from 1000 to 3000 chars)
-- Add clearer WRITE/REWRITE instructions
-- Add Indonesian language examples
+Interface `getDataAnalysis` di `ChatInterface.tsx` (line 48-54) tidak menyertakan `uniqueValuesPerColumn` dalam return type. Unique values sudah dihitung terpisah di `sendMessage`, tapi seharusnya bisa disatukan agar lebih konsisten.
 
-### 7. `src/pages/ExcelDashboard.tsx` -- Update getDataAnalysis
+**Perbaikan:** Ini sudah bekerja via field terpisah -- tidak perlu perubahan, tapi bisa di-refactor untuk kebersihan.
 
-- Include unique values per column in the data analysis sent to AI
+### 2.4 COPY_COLUMN Handler Missing Case
 
-## Technical Details
+`copyColumn` di-import dari `excelOperations.ts` tapi tidak ada case di switch statement `handleApplyAction`.
 
-### Context Enhancement (ChatInterface.tsx)
+**Perbaikan:** Tambahkan case `COPY_COLUMN` dan tambahkan ke `actionValidation.ts`.
 
-```text
-Before: sampleRows: excelData.rows.slice(0, 5)
-After:  sampleRows: excelData.rows.slice(0, 10)
-        + uniqueValuesPerColumn: { "Departemen": ["Sekretariat...", "Direktorat..."], ... }
-```
+### 2.5 REMOVE_FORMULA Tidak Ada di Validation
 
-### System Prompt Addition (chat/index.ts)
+`REMOVE_FORMULA` digunakan di switch case handler tapi tidak ada di daftar `validTypes` di `actionValidation.ts`.
 
-Key additions to IMPORTANT RULES:
-- Rule: "For requests like 'keep only X' or 'delete everything except X', ALWAYS use FILTER_DATA with operator '=' or 'contains' and the value to KEEP. FILTER_DATA keeps matching rows and removes non-matching ones."
-- Rule: "NEVER use DELETE_ROW for bulk filtering. DELETE_ROW is only for deleting specific known rows (1-20 rows max)."
-- Rule: "Use the uniqueValues data to understand what values exist in columns."
+**Perbaikan:** Tambahkan `REMOVE_FORMULA` ke daftar valid types.
 
-### Validation Fix (actionValidation.ts)
+---
 
-```text
-Add to validTypes array:
-"RENAME_COLUMN", "EXTRACT_NUMBER", "FORMAT_NUMBER",
-"GENERATE_ID", "CONCATENATE", "STATISTICS", "PIVOT_SUMMARY", "EDIT_ROW"
-```
+## Bagian 3: Peningkatan Robustness
 
-### Unique Values Helper (excelOperations.ts)
+### 3.1 allSheets Sync Setelah Operasi
 
-New function `getColumnUniqueValues(data, maxPerColumn=10)` that scans all rows and returns top unique values per column, enabling AI to know what data exists without seeing every row.
+Setelah operasi seperti FILTER_DATA, SORT_DATA, dll, data sheet aktif diubah tapi `allSheets` tidak di-update. Ini berarti jika user switch sheet lalu kembali, perubahan hilang.
+
+**Perbaikan:** Setelah setiap operasi di `handleApplyAction`, sync `allSheets[currentSheet]` dengan data terbaru.
+
+### 3.2 Error Handling untuk AI Response Parsing
+
+Jika AI mengembalikan JSON yang tidak valid atau format yang tidak sesuai, user hanya melihat error generic. 
+
+**Perbaikan:** Tambahkan fallback yang menampilkan konten mentah AI sebagai pesan teks biasa jika parsing gagal.
+
+---
+
+## Detail Teknis Per File
+
+### File 1: `supabase/functions/chat/index.ts`
+- Ubah `let response` menjadi `let response: Response | undefined`
+- Ubah `if (!response! || !response.ok)` menjadi `if (!response || !response.ok)`
+
+### File 2: `supabase/functions/chat-pdf/index.ts`
+- Sama: fix `response` typing dan null check
+
+### File 3: `supabase/functions/chat-docs/index.ts`
+- Sama: fix `response` typing dan null check
+
+### File 4: `src/components/landing/Features.tsx`
+- Tambahkan `Merge` ke import dari `lucide-react`
+
+### File 5: `src/utils/actionValidation.ts`
+- Tambahkan `REMOVE_FORMULA`, `COPY_COLUMN` ke `validTypes`
+
+### File 6: `src/pages/ExcelDashboard.tsx`
+- Fix CONDITIONAL_FORMAT operator mapping (support `>`, `<`, `=`, `!=` selain `greater_than`, etc.)
+- Tambahkan case `COPY_COLUMN`
+- Sync `allSheets` setelah setiap operasi berhasil
+
+---
+
+## Urutan Implementasi
+
+1. Fix build errors (3 edge functions + Features.tsx) -- **prioritas tertinggi**
+2. Fix CONDITIONAL_FORMAT operator mismatch
+3. Tambahkan missing action types ke validation
+4. Tambahkan COPY_COLUMN handler
+5. Sync allSheets setelah operasi
+6. Deploy edge functions
 
