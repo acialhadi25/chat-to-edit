@@ -10,6 +10,7 @@ import {
   Scissors,
   ClipboardEdit,
   BarChart3,
+  Merge,
 } from "lucide-react";
 
 const Features = () => {

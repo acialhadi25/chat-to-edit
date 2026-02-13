@@ -64,6 +64,8 @@ export function validateExcelAction(action: unknown): ValidationResult {
       "INSIGHTS",
       "CLARIFY",
       "INFO",
+      "REMOVE_FORMULA",
+      "COPY_COLUMN",
     ];
 
     if (!validTypes.includes(a.type as string)) {
