@@ -198,25 +198,25 @@ This implementation plan breaks down the quality improvement initiative into act
     - Return paginated results
     - _Requirements: 3.1.1, 3.1.2_
 
-  - [-] 6.7 Integrate Sentry for performance monitoring
+  - [x] 6.7 Integrate Sentry for performance monitoring
     - Install @sentry/react package
     - Create src/lib/sentry.ts with configuration
     - Add performance tracking for Excel operations
     - Track Core Web Vitals (LCP, FID, CLS)
     - _Requirements: 3.3.1, 3.3.2, 3.3.3_
 
-  - [~] 6.8 Write performance tests
+  - [x] 6.8 Write performance tests
     - Test Excel operations with 10,000 rows
     - Test formula evaluation performance
     - Test virtual scrolling performance
     - Ensure operations complete within budget
     - _Requirements: 3.3.3_
 
-- [~] 7. Checkpoint - Verify performance improvements
+- [x] 7. Checkpoint - Verify performance improvements
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Enhance UI/UX
-  - [~] 8.1 Implement freeze panes feature
+  - [x] 8.1 Implement freeze panes feature
     - Add frozenRows and frozenColumns to ExcelData type
     - Implement CSS sticky positioning for frozen rows/columns
     - Add UI controls for freeze/unfreeze

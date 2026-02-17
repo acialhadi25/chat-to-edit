@@ -176,6 +176,8 @@ export interface ExcelData {
       showDropdown?: boolean;
     }
   };
+  frozenRows?: number; // Number of rows to freeze from the top (excluding header)
+  frozenColumns?: number; // Number of columns to freeze from the left
 }
 
 // Chat message structure

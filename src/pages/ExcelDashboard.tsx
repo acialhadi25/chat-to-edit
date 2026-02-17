@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { useFileHistory } from "@/hooks/useFileHistory";
 import { useChatHistory } from "@/hooks/useChatHistory";
+import { trackOperationSync } from "@/lib/performanceTracking";
 import ExcelUpload from "@/components/dashboard/ExcelUpload";
 import ExcelPreview from "@/components/dashboard/ExcelPreview";
 import ChatInterface, { ChatInterfaceHandle } from "@/components/dashboard/ChatInterface";
@@ -735,7 +736,11 @@ const ExcelDashboard = () => {
         break;
       }
       case "REMOVE_EMPTY_ROWS": {
-        const { data: withoutEmpty, removedRows } = removeEmptyRows(newData);
+        const { data: withoutEmpty, removedRows } = trackOperationSync(
+          'removeEmptyRows',
+          () => removeEmptyRows(newData),
+          { rowCount: newData.rows.length, columnCount: newData.headers.length }
+        );
         newData = withoutEmpty;
         const rowsPreview = removedRows.slice(0, 5).join(", ");
         const moreRows = removedRows.length > 5 ? `... (+${removedRows.length - 5} more)` : "";
@@ -745,14 +750,22 @@ const ExcelDashboard = () => {
       case "SORT_DATA": {
         if (action.sortColumn && action.sortDirection) {
           const colIndex = getColumnIndex(action.sortColumn);
-          const { data: sortedData } = sortData(newData, colIndex, action.sortDirection);
+          const { data: sortedData } = trackOperationSync(
+            'sortData',
+            () => sortData(newData, colIndex, action.sortDirection!),
+            { rowCount: newData.rows.length, columnCount: newData.headers.length, sortDirection: action.sortDirection }
+          );
           newData = sortedData;
           description = `Sorted by column ${action.sortColumn} (${action.sortDirection === "asc" ? "A-Z" : "Z-A"})`;
         }
         break;
       }
       case "REMOVE_DUPLICATES": {
-        const { data: dedupedData, removedCount } = removeDuplicates(newData);
+        const { data: dedupedData, removedCount } = trackOperationSync(
+          'removeDuplicates',
+          () => removeDuplicates(newData),
+          { rowCount: newData.rows.length, columnCount: newData.headers.length }
+        );
         newData = dedupedData;
         description = `Removed ${removedCount} duplicate rows`;
         break;
@@ -770,7 +783,11 @@ const ExcelDashboard = () => {
           } else {
             colIndex = 0;
           }
-          const { data: filteredData, removedCount } = filterData(newData, colIndex, action.filterOperator, action.filterValue);
+          const { data: filteredData, removedCount } = trackOperationSync(
+            'filterData',
+            () => filterData(newData, colIndex, action.filterOperator!, action.filterValue),
+            { rowCount: newData.rows.length, columnCount: newData.headers.length, operator: action.filterOperator }
+          );
           newData = filteredData;
           description = `Filter: ${removedCount} rows removed`;
         }
@@ -823,7 +840,11 @@ const ExcelDashboard = () => {
       case "SPLIT_COLUMN": {
         if (action.target?.type === "column" && action.delimiter) {
           const colIndex = getColumnIndex(action.target.ref);
-          const { data: splitData, newColumnNames } = splitColumn(newData, colIndex, action.delimiter, action.maxParts || 2);
+          const { data: splitData, newColumnNames } = trackOperationSync(
+            'splitColumn',
+            () => splitColumn(newData, colIndex, action.delimiter!, action.maxParts || 2),
+            { rowCount: newData.rows.length, columnCount: newData.headers.length, delimiter: action.delimiter }
+          );
           newData = splitData;
           description = `Split column ${action.target.ref} into ${newColumnNames.join(", ")}`;
         }
@@ -831,7 +852,11 @@ const ExcelDashboard = () => {
       }
       case "MERGE_COLUMNS": {
         if (action.mergeColumns && action.mergeColumns.length > 0) {
-          const { data: mergedData } = mergeColumns(newData, action.mergeColumns, action.separator || " ", action.newColumnName);
+          const { data: mergedData } = trackOperationSync(
+            'mergeColumns',
+            () => mergeColumns(newData, action.mergeColumns!, action.separator || " ", action.newColumnName),
+            { rowCount: newData.rows.length, columnCount: newData.headers.length, columnsToMerge: action.mergeColumns.length }
+          );
           newData = mergedData;
           description = `Merged ${action.mergeColumns.length} columns into ${action.newColumnName || "new column"}`;
         }

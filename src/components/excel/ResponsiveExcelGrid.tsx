@@ -11,6 +11,7 @@ interface ResponsiveExcelGridProps {
   selectedCells?: string[];
   isMobile?: boolean;
   className?: string;
+  onFreezePanesChange?: (frozenRows: number, frozenColumns: number) => void;
 }
 
 const MOBILE_ROW_HEIGHT = 48;
@@ -25,6 +26,7 @@ export function ResponsiveExcelGrid({
   selectedCells = [],
   isMobile = false,
   className,
+  onFreezePanesChange,
 }: ResponsiveExcelGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
@@ -36,6 +38,9 @@ export function ResponsiveExcelGrid({
 
   const rowHeight = isMobile ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
   const colWidth = isMobile ? MOBILE_COL_WIDTH : DESKTOP_COL_WIDTH;
+
+  const frozenRows = data.frozenRows || 0;
+  const frozenColumns = data.frozenColumns || 0;
 
   // Optimized virtual scrolling for rows
   // Higher overscan for smoother scrolling, especially on mobile
@@ -211,21 +216,30 @@ export function ResponsiveExcelGrid({
           className="sticky top-0 z-20 bg-gray-100 border-b flex"
           style={{ height: rowHeight }}
         >
-          {colVirtualizer.getVirtualItems().map((virtualCol) => (
-            <div
-              key={virtualCol.key}
-              className="border-r flex items-center justify-center font-semibold text-sm"
-              style={{
-                position: "absolute",
-                left: 0,
-                width: `${virtualCol.size}px`,
-                transform: `translateX(${virtualCol.start}px)`,
-                height: rowHeight,
-              }}
-            >
-              {data.headers[virtualCol.index]}
-            </div>
-          ))}
+          {colVirtualizer.getVirtualItems().map((virtualCol) => {
+            const col = virtualCol.index;
+            const isFrozenColumn = col < frozenColumns;
+
+            return (
+              <div
+                key={virtualCol.key}
+                className={cn(
+                  "border-r flex items-center justify-center font-semibold text-sm",
+                  isFrozenColumn && "bg-gray-200" // Visual indicator for frozen columns
+                )}
+                style={{
+                  position: isFrozenColumn ? "sticky" : "absolute",
+                  left: isFrozenColumn ? col * colWidth : 0,
+                  width: `${virtualCol.size}px`,
+                  transform: isFrozenColumn ? undefined : `translateX(${virtualCol.start}px)`,
+                  height: rowHeight,
+                  zIndex: isFrozenColumn ? 25 : 20, // Higher z-index for frozen headers
+                }}
+              >
+                {data.headers[virtualCol.index]}
+              </div>
+            );
+          })}
         </div>
 
         {/* Data Rows */}
@@ -250,6 +264,26 @@ export function ResponsiveExcelGrid({
               const isEditing = editingCell?.col === col && editingCell?.row === row;
               const cellValue = getCellValue(col, row);
 
+              // Determine if this cell should be frozen
+              const isFrozenRow = row < frozenRows;
+              const isFrozenColumn = col < frozenColumns;
+              const shouldFreeze = isFrozenRow || isFrozenColumn;
+
+              // Calculate sticky position
+              let stickyTop: number | undefined;
+              let stickyLeft: number | undefined;
+              let zIndex = 1;
+
+              if (isFrozenRow) {
+                stickyTop = rowHeight + (row * rowHeight); // Account for header row
+                zIndex = isFrozenColumn ? 30 : 20; // Higher z-index for intersection
+              }
+
+              if (isFrozenColumn) {
+                stickyLeft = col * colWidth;
+                zIndex = isFrozenRow ? 30 : 10; // Higher z-index for intersection
+              }
+
               return (
                 <div
                   key={`${virtualRow.key}-${virtualCol.key}`}
@@ -257,14 +291,17 @@ export function ResponsiveExcelGrid({
                     "border-r border-b flex items-center px-2 cursor-pointer",
                     "hover:bg-blue-50 transition-colors",
                     isSelected && "bg-blue-100 ring-2 ring-blue-500",
-                    isMobile && "min-h-[44px]" // iOS HIG minimum touch target
+                    isMobile && "min-h-[44px]", // iOS HIG minimum touch target
+                    shouldFreeze && "bg-gray-50" // Visual indicator for frozen cells
                   )}
                   style={{
-                    position: "absolute",
-                    left: 0,
+                    position: shouldFreeze ? "sticky" : "absolute",
+                    left: shouldFreeze && stickyLeft !== undefined ? stickyLeft : 0,
+                    top: shouldFreeze && stickyTop !== undefined ? stickyTop : undefined,
                     width: `${virtualCol.size}px`,
                     height: `${virtualRow.size}px`,
-                    transform: `translateX(${virtualCol.start}px)`,
+                    transform: shouldFreeze ? undefined : `translateX(${virtualCol.start}px)`,
+                    zIndex,
                   }}
                   onClick={() => handleCellClick(col, row)}
                   onDoubleClick={() => handleCellDoubleClick(col, row)}

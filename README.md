@@ -49,8 +49,13 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 VITE_SUPABASE_PROJECT_ID=your_project_id
 
+# Sentry Configuration (Optional - for error tracking and performance monitoring)
+VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/your-project-id
+
 # Note: LOVABLE_API_KEY is set in Supabase function environment (not in .env)
 ```
+
+See `.env.example` for a complete template.
 
 ### Getting Supabase Credentials
 1. Create account at [supabase.com](https://supabase.com)
@@ -273,6 +278,32 @@ Test the AI-powered features with these examples:
 - Regular security audit
 
 ## 📈 Monitoring & Debugging
+
+### Sentry Integration (Performance Monitoring)
+
+The app includes Sentry integration for error tracking and performance monitoring:
+
+**Features**:
+- **Error Tracking**: Automatic error capture with stack traces
+- **Performance Monitoring**: Track Core Web Vitals (LCP, FID, CLS)
+- **Custom Metrics**: Excel operation performance tracking
+- **Session Replay**: Debug issues with session recordings
+- **PII Protection**: Automatically filters out sensitive data
+
+**Setup**:
+1. Create a Sentry account at [sentry.io](https://sentry.io)
+2. Create a new project (React)
+3. Copy your DSN from Project Settings > Client Keys
+4. Add to `.env`: `VITE_SENTRY_DSN=https://your-dsn@sentry.io/project-id`
+5. Restart dev server
+
+**Note**: Sentry is optional. If `VITE_SENTRY_DSN` is not set, the app will run normally without monitoring.
+
+**Tracked Metrics**:
+- Core Web Vitals (LCP, FID, CLS)
+- Excel operation duration and performance
+- Error rates and stack traces
+- User interactions and breadcrumbs
 
 ### Browser Console
 - Check console for detailed error logs from useProfile, streaming operations
