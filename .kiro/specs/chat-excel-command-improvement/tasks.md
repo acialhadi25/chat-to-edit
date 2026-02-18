@@ -1,0 +1,255 @@
+# Implementation Plan: Chat Excel Command Improvement
+
+## Overview
+
+Plan implementasi ini memecah perbaikan fitur Chat-to-Excel menjadi langkah-langkah incremental yang fokus pada tiga area utama: robust parsing, UI optimization, dan reliable command execution. Setiap task dirancang untuk dapat ditest secara independen dan terintegrasi dengan kode existing.
+
+## Tasks
+
+- [x] 1. Setup testing infrastructure dan utilities
+  - Install fast-check library untuk property-based testing
+  - Setup test configuration dengan minimum 100 iterations
+  - Buat test utilities untuk generating random test data
+  - _Requirements: 9.1, 9.2, 9.3, 9.4_
+
+- [ ] 2. Enhance JSON Parser dengan multi-strategy parsing
+  - [x] 2.1 Refactor robustJsonParse untuk menambahkan warnings array
+    - Update ParseResult interface untuk include warnings field
+    - Modify existing parsing strategies untuk collect warnings
+    - _Requirements: 1.1, 1.2, 1.3_
+  - [x] 2.2 Write property test untuk valid JSON parsing
+    - **Property 1: Valid JSON parsing preserves structure**
+    - **Validates: Requirements 1.1**
+  - [x] 2.3 Write property test untuk JSON extraction dari commented text
+    - **Property 2: JSON extraction from commented text**
+    - **Validates: Requirements 1.2**
+  - [x] 2.4 Write property test untuk malformed JSON fallback
+    - **Property 3: Malformed JSON returns fallback**
+    - **Validates: Requirements 1.3, 1.4**
+  - [x] 2.5 Write property test untuk array response extraction
+    - **Property 4: Array response extraction**
+    - **Validates: Requirements 1.5**
+  - [x] 2.6 Improve extractJsonFromText function
+    - Handle nested braces dan escaped quotes
+    - Add support untuk extracting from markdown code blocks
+    - _Requirements: 1.2_
+  - [x] 2.7 Add logging untuk parse results
+    - Implement logParseResult dengan structured logging
+    - Include parse method, success status, dan warnings
+    - _Requirements: 1.4_
+
+- [x] 3. Create command validation module
+  - [x] 3.1 Create commandValidator.ts dengan validation rules
+    - Define ValidationRule interface
+    - Implement VALIDATION_RULES untuk semua action types
+    - Create validateAction function
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [x] 3.2 Write unit tests untuk validation rules
+    - Test DATA_TRANSFORM validation (missing transformType)
+    - Test FIND_REPLACE validation (missing findValue/replaceValue)
+    - Test CONDITIONAL_FORMAT validation (missing conditionType/formatStyle)
+    - Test SORT_DATA validation (missing sortColumn/sortDirection)
+    - Test FILTER_DATA validation (missing filterOperator/filterValue)
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [x] 3.3 Write property test untuk required parameter validation
+    - **Property 14: Required parameter validation**
+    - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
+  - [x] 3.4 Write property test untuk action target structure
+    - **Property 15: Action target structure validation**
+    - **Validates: Requirements 8.4**
+  - [x] 3.5 Write property test untuk changes preview structure
+    - **Property 16: Changes preview structure validation**
+    - **Validates: Requirements 8.5**
+
+- [~] 4. Checkpoint - Ensure parsing dan validation tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 5. Improve Stream Handler robustness
+  - [~] 5.1 Refactor streamChat untuk better error handling
+    - Add StreamError interface dengan type classification
+    - Implement handleStreamError function
+    - Add timeout handling untuk long-running streams
+    - _Requirements: 6.3, 6.4, 7.4_
+  - [~] 5.2 Improve incomplete JSON handling dalam stream
+    - Implement processStreamLine function dengan buffer management
+    - Add logic untuk detect incomplete JSON dan wait for next chunk
+    - _Requirements: 7.2_
+  - [~] 5.3 Write property test untuk stream chunk accumulation
+    - **Property 21: Stream chunk accumulation**
+    - **Validates: Requirements 7.1**
+  - [~] 5.4 Write property test untuk incomplete JSON buffering
+    - **Property 22: Incomplete JSON buffering**
+    - **Validates: Requirements 7.2**
+  - [~] 5.5 Write property test untuk multi-line SSE processing
+    - **Property 23: Multi-line SSE processing**
+    - **Validates: Requirements 7.5**
+  - [~] 5.6 Write unit tests untuk stream error scenarios
+    - Test stream interruption handling
+    - Test [DONE] marker processing
+    - Test timeout handling
+    - _Requirements: 6.3, 7.3, 7.4_
+
+- [ ] 6. Enhance System Prompt dengan parameter requirements
+  - [~] 6.1 Add CRITICAL: PARAMETER REQUIREMENTS section ke system prompt
+    - Document required parameters untuk setiap action type
+    - Add examples dengan complete parameter sets
+    - Add validation checklist
+    - _Requirements: 2.1, 2.2, 2.3, 2.5_
+  - [~] 6.2 Add COMMON MISTAKES TO AVOID section
+    - List frequent errors (missing params, wrong types, etc.)
+    - Add examples of correct vs incorrect formats
+    - _Requirements: 2.5_
+  - [~] 6.3 Improve natural language understanding examples
+    - Add more variations untuk text transformation commands
+    - Add more variations untuk formatting commands
+    - Add more variations untuk data manipulation commands
+    - _Requirements: 2.1, 2.2, 2.3_
+
+- [x] 7. Optimize Chat Interface UI
+  - [x] 7.1 Fix chat bubble styling untuk text wrapping
+    - Update chatBubbleStyles dengan word-wrap, overflow-wrap, word-break
+    - Set max-width to 85% untuk better readability
+    - Add whiteSpace: "pre-wrap" untuk preserve formatting
+    - _Requirements: 3.1_
+  - [x] 7.2 Improve code block styling
+    - Update codeBlockStyles dengan monospace font dan contrast background
+    - Add overflow-x: auto untuk long formulas
+    - Add copy button styling
+    - _Requirements: 3.3_
+  - [x] 7.3 Add scroll untuk preview containers
+    - Set maxHeight: "300px" untuk preview containers
+    - Add overflowY: "auto"
+    - _Requirements: 3.4_
+  - [x] 7.4 Implement responsive bubble width
+    - Add media queries untuk different viewport sizes
+    - Adjust max-width based on screen width
+    - _Requirements: 3.5_
+  - [x] 7.5 Write property test untuk long text wrapping
+    - **Property 5: Long text wrapping**
+    - **Validates: Requirements 3.1**
+  - [x] 7.6 Write property test untuk markdown rendering
+    - **Property 6: Markdown rendering completeness**
+    - **Validates: Requirements 3.2**
+  - [x] 7.7 Write property test untuk responsive bubble width
+    - **Property 7: Responsive bubble width**
+    - **Validates: Requirements 3.5**
+
+- [ ] 8. Improve Command Executor dengan validation integration
+  - [~] 8.1 Integrate commandValidator ke command execution flow
+    - Call validateAction sebelum executing any command
+    - Return validation errors dengan specific parameter info
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [~] 8.2 Enhance DATA_TRANSFORM execution
+    - Add validation untuk transformType values
+    - Improve error messages untuk invalid targets
+    - _Requirements: 4.1_
+  - [~] 8.3 Write property test untuk text transformation
+    - **Property 8: Text transformation correctness**
+    - **Validates: Requirements 4.1**
+  - [~] 8.4 Enhance CONDITIONAL_FORMAT execution
+    - Add validation untuk color hex codes
+    - Improve condition matching logic
+    - _Requirements: 4.2_
+  - [~] 8.5 Write property test untuk conditional formatting
+    - **Property 9: Conditional formatting application**
+    - **Validates: Requirements 4.2**
+  - [~] 8.6 Enhance FIND_REPLACE execution
+    - Ensure all occurrences are replaced
+    - Add case-sensitive option
+    - _Requirements: 4.3_
+  - [~] 8.7 Write property test untuk find and replace
+    - **Property 10: Find and replace completeness**
+    - **Validates: Requirements 4.3**
+  - [~] 8.8 Enhance FILTER_DATA execution
+    - Improve operator handling (contains, not_contains, etc.)
+    - Add validation untuk filterValue types
+    - _Requirements: 4.4_
+  - [~] 8.9 Write property test untuk filter data
+    - **Property 11: Filter data correctness**
+    - **Validates: Requirements 4.4**
+  - [~] 8.10 Enhance SORT_DATA execution
+    - Improve column reference parsing
+    - Add support untuk multi-column sort
+    - _Requirements: 4.5_
+  - [~] 8.11 Write property test untuk sort data
+    - **Property 12: Sort data correctness**
+    - **Validates: Requirements 4.5**
+  - [~] 8.12 Write property test untuk execution error reporting
+    - **Property 13: Execution error reporting**
+    - **Validates: Requirements 4.6**
+
+- [~] 9. Checkpoint - Ensure command execution tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 10. Implement comprehensive error handling
+  - [~] 10.1 Create errorHandler.ts module
+    - Define ErrorContext dan ErrorResponse interfaces
+    - Implement handleError function dengan error classification
+    - Implement mapErrorToResponse untuk user-friendly messages
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [~] 10.2 Add ERROR_MESSAGES constants
+    - Define messages untuk semua error types
+    - Include Indonesian translations
+    - Add action buttons untuk recoverable errors
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - [~] 10.3 Write property test untuk parse error notification
+    - **Property 18: Parse error notification**
+    - **Validates: Requirements 6.1**
+  - [~] 10.4 Write property test untuk validation error specificity
+    - **Property 19: Validation error specificity**
+    - **Validates: Requirements 6.2**
+  - [~] 10.5 Write property test untuk unexpected error logging
+    - **Property 20: Unexpected error logging**
+    - **Validates: Requirements 6.5**
+  - [~] 10.6 Write unit tests untuk specific error scenarios
+    - Test stream interruption error message
+    - Test API error codes (429, 402, 503) messages
+    - _Requirements: 6.3, 6.4_
+
+- [ ] 11. Integrate error handler ke semua components
+  - [~] 11.1 Update ChatInterface untuk use error handler
+    - Replace inline error handling dengan handleError calls
+    - Add error context dengan user action dan excel context
+    - _Requirements: 6.1, 6.2_
+  - [~] 11.2 Update streamChat untuk use error handler
+    - Add error classification untuk network errors
+    - Include stream context dalam error logging
+    - _Requirements: 6.3, 6.4, 6.5_
+  - [~] 11.3 Update command executor untuk use error handler
+    - Add validation error handling dengan specific params
+    - Include action context dalam error messages
+    - _Requirements: 6.2, 6.5_
+
+- [ ] 12. Add property test untuk action type field presence
+  - [~] 12.1 Write property test untuk action type validation
+    - **Property 17: Action type field presence**
+    - **Validates: Requirements 8.3**
+
+- [ ] 13. Integration testing dan bug fixes
+  - [~] 13.1 Write integration tests untuk end-to-end flow
+    - Test user input → stream → parse → validate → execute
+    - Test error recovery scenarios
+    - Test multi-step command sequences
+    - _Requirements: All_
+  - [~] 13.2 Manual testing dengan real AI responses
+    - Test dengan berbagai jenis perintah (transform, format, filter, sort)
+    - Test dengan perintah yang ambigu atau incomplete
+    - Test dengan respons AI yang malformed
+    - _Requirements: All_
+  - [~] 13.3 Fix bugs discovered during testing
+    - Address any edge cases found
+    - Improve error messages based on user feedback
+    - _Requirements: All_
+
+- [~] 14. Final checkpoint - Comprehensive testing
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional property-based tests dan unit tests yang dapat di-skip untuk MVP lebih cepat
+- Setiap task mereferensikan requirements spesifik untuk traceability
+- Checkpoints memastikan validasi incremental
+- Property tests memvalidasi universal correctness properties
+- Unit tests memvalidasi specific examples dan edge cases
+- Integration tests memvalidasi end-to-end flows
+- Manual testing dengan real AI responses sangat penting untuk memastikan system prompt improvements bekerja dengan baik

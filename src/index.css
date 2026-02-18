@@ -264,6 +264,29 @@
   .cell-formula {
     @apply bg-primary/5;
   }
+
+  /* Responsive chat bubble widths */
+  .chat-bubble {
+    max-width: 85%;
+  }
+
+  @media (max-width: 640px) {
+    .chat-bubble {
+      max-width: 90%;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .chat-bubble {
+      max-width: 80%;
+    }
+  }
+
+  @media (min-width: 1025px) {
+    .chat-bubble {
+      max-width: 75%;
+    }
+  }
 }
 
 /* ============= DOCX PREVIEW - Prevent Tailwind CSS Reset from breaking rendered documents ============= */

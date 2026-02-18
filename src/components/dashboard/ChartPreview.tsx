@@ -437,7 +437,7 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-background p-3">
+    <div className="mt-3 rounded-lg border border-border bg-background p-3 max-h-[300px] overflow-y-auto">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground uppercase tracking-wider">

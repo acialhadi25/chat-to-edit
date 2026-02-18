@@ -456,11 +456,16 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                   )}
 
                   <div
-                    className={`max-w-[85%] rounded-xl px-4 py-3 ${
+                    className={`chat-bubble rounded-xl px-4 py-3 break-words overflow-wrap-anywhere whitespace-pre-wrap ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-accent text-accent-foreground'
                     }`}
+                    style={{
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
                   >
                     {message.role === 'assistant' ? (
                       searchQuery ? (
@@ -500,7 +505,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
-                        <code className="block font-mono text-sm text-primary">
+                        <code className="block font-mono text-sm text-primary overflow-x-auto max-w-full whitespace-pre-wrap break-words">
                           {message.action.formula}
                         </code>
                       </div>
@@ -619,7 +624,14 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
                   <Bot className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <div className="max-w-[85%] rounded-xl bg-accent px-4 py-3 text-accent-foreground">
+                <div
+                  className="chat-bubble rounded-xl bg-accent px-4 py-3 text-accent-foreground break-words overflow-wrap-anywhere whitespace-pre-wrap"
+                  style={{
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                  }}
+                >
                   {streamingContent ? (
                     <div className="text-sm whitespace-pre-wrap">
                       <MarkdownContent content={streamingContent} />

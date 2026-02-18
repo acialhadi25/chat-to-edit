@@ -1,12 +1,12 @@
-import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface MarkdownContentProps {
   content: string;
@@ -15,7 +15,7 @@ interface MarkdownContentProps {
 const MarkdownContent = ({ content }: MarkdownContentProps) => {
   const { toast } = useToast();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  
+
   // Check if content is long (more than 500 characters)
   const isLongContent = content.length > 500;
   const [isExpanded, setIsExpanded] = useState(!isLongContent);
@@ -23,18 +23,18 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    toast({ 
-      title: "Copied!", 
-      description: "Code copied to clipboard",
-      duration: 2000 
+    toast({
+      title: 'Copied!',
+      description: 'Code copied to clipboard',
+      duration: 2000,
     });
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const CodeBlock = ({ inline, className, children, ...props }: any) => {
-    const match = /language-(\w+)/.exec(className || "");
-    const code = String(children).replace(/\n$/, "");
-    const language = match ? match[1] : "";
+    const match = /language-(\w+)/.exec(className || '');
+    const code = String(children).replace(/\n$/, '');
+    const language = match ? match[1] : '';
 
     if (!inline && language) {
       return (
@@ -71,15 +71,13 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
     );
   };
 
-  const contentToRender = isLongContent && !isExpanded 
-    ? content.slice(0, 500) + "..." 
-    : content;
+  const contentToRender = isLongContent && !isExpanded ? content.slice(0, 500) + '...' : content;
 
   return (
-    <div className="prose prose-sm max-w-none text-sm text-accent-foreground prose-headings:text-accent-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:rounded prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-pre:my-2 prose-strong:text-accent-foreground prose-a:text-primary">
+    <div className="prose prose-sm max-w-none text-sm text-accent-foreground prose-headings:text-accent-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:rounded prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-pre:my-2 prose-pre:overflow-x-auto prose-pre:max-w-full prose-strong:text-accent-foreground prose-a:text-primary">
       {isLongContent ? (
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-          <ReactMarkdown 
+          <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               code: CodeBlock,
@@ -88,11 +86,7 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
             {contentToRender}
           </ReactMarkdown>
           <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="mt-2 gap-1 text-xs"
-            >
+            <Button variant="ghost" size="sm" className="mt-2 gap-1 text-xs">
               {isExpanded ? (
                 <>
                   <ChevronUp className="h-3 w-3" />
@@ -108,7 +102,7 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
           </CollapsibleTrigger>
         </Collapsible>
       ) : (
-        <ReactMarkdown 
+        <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
             code: CodeBlock,
