@@ -318,11 +318,17 @@ describe('useFormulaWorker', () => {
   describe('message protocol', () => {
     it('should send correct message format to worker', async () => {
       const mockPostMessage = vi.fn();
+      let messageHandler: ((e: MessageEvent) => void) | null = null;
 
       (global.Worker as any).mockImplementation(() => ({
         postMessage: mockPostMessage,
         terminate: vi.fn(),
-        onmessage: null,
+        set onmessage(handler: (e: MessageEvent) => void) {
+          messageHandler = handler;
+        },
+        get onmessage() {
+          return messageHandler!;
+        },
         onerror: null,
       }));
 
@@ -332,7 +338,7 @@ describe('useFormulaWorker', () => {
       });
 
       // Start evaluation
-      result.current.evaluateAsync('=SUM(A1:C1)', data);
+      const promise = result.current.evaluateAsync('=SUM(A1:C1)', data);
 
       // Wait for postMessage
       await waitFor(() => {
@@ -349,6 +355,19 @@ describe('useFormulaWorker', () => {
           rows: [[1, 2, 3]],
         }),
       });
+
+      // Resolve the promise to avoid unhandled rejection
+      if (messageHandler) {
+        (messageHandler as (e: MessageEvent) => void)({
+          data: {
+            type: 'success',
+            id: message.id,
+            result: 6,
+          },
+        } as MessageEvent);
+      }
+
+      await promise;
     });
   });
 
