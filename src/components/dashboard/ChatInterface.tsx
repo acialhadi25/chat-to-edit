@@ -38,6 +38,42 @@ import InsightSummary from './InsightSummary';
 import MarkdownContent from './MarkdownContent';
 import ExcelPromptExamples from './ExcelPromptExamples';
 
+/**
+ * Attempts to extract plain text content from potentially JSON-formatted streaming data
+ */
+function sanitizeStreamingContent(content: string): string {
+  if (!content) return '';
+
+  // Try to parse as JSON and extract content field
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.content && typeof parsed.content === 'string') {
+      return parsed.content;
+    }
+    if (parsed.choices?.[0]?.delta?.content) {
+      return parsed.choices[0].delta.content;
+    }
+  } catch {
+    // Not JSON, return as-is
+  }
+
+  // If content looks like incomplete JSON fragments, try to extract text portions
+  if (content.includes('{')) {
+    // Try to find and extract actual text between JSON structures
+    const textMatches = content.match(/"content"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"/g);
+    if (textMatches && textMatches.length > 0) {
+      return textMatches
+        .map((match) => {
+          const extracted = match.match(/"content"\s*:\s*"(.*)"/);
+          return extracted ? extracted[1] : '';
+        })
+        .join('');
+    }
+  }
+
+  return content;
+}
+
 interface ChatInterfaceProps {
   excelData: ExcelData | null;
   messages: ChatMessage[];
@@ -83,6 +119,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
     const [autoInputSelection, setAutoInputSelection] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
+    const scrollViewportRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
     const wasSelectingRef = useRef<boolean>(false);
@@ -145,8 +182,16 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
     }, [excelData, autoInputSelection]);
 
     useEffect(() => {
+      // Try multiple approaches to ensure scrolling works with ScrollArea
       if (scrollRef.current) {
-        scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+        // First, try to find the ScrollArea viewport and scroll it
+        const viewport = scrollRef.current.closest('[data-radix-scroll-area-viewport]');
+        if (viewport instanceof HTMLElement) {
+          viewport.scrollTop = viewport.scrollHeight;
+        } else {
+          // Fallback: use scrollIntoView
+          scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
       }
     }, [messages, streamingContent]);
 
@@ -171,19 +216,55 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
 
         const dataAnalysis = getDataAnalysis();
         const uniqueValuesPerColumn: Record<string, string[]> = {};
+        const columnStatistics: Record<string, {
+          dataType: string;
+          uniqueCount: number;
+          nonEmptyCount: number;
+          sampleValues: (string | number)[];
+          minValue?: string | number;
+          maxValue?: string | number;
+        }> = {};
+
         if (excelData) {
           excelData.headers.forEach((header, colIdx) => {
             const uniqueVals = new Set<string>();
+            const values: (string | number)[] = [];
+            let nonEmptyCount = 0;
+            let isNumeric = true;
+
             for (const row of excelData.rows) {
               const val = row[colIdx];
               if (val !== null && val !== undefined && String(val).trim() !== '') {
-                uniqueVals.add(String(val));
+                const strVal = String(val);
+                uniqueVals.add(strVal);
+                values.push(val);
+                nonEmptyCount++;
+
+                // Check if column is numeric
+                if (isNumeric && isNaN(Number(val))) {
+                  isNumeric = false;
+                }
+
                 if (uniqueVals.size >= 10) break;
               }
             }
+
             if (uniqueVals.size > 0 && uniqueVals.size <= 50) {
               uniqueValuesPerColumn[header] = Array.from(uniqueVals);
             }
+
+            // Calculate column statistics
+            const numericValues = values.filter(v => !isNaN(Number(v))).map(v => Number(v));
+            columnStatistics[header] = {
+              dataType: isNumeric && numericValues.length > 0 ? 'numeric' : 'text',
+              uniqueCount: uniqueVals.size,
+              nonEmptyCount: nonEmptyCount,
+              sampleValues: Array.from(uniqueVals).slice(0, 5),
+              ...(isNumeric && numericValues.length > 0 && {
+                minValue: Math.min(...numericValues),
+                maxValue: Math.max(...numericValues),
+              }),
+            };
           });
         }
 
@@ -197,6 +278,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
               selectedCells: excelData.selectedCells,
               dataAnalysis,
               uniqueValuesPerColumn,
+              columnStatistics,
             }
           : null;
 
@@ -208,12 +290,39 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         await streamChat({
           messages: allMessages,
           excelContext: context,
-          onDelta: (chunk) => setStreamingContent((prev) => prev + chunk),
+          onDelta: (chunk) => setStreamingContent((prev) => {
+            const sanitized = sanitizeStreamingContent(prev + chunk);
+            return sanitized;
+          }),
           onDone: (fullText) => {
             setIsStreaming(false);
             setStreamingContent('');
-            const parseResult = parseAIResponse(fullText, fullText);
+            // Sanitize the full text to extract content if it's JSON
+            const cleanedText = sanitizeStreamingContent(fullText);
+            const parseResult = parseAIResponse(cleanedText, cleanedText);
             logParseResult(parseResult, 'Excel Chat');
+
+            // Build quick options
+            let quickOptions = parseResult.data?.quickOptions?.map((opt: any) => ({
+              id: opt.id || crypto.randomUUID(),
+              label: opt.label,
+              value: opt.value,
+              variant: opt.variant || 'default',
+              action: opt.action,
+              isApplyAction: opt.isApplyAction,
+            })) as QuickOption[] | undefined;
+
+            // Add retry option if parse failed (action is INFO or undefined)
+            const parseFailed = !parseResult.data?.action || parseResult.data.action.type === 'INFO';
+            if (parseFailed) {
+              const retryOption: QuickOption = {
+                id: 'retry-' + Date.now(),
+                label: 'Coba Lagi',
+                value: text,
+                variant: 'outline',
+              };
+              quickOptions = quickOptions ? [...quickOptions, retryOption] : [retryOption];
+            }
 
             const assistantMessage: ChatMessage = {
               id: crypto.randomUUID(),
@@ -222,14 +331,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
               action: parseResult.data?.action
                 ? ({ ...parseResult.data.action, status: 'pending' as const } as AIAction)
                 : undefined,
-              quickOptions: parseResult.data?.quickOptions?.map((opt: any) => ({
-                id: opt.id || crypto.randomUUID(),
-                label: opt.label,
-                value: opt.value,
-                variant: opt.variant || 'default',
-                action: opt.action,
-                isApplyAction: opt.isApplyAction,
-              })) as QuickOption[] | undefined,
+              quickOptions,
               timestamp: new Date(),
             };
 
@@ -565,8 +667,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                       </div>
                     )}
 
-                    {/* Quick action buttons for the LAST message only */}
-                    {isLastMessage && message.quickOptions && message.quickOptions.length > 0 && (
+                    {/* Quick action buttons for all messages with options */}
+                    {message.quickOptions && message.quickOptions.length > 0 && (
                       <div className="mt-4">
                         <QuickActionButtons
                           options={message.quickOptions}
@@ -592,15 +694,25 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                           <Button
                             size="sm"
                             onClick={() => handleApplyAction(message.action!)}
+                            disabled={isProcessing}
                             className="gap-1"
                             aria-label="Apply suggested action to spreadsheet"
                           >
-                            <Check className="h-3 w-3" /> Apply
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" /> Applying...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-3 w-3" /> Apply
+                              </>
+                            )}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={handleRejectAction}
+                            disabled={isProcessing}
                             className="gap-1"
                             aria-label="Reject suggested action"
                           >
@@ -634,7 +746,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 >
                   {streamingContent ? (
                     <div className="text-sm whitespace-pre-wrap">
-                      <MarkdownContent content={streamingContent} />
+                      <MarkdownContent content={sanitizeStreamingContent(streamingContent)} />
                       <span className="inline-block w-2 h-4 bg-primary/70 animate-pulse ml-0.5 align-text-bottom" />
                     </div>
                   ) : (

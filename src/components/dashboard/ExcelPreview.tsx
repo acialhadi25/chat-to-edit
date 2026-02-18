@@ -332,6 +332,14 @@ const ExcelPreview = ({
         }
       });
 
+      // Apply merged cells if present
+      if (data.mergedCells && data.mergedCells.length > 0) {
+        worksheet['!merges'] = data.mergedCells.map((merge) => ({
+          s: { r: merge.startRow + 1, c: merge.startCol }, // +1 for header row
+          e: { r: merge.endRow + 1, c: merge.endCol },
+        }));
+      }
+
       // Apply styles if format is xlsx
       if (format === 'xlsx') {
         const colorMap: Record<string, string> = {
@@ -515,23 +523,31 @@ const ExcelPreview = ({
 
     if (formula) {
       const result = evaluateFormula(formula, data);
+      const hasError = result === null;
       const displayValue = result !== null ? result : '#ERROR';
 
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 cursor-help">
-                <span className="text-xs font-mono text-primary bg-primary/10 px-1 rounded shrink-0">
-                  fx
+              <div className={`flex items-center gap-1 cursor-help ${hasError ? 'bg-destructive/10' : ''}`}>
+                <span className={`text-xs font-mono px-1 rounded shrink-0 ${
+                  hasError
+                    ? 'bg-destructive text-destructive-foreground'
+                    : 'bg-primary/10 text-primary'
+                }`}>
+                  {hasError ? '!' : 'fx'}
                 </span>
-                <span className="font-medium text-primary truncate">
+                <span className={`font-medium truncate ${
+                  hasError ? 'text-destructive font-bold' : 'text-primary'
+                }`}>
                   {typeof displayValue === 'number' ? formatNumber(displayValue) : displayValue}
                 </span>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="font-mono text-xs">
-              {formula}
+            <TooltipContent side="top" className="font-mono text-xs max-w-xs">
+              <div>{formula}</div>
+              {hasError && <div className="mt-1 text-destructive">Formula evaluation failed</div>}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
