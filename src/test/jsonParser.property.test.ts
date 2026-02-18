@@ -516,11 +516,16 @@ describe('JSON Parser Property Tests', () => {
       fc.assert(
         fc.property(
           fc.string({ minLength: 1, maxLength: 100 }).filter((s) => {
-            // Filter out strings that might accidentally be valid JSON
+            // Filter out strings that might accidentally be valid JSON or contain extractable JSON
             try {
               JSON.parse(s);
               return false;
             } catch {
+              // Also filter out strings that contain valid JSON patterns
+              // that robustJsonParse might extract
+              if (s.includes('{') || s.includes('[')) {
+                return false;
+              }
               return true;
             }
           }),

@@ -1,5 +1,3 @@
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-
 // Default timeout for streaming requests (30 seconds)
 const DEFAULT_STREAM_TIMEOUT = 30000;
 
@@ -147,6 +145,9 @@ export async function streamChat({
       };
       throw handleStreamError(configError);
     }
+
+    // Construct URL after validation
+    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',

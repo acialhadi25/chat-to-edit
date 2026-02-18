@@ -36,8 +36,12 @@ describe('Property-Based Testing Examples', () => {
           // Parse it back
           const parsed = JSON.parse(jsonString);
 
-          // Should be equal to original
-          assertDeepEqual(parsed, response);
+          // JSON.stringify removes undefined values and doesn't distinguish -0 from 0
+          // So we normalize the original response the same way
+          const normalized = JSON.parse(JSON.stringify(response));
+
+          // Should be equal to normalized original
+          assertDeepEqual(parsed, normalized);
         }),
         PROPERTY_TEST_CONFIG
       );
