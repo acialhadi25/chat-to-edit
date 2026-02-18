@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from 'react';
 import {
   BarChart,
   Bar,
@@ -17,8 +17,17 @@ import {
   Area,
   ScatterChart,
   Scatter,
-} from "recharts";
-import { ExcelData, AIAction } from "@/types/excel";
+} from 'recharts';
+import { ExcelData, AIAction } from '@/types/excel';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from '@/hooks/use-toast';
 
 interface ChartPreviewProps {
   data: ExcelData;
@@ -26,20 +35,22 @@ interface ChartPreviewProps {
   onUpdate?: (updatedAction: AIAction) => void;
 }
 
-const COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+
   const chartData = useMemo(() => {
     if (action.xAxisColumn !== undefined && action.yAxisColumns) {
       // Limit to first 30 rows for better visualization
       return data.rows.slice(0, 30).map((row) => {
         const item: any = {
-          name: String(row[action.xAxisColumn!] || ""),
+          name: String(row[action.xAxisColumn!] || ''),
         };
         action.yAxisColumns!.forEach((colIdx) => {
           const header = data.headers[colIdx];
           const val = row[colIdx];
-          item[header] = typeof val === "number" ? val : parseFloat(String(val)) || 0;
+          item[header] = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
         });
         return item;
       });
@@ -57,6 +68,112 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
 
   const chartColors = action.chartColors || COLORS;
 
+  const exportToPNG = async () => {
+    if (!chartRef.current) return;
+
+    try {
+      const svgElement = chartRef.current.querySelector('svg');
+      if (!svgElement) {
+        toast({
+          title: 'Export Failed',
+          description: 'Chart not found',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Get SVG dimensions
+      const bbox = svgElement.getBoundingClientRect();
+      canvas.width = bbox.width * 2; // 2x for better quality
+      canvas.height = bbox.height * 2;
+
+      // Serialize SVG to string
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      // Load SVG into image
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Download
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const link = document.createElement('a');
+            link.download = `${action.chartTitle || 'chart'}.png`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            toast({
+              title: 'Export Successful',
+              description: 'Chart exported as PNG',
+            });
+          }
+        });
+
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    } catch (error) {
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export chart',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const exportToSVG = () => {
+    if (!chartRef.current) return;
+
+    try {
+      const svgElement = chartRef.current.querySelector('svg');
+      if (!svgElement) {
+        toast({
+          title: 'Export Failed',
+          description: 'Chart not found',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Clone and prepare SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+      // Serialize and download
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.download = `${action.chartTitle || 'chart'}.svg`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Export Successful',
+        description: 'Chart exported as SVG',
+      });
+    } catch (error) {
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export chart',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const renderChart = () => {
     const commonProps = {
       data: chartData,
@@ -67,28 +184,48 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
     const showGrid = action.showGrid !== false;
 
     switch (action.chartType) {
-      case "bar":
+      case 'bar':
         return (
           <BarChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />}
+            {showGrid && (
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(var(--muted-foreground))"
+                opacity={0.1}
+              />
+            )}
             <XAxis
               dataKey="name"
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              label={action.xAxisLabel ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 } : undefined}
+              label={
+                action.xAxisLabel
+                  ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 }
+                  : undefined
+              }
             />
             <YAxis
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              label={action.yAxisLabel ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 } : undefined}
+              label={
+                action.yAxisLabel
+                  ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 }
+                  : undefined
+              }
             />
             <Tooltip
-              contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", fontSize: "12px", borderRadius: "8px" }}
-              itemStyle={{ padding: "0" }}
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                borderColor: 'hsl(var(--border))',
+                fontSize: '12px',
+                borderRadius: '8px',
+              }}
+              itemStyle={{ padding: '0' }}
             />
-            {showLegend && <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} />}
+            {showLegend && <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />}
             {action.yAxisColumns!.map((colIdx, i) => (
               <Bar
                 key={colIdx}
@@ -100,16 +237,47 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
           </BarChart>
         );
 
-      case "line":
+      case 'line':
         return (
           <LineChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />}
-            <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} label={action.xAxisLabel ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 } : undefined} />
-            <YAxis fontSize={10} tickLine={false} axisLine={false} label={action.yAxisLabel ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 } : undefined} />
-            <Tooltip
-              contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", fontSize: "12px", borderRadius: "8px" }}
+            {showGrid && (
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(var(--muted-foreground))"
+                opacity={0.1}
+              />
+            )}
+            <XAxis
+              dataKey="name"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.xAxisLabel
+                  ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 }
+                  : undefined
+              }
             />
-            {showLegend && <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} />}
+            <YAxis
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.yAxisLabel
+                  ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 }
+                  : undefined
+              }
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                borderColor: 'hsl(var(--border))',
+                fontSize: '12px',
+                borderRadius: '8px',
+              }}
+            />
+            {showLegend && <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />}
             {action.yAxisColumns!.map((colIdx, i) => (
               <Line
                 key={colIdx}
@@ -124,16 +292,47 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
           </LineChart>
         );
 
-      case "area":
+      case 'area':
         return (
           <AreaChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />}
-            <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} label={action.xAxisLabel ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 } : undefined} />
-            <YAxis fontSize={10} tickLine={false} axisLine={false} label={action.yAxisLabel ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 } : undefined} />
-            <Tooltip
-              contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", fontSize: "12px", borderRadius: "8px" }}
+            {showGrid && (
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(var(--muted-foreground))"
+                opacity={0.1}
+              />
+            )}
+            <XAxis
+              dataKey="name"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.xAxisLabel
+                  ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 }
+                  : undefined
+              }
             />
-            {showLegend && <Legend wrapperStyle={{ fontSize: "10px", paddingTop: "10px" }} />}
+            <YAxis
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.yAxisLabel
+                  ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 }
+                  : undefined
+              }
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                borderColor: 'hsl(var(--border))',
+                fontSize: '12px',
+                borderRadius: '8px',
+              }}
+            />
+            {showLegend && <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />}
             {action.yAxisColumns!.map((colIdx, i) => (
               <Area
                 key={colIdx}
@@ -147,10 +346,10 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
           </AreaChart>
         );
 
-      case "pie":
-        const pieData = chartData.map(item => ({
+      case 'pie':
+        const pieData = chartData.map((item) => ({
           name: item.name,
-          value: item[data.headers[action.yAxisColumns![0]]]
+          value: item[data.headers[action.yAxisColumns![0]]],
         }));
         return (
           <PieChart>
@@ -168,28 +367,64 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", fontSize: "12px", borderRadius: "8px" }}
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                borderColor: 'hsl(var(--border))',
+                fontSize: '12px',
+                borderRadius: '8px',
+              }}
             />
-            {showLegend && <Legend wrapperStyle={{ fontSize: "10px" }} />}
+            {showLegend && <Legend wrapperStyle={{ fontSize: '10px' }} />}
           </PieChart>
         );
 
-      case "scatter":
+      case 'scatter':
         return (
           <ScatterChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />}
-            <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} label={action.xAxisLabel ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 } : undefined} />
-            <YAxis fontSize={10} tickLine={false} axisLine={false} label={action.yAxisLabel ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 } : undefined} />
+            {showGrid && (
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(var(--muted-foreground))"
+                opacity={0.1}
+              />
+            )}
+            <XAxis
+              dataKey="name"
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.xAxisLabel
+                  ? { value: action.xAxisLabel, position: 'bottom', offset: 0, fontSize: 10 }
+                  : undefined
+              }
+            />
+            <YAxis
+              fontSize={10}
+              tickLine={false}
+              axisLine={false}
+              label={
+                action.yAxisLabel
+                  ? { value: action.yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10 }
+                  : undefined
+              }
+            />
             <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
-              contentStyle={{ backgroundColor: "hsl(var(--background))", borderColor: "hsl(var(--border))", fontSize: "12px", borderRadius: "8px" }}
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                borderColor: 'hsl(var(--border))',
+                fontSize: '12px',
+                borderRadius: '8px',
+              }}
             />
-            {showLegend && <Legend wrapperStyle={{ fontSize: "10px" }} />}
+            {showLegend && <Legend wrapperStyle={{ fontSize: '10px' }} />}
             {action.yAxisColumns!.map((colIdx, i) => (
               <Scatter
                 key={colIdx}
                 name={data.headers[colIdx]}
-                data={chartData.map(d => ({ name: d.name, value: d[data.headers[colIdx]] }))}
+                data={chartData.map((d) => ({ name: d.name, value: d[data.headers[colIdx]] }))}
                 fill={chartColors[i % chartColors.length]}
               />
             ))}
@@ -206,15 +441,27 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
       <div className="mb-2 flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            {action.chartTitle || "Preview Chart"}
+            {action.chartTitle || 'Preview Chart'}
           </span>
-          <span className="text-[10px] text-muted-foreground uppercase">
-            {action.chartType}
-          </span>
+          <span className="text-[10px] text-muted-foreground uppercase">{action.chartType}</span>
         </div>
-        {onUpdate && <ChartCustomizer action={action} data={data} onUpdate={onUpdate} />}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 text-[10px] h-7 px-2">
+                <Download className="h-3 w-3" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToPNG}>Export as PNG</DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToSVG}>Export as SVG</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {onUpdate && <ChartCustomizer action={action} data={data} onUpdate={onUpdate} />}
+        </div>
       </div>
-      <div className="h-[220px] w-full mt-2">
+      <div ref={chartRef} className="h-[220px] w-full mt-2">
         <ResponsiveContainer width="100%" height="100%">
           {renderChart() as React.ReactElement}
         </ResponsiveContainer>
@@ -223,6 +470,5 @@ const ChartPreview = ({ data, action, onUpdate }: ChartPreviewProps) => {
   );
 };
 
-import ChartCustomizer from "./ChartCustomizer";
+import ChartCustomizer from './ChartCustomizer';
 export default ChartPreview;
-
