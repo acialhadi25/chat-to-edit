@@ -1350,9 +1350,9 @@ Gunakan format JSON wajib berikut:
         />
       )}
 
-      <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden" style={{ touchAction: 'manipulation' }}>
         {/* Preview/Upload Area */}
-        <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden">
+        <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden" style={{ touchAction: 'auto' }}>
           {!excelData ? (
             <div className="flex flex-col h-full">
               <div className="p-4 border-b flex items-center justify-between">
