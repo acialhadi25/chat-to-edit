@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { streamChat, StreamError } from '../streamChat';
+import { streamChat } from '../streamChat';
 
 describe('Stream Chat Error Scenarios', () => {
   beforeEach(() => {

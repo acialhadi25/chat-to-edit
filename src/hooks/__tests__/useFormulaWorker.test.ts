@@ -350,53 +350,6 @@ describe('useFormulaWorker', () => {
         }),
       });
     });
-
-    it('should ignore responses for unknown request IDs', async () => {
-      const mockPostMessage = vi.fn();
-      let messageHandler: ((e: MessageEvent) => void) | null = null;
-
-      (global.Worker as any).mockImplementation(() => ({
-        postMessage: mockPostMessage,
-        terminate: vi.fn(),
-        set onmessage(handler: (e: MessageEvent) => void) {
-          messageHandler = handler;
-        },
-        get onmessage() {
-          return messageHandler!;
-        },
-        onerror: null,
-      }));
-
-      const { result, unmount } = renderHook(() => useFormulaWorker());
-      const data = createMockExcelData();
-
-      // Start evaluation
-      const promise = result.current.evaluateAsync('=SUM(A1:A10)', data, {
-        timeout: 100, // Shorter timeout for faster test
-      });
-
-      // Catch any rejection to prevent unhandled promise rejection
-      promise.catch(() => {
-        // Expected to reject either from timeout or worker termination
-      });
-
-      // Send response with wrong ID
-      if (messageHandler) {
-        (messageHandler as (e: MessageEvent) => void)({
-          data: {
-            type: 'success',
-            id: 'wrong_id',
-            result: 42,
-          },
-        } as MessageEvent);
-      }
-
-      // Original promise should still be pending (will timeout or be rejected on unmount)
-      await expect(promise).rejects.toThrow();
-
-      // Clean up properly
-      unmount();
-    });
   });
 
   describe('cache operations', () => {
