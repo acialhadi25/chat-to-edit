@@ -248,7 +248,7 @@ This implementation plan breaks down the quality improvement initiative into act
     - Highlight search terms in results
     - _Requirements: 4.2.6_
 
-  - [~] 8.6 Write property-based test for chat search
+  - [ ] 8.6 Write property-based test for chat search
     - **Property 3: Chat History Search Completeness**
     - **Validates: Requirements 4.2.6**
     - Test that all returned messages contain search term
@@ -256,15 +256,15 @@ This implementation plan breaks down the quality improvement initiative into act
     - Test case-insensitive search
     - _Requirements: 4.2.6_
 
-- [ ] 9. Set up code quality tools
-  - [~] 9.1 Configure Prettier
+- [-] 9. Set up code quality tools
+  - [ ] 9.1 Configure Prettier
     - Install prettier package
     - Create .prettierrc.json configuration
     - Add format script to package.json
     - Configure VS Code integration
     - _Requirements: 5.3.2_
 
-  - [~] 9.2 Set up Husky and lint-staged
+  - [ ] 9.2 Set up Husky and lint-staged
     - Install husky and lint-staged packages
     - Initialize Husky with npx husky init
     - Create pre-commit hook for linting and formatting
@@ -272,41 +272,41 @@ This implementation plan breaks down the quality improvement initiative into act
     - Configure lint-staged in package.json
     - _Requirements: 5.3.3, 5.3.4_
 
-  - [~] 9.3 Add JSDoc comments to public functions
+  - [ ] 9.3 Add JSDoc comments to public functions
     - Add JSDoc to all functions in src/utils/excelOperations.ts
     - Add JSDoc to all formula functions
     - Add JSDoc to all custom hooks
     - Include @param, @returns, @throws tags
     - _Requirements: 5.2.1_
 
-  - [~] 9.4 Create README files for major directories
+  - [ ] 9.4 Create README files for major directories
     - Create src/utils/README.md
     - Create src/hooks/README.md
     - Create src/components/README.md
     - Document purpose, structure, and conventions
     - _Requirements: 5.2.2_
 
-  - [~] 9.5 Set up CI/CD pipeline
+  - [ ] 9.5 Set up CI/CD pipeline
     - Create .github/workflows/test.yml
     - Add jobs for linting, type checking, testing
     - Add code coverage upload to Codecov
     - Add quality gates (coverage, bundle size)
     - _Requirements: 5.3.5_
 
-- [~] 10. Checkpoint - Verify code quality improvements
+- [ ] 10. Checkpoint - Verify code quality improvements
   - Ensure all tests pass, ask the user if questions arise.
 
 ### Phase 3: Medium Priority Improvements (Weeks 8-10)
 
 - [ ] 11. Implement accessibility improvements
-  - [~] 11.1 Add ARIA labels to interactive elements
+  - [ ] 11.1 Add ARIA labels to interactive elements
     - Audit all buttons, links, inputs for accessible names
     - Add aria-label or aria-labelledby where missing
     - Add aria-describedby for form fields with errors
     - Add role attributes for custom controls
     - _Requirements: 6.1.1_
 
-  - [~] 11.2 Write property-based test for ARIA labels
+  - [ ] 11.2 Write property-based test for ARIA labels
     - **Property 7: Interactive Elements Have ARIA Labels**
     - **Validates: Requirements 6.1.1**
     - Query all interactive elements
@@ -314,14 +314,14 @@ This implementation plan breaks down the quality improvement initiative into act
     - Test with Testing Library accessibility queries
     - _Requirements: 6.1.1_
 
-  - [~] 11.3 Implement keyboard navigation
+  - [ ] 11.3 Implement keyboard navigation
     - Add keyboard event handlers for all features
     - Implement focus management for modals
     - Add keyboard shortcuts for common actions
     - Ensure tab order is logical
     - _Requirements: 6.1.2_
 
-  - [~] 11.4 Write property-based test for keyboard navigation
+  - [ ] 11.4 Write property-based test for keyboard navigation
     - **Property 8: Keyboard Navigation Completeness**
     - **Validates: Requirements 6.1.2**
     - Test that all features are keyboard accessible
@@ -329,28 +329,28 @@ This implementation plan breaks down the quality improvement initiative into act
     - Test keyboard shortcuts
     - _Requirements: 6.1.2_
 
-  - [~] 11.5 Add visible focus indicators
+  - [ ] 11.5 Add visible focus indicators
     - Update global CSS for focus styles
     - Add 2px outline for focused elements
     - Ensure focus indicators have sufficient contrast
     - Test with keyboard navigation
     - _Requirements: 6.1.3_
 
-  - [~] 11.6 Write property-based test for focus indicators
+  - [ ] 11.6 Write property-based test for focus indicators
     - **Property 9: Focus Indicator Visibility**
     - **Validates: Requirements 6.1.3**
     - Test that focused elements have visible outline
     - Measure outline width and contrast
     - _Requirements: 6.1.3_
 
-  - [~] 11.7 Audit and fix color contrast
+  - [ ] 11.7 Audit and fix color contrast
     - Use axe DevTools to identify contrast issues
     - Update colors to meet 4.5:1 ratio for normal text
     - Update colors to meet 3:1 ratio for large text
     - Test with high contrast mode
     - _Requirements: 6.1.4_
 
-  - [~] 11.8 Write property-based test for color contrast
+  - [ ] 11.8 Write property-based test for color contrast
     - **Property 10: Color Contrast Compliance**
     - **Validates: Requirements 6.1.4**
     - Query all text elements
@@ -358,19 +358,19 @@ This implementation plan breaks down the quality improvement initiative into act
     - Verify meets WCAG AA standards
     - _Requirements: 6.1.4_
 
-  - [~] 11.9 Add skip links
+  - [ ] 11.9 Add skip links
     - Create src/components/a11y/SkipLink.tsx
     - Add skip link to main content
     - Style skip link to be visible on focus
     - _Requirements: 6.1.6_
 
-  - [~] 11.10 Integrate axe-core for automated testing
+  - [ ] 11.10 Integrate axe-core for automated testing
     - Install jest-axe package
     - Create accessibility test utilities
     - Add axe tests to component test suites
     - _Requirements: 6.2.1_
 
-  - [~] 11.11 Write accessibility tests for key components
+  - [ ] 11.11 Write accessibility tests for key components
     - Test ExcelPreview component with axe
     - Test ChatInterface component with axe
     - Test navigation components with axe
@@ -378,86 +378,86 @@ This implementation plan breaks down the quality improvement initiative into act
     - _Requirements: 6.2.1_
 
 - [ ] 12. Set up E2E testing with Playwright
-  - [~] 12.1 Install and configure Playwright
+  - [ ] 12.1 Install and configure Playwright
     - Install @playwright/test package
     - Create playwright.config.ts
     - Configure browsers (Chromium, Firefox, WebKit)
     - Configure mobile devices (Pixel 5, iPhone 12)
     - _Requirements: 1.3.1_
 
-  - [~] 12.2 Create E2E test utilities
+  - [ ] 12.2 Create E2E test utilities
     - Create e2e/utils/helpers.ts
     - Add login helper function
     - Add file upload helper function
     - Add wait utilities
     - _Requirements: 1.3.1_
 
-  - [~] 12.3 Write E2E test for Excel editing workflow
+  - [ ] 12.3 Write E2E test for Excel editing workflow
     - Test upload → edit → download flow
     - Test multi-sheet navigation
     - Test undo/redo
     - _Requirements: 1.3.1_
 
-  - [~] 12.4 Write E2E test for authentication flow
+  - [ ] 12.4 Write E2E test for authentication flow
     - Test user registration
     - Test login
     - Test logout
     - Test password reset
     - _Requirements: 1.3.2_
 
-  - [~] 12.5 Write E2E test for chat interaction
+  - [ ] 12.5 Write E2E test for chat interaction
     - Test sending messages
     - Test receiving AI responses
     - Test applying actions
     - _Requirements: 1.3.1_
 
-  - [~] 12.6 Write E2E test for file history
+  - [ ] 12.6 Write E2E test for file history
     - Test file persistence
     - Test loading previous files
     - Test chat history persistence
     - _Requirements: 1.3.3_
 
-  - [~] 12.7 Configure E2E tests in CI/CD
+  - [ ] 12.7 Configure E2E tests in CI/CD
     - Add Playwright job to GitHub Actions
     - Configure screenshot/video capture on failure
     - Upload test artifacts
     - _Requirements: 1.3.4, 1.3.5_
 
-- [~] 13. Checkpoint - Verify accessibility and E2E tests
+- [ ] 13. Checkpoint - Verify accessibility and E2E tests
   - Ensure all tests pass, ask the user if questions arise.
 
 ### Phase 4: Additional Features (Weeks 11-15)
 
 - [ ] 14. Implement payment system
-  - [~] 14.1 Integrate Stripe
+  - [ ] 14.1 Integrate Stripe
     - Install @stripe/stripe-js package
     - Create Supabase Edge Function for Stripe webhooks
     - Implement checkout flow
     - Handle payment success/failure
     - _Requirements: 7.1.1_
 
-  - [~] 14.2 Implement subscription tiers
+  - [ ] 14.2 Implement subscription tiers
     - Define tier features (Free, Pro, Enterprise)
     - Create subscription_tiers table in Supabase
     - Implement tier checking middleware
     - Add UI for tier selection
     - _Requirements: 7.1.2_
 
-  - [~] 14.3 Write property-based test for subscription tiers
+  - [ ] 14.3 Write property-based test for subscription tiers
     - **Property 5: Subscription Tier Feature Access**
     - **Validates: Requirements 7.1.2**
     - Test that users only access features for their tier
     - Test tier upgrade/downgrade
     - _Requirements: 7.1.2_
 
-  - [~] 14.3 Add usage tracking
+  - [ ] 14.3 Add usage tracking
     - Track Excel operations per user
     - Track file uploads per user
     - Track AI chat messages per user
     - Store usage data in Supabase
     - _Requirements: 7.1.3_
 
-  - [~] 14.4 Create billing dashboard
+  - [ ] 14.4 Create billing dashboard
     - Create src/pages/Billing.tsx
     - Display current subscription
     - Display usage statistics
@@ -465,50 +465,50 @@ This implementation plan breaks down the quality improvement initiative into act
     - _Requirements: 7.1.5_
 
 - [ ] 15. Add advanced chart customization
-  - [~] 15.1 Implement chart type selection
+  - [ ] 15.1 Implement chart type selection
     - Add UI for selecting chart type (bar, line, pie, scatter, area)
     - Update chart rendering based on selection
     - Persist chart type preference
     - _Requirements: 7.2.1_
 
-  - [~] 15.2 Add color customization
+  - [ ] 15.2 Add color customization
     - Add color picker for chart series
     - Allow custom color palettes
     - Persist color preferences
     - _Requirements: 7.2.2_
 
-  - [~] 15.3 Add axis labels and titles
+  - [ ] 15.3 Add axis labels and titles
     - Add inputs for axis labels
     - Add input for chart title
     - Update chart rendering with labels
     - _Requirements: 7.2.3_
 
-  - [~] 15.4 Implement chart export
+  - [ ] 15.4 Implement chart export
     - Add export button to chart component
     - Implement PNG export using canvas
     - Implement SVG export
     - _Requirements: 7.2.5_
 
 - [ ] 16. Expand template library
-  - [~] 16.1 Create additional templates
+  - [ ] 16.1 Create additional templates
     - Create 10+ new professional templates
     - Organize by category (Business, Finance, HR, Sales)
     - Add template metadata (name, description, category)
     - _Requirements: 7.3.1, 7.3.2_
 
-  - [~] 16.2 Add template preview
+  - [ ] 16.2 Add template preview
     - Create template preview modal
     - Show template structure and sample data
     - Add apply button
     - _Requirements: 7.3.3_
 
-  - [~] 16.3 Implement custom template creation
+  - [ ] 16.3 Implement custom template creation
     - Add "Save as Template" button
     - Create template creation form
     - Store custom templates in Supabase
     - _Requirements: 7.3.4_
 
-- [~] 17. Final checkpoint - Complete testing and polish
+- [ ] 17. Final checkpoint - Complete testing and polish
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
