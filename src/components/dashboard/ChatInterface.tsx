@@ -12,6 +12,8 @@ import {
   Copy,
   X,
   MousePointer2,
+  Search,
+  XCircle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -75,6 +77,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [autoInputSelection, setAutoInputSelection] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -304,6 +307,28 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
     toast({ title: "Formula copied!", description: "Formula has been copied to clipboard" });
   };
 
+  // Filter messages based on search query
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter((message) =>
+        message.content.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+
+  // Helper function to highlight search terms in text
+  const highlightSearchTerm = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (regex.test(part)) {
+        return `<mark class="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">${part}</mark>`;
+      }
+      return part;
+    }).join('');
+  };
+
   return (
     <div className="flex h-full flex-col border-l border-border bg-card">
       <div className="border-b border-border px-4 py-3 flex-shrink-0">
@@ -334,37 +359,94 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
         />
       </div>
 
+      {/* Search input */}
+      <div className="px-4 py-2 border-b border-border bg-background">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search chat history..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-9 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Found {filteredMessages.length} of {messages.length} messages
+          </p>
+        )}
+      </div>
+
       <ScrollArea className="flex-1 min-h-0 px-4">
         <div className="space-y-4 py-4">
-          {messages.length === 0 && !isStreaming && (
+          {filteredMessages.length === 0 && !isStreaming && searchQuery && (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">No messages found matching "{searchQuery}"</p>
+            </div>
+          )}
+
+          {filteredMessages.length === 0 && !isStreaming && !searchQuery && (
             <ExcelPromptExamples
               onSelectPrompt={(prompt) => setInput(prompt)}
               fileName={excelData?.fileName}
             />
           )}
 
-          {messages.map((message, idx) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}
-            >
-              {message.role === "assistant" && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-                  <Bot className="h-4 w-4 text-primary-foreground" />
-                </div>
-              )}
+          {filteredMessages.map((message, idx) => {
+            // Find the original index for proper handling of last message
+            const originalIdx = messages.findIndex(m => m.id === message.id);
+            const isLastMessage = originalIdx === messages.length - 1;
 
+            return (
               <div
-                className={`max-w-[85%] rounded-xl px-4 py-3 ${message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-accent text-accent-foreground"
-                  }`}
+                key={message.id}
+                className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}
               >
-                {message.role === "assistant" ? (
-                  <MarkdownContent content={message.content} />
-                ) : (
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                {message.role === "assistant" && (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+                    <Bot className="h-4 w-4 text-primary-foreground" />
+                  </div>
                 )}
+
+                <div
+                  className={`max-w-[85%] rounded-xl px-4 py-3 ${message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-accent text-accent-foreground"
+                    }`}
+                >
+                  {message.role === "assistant" ? (
+                    searchQuery ? (
+                      <div 
+                        className="text-sm prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ 
+                          __html: highlightSearchTerm(message.content, searchQuery) 
+                        }}
+                      />
+                    ) : (
+                      <MarkdownContent content={message.content} />
+                    )
+                  ) : (
+                    searchQuery ? (
+                      <div 
+                        className="whitespace-pre-wrap text-sm"
+                        dangerouslySetInnerHTML={{ 
+                          __html: highlightSearchTerm(message.content, searchQuery) 
+                        }}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                    )
+                  )}
 
                 {message.action?.formula && (
                   <div className="mt-3 rounded-lg border border-border bg-background p-3">
@@ -431,7 +513,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
                 )}
 
                 {/* Quick action buttons for the LAST message only */}
-                {idx === messages.length - 1 && message.quickOptions && message.quickOptions.length > 0 && (
+                {isLastMessage && message.quickOptions && message.quickOptions.length > 0 && (
                   <div className="mt-4">
                     <QuickActionButtons
                       options={message.quickOptions}
@@ -470,7 +552,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(({
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
 
           {isStreaming && (
             <div className="flex gap-3">

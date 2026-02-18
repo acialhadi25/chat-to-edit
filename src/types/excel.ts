@@ -178,6 +178,7 @@ export interface ExcelData {
   };
   frozenRows?: number; // Number of rows to freeze from the top (excluding header)
   frozenColumns?: number; // Number of columns to freeze from the left
+  columnWidths?: { [columnIndex: number]: number }; // Custom column widths in pixels
 }
 
 // Chat message structure

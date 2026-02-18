@@ -222,27 +222,27 @@ This implementation plan breaks down the quality improvement initiative into act
     - Add UI controls for freeze/unfreeze
     - _Requirements: 4.1.1_
 
-  - [~] 8.2 Write property-based test for freeze panes
+  - [x] 8.2 Write property-based test for freeze panes
     - **Property 4: Freeze Panes Scroll Invariant**
     - **Validates: Requirements 4.1.1**
     - Test that scrolling doesn't move frozen rows/columns
     - Test with various freeze configurations
     - _Requirements: 4.1.1_
 
-  - [~] 8.3 Add column resize functionality
+  - [x] 8.3 Add column resize functionality
     - Implement drag handles for column resize
     - Update column widths in state
     - Persist column widths
     - _Requirements: 4.1.2_
 
-  - [~] 8.4 Improve chat interface
+  - [x] 8.4 Improve chat interface
     - Add syntax highlighting for code blocks (use react-markdown + remark-gfm)
     - Add copy button for code snippets
     - Add collapsible sections for long responses
     - Add typing indicator during AI processing
     - _Requirements: 4.2.1, 4.2.2, 4.2.3, 4.2.4_
 
-  - [~] 8.5 Implement chat history search
+  - [x] 8.5 Implement chat history search
     - Add search input to chat interface
     - Implement client-side search filtering
     - Highlight search terms in results

@@ -12,6 +12,7 @@ interface ResponsiveExcelGridProps {
   isMobile?: boolean;
   className?: string;
   onFreezePanesChange?: (frozenRows: number, frozenColumns: number) => void;
+  onColumnWidthChange?: (columnIndex: number, width: number) => void;
 }
 
 const MOBILE_ROW_HEIGHT = 48;
@@ -27,6 +28,7 @@ export function ResponsiveExcelGrid({
   isMobile = false,
   className,
   onFreezePanesChange,
+  onColumnWidthChange,
 }: ResponsiveExcelGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
@@ -35,12 +37,73 @@ export function ResponsiveExcelGrid({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Column resize state
+  const [resizingColumn, setResizingColumn] = useState<number | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  const [columnWidths, setColumnWidths] = useState<{ [key: number]: number }>(
+    data.columnWidths || {}
+  );
 
   const rowHeight = isMobile ? MOBILE_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
   const colWidth = isMobile ? MOBILE_COL_WIDTH : DESKTOP_COL_WIDTH;
 
   const frozenRows = data.frozenRows || 0;
   const frozenColumns = data.frozenColumns || 0;
+  
+  // Get column width with custom widths support
+  const getColumnWidth = useCallback((colIndex: number): number => {
+    return columnWidths[colIndex] || colWidth;
+  }, [columnWidths, colWidth]);
+  
+  // Column resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent, colIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(colIndex);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(getColumnWidth(colIndex));
+  }, [getColumnWidth]);
+  
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (resizingColumn === null) return;
+    
+    const deltaX = e.clientX - resizeStartX;
+    const newWidth = Math.max(50, resizeStartWidth + deltaX); // Minimum width of 50px
+    
+    setColumnWidths(prev => ({
+      ...prev,
+      [resizingColumn]: newWidth
+    }));
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+  
+  const handleResizeEnd = useCallback(() => {
+    if (resizingColumn !== null && onColumnWidthChange) {
+      onColumnWidthChange(resizingColumn, columnWidths[resizingColumn]);
+    }
+    setResizingColumn(null);
+  }, [resizingColumn, columnWidths, onColumnWidthChange]);
+  
+  // Add mouse event listeners for column resize
+  useEffect(() => {
+    if (resizingColumn !== null) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [resizingColumn, handleResizeMove, handleResizeEnd]);
+  
+  // Sync columnWidths with data.columnWidths
+  useEffect(() => {
+    if (data.columnWidths) {
+      setColumnWidths(data.columnWidths);
+    }
+  }, [data.columnWidths]);
 
   // Optimized virtual scrolling for rows
   // Higher overscan for smoother scrolling, especially on mobile
@@ -61,7 +124,7 @@ export function ResponsiveExcelGrid({
     horizontal: true,
     count: data.headers.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: useCallback(() => colWidth, [colWidth]),
+    estimateSize: useCallback((index: number) => getColumnWidth(index), [getColumnWidth]),
     overscan: isMobile ? 5 : 4, // Slightly more overscan on mobile
     measureElement:
       typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
@@ -219,17 +282,18 @@ export function ResponsiveExcelGrid({
           {colVirtualizer.getVirtualItems().map((virtualCol) => {
             const col = virtualCol.index;
             const isFrozenColumn = col < frozenColumns;
+            const currentColWidth = getColumnWidth(col);
 
             return (
               <div
                 key={virtualCol.key}
                 className={cn(
-                  "border-r flex items-center justify-center font-semibold text-sm",
+                  "border-r flex items-center justify-center font-semibold text-sm relative group",
                   isFrozenColumn && "bg-gray-200" // Visual indicator for frozen columns
                 )}
                 style={{
                   position: isFrozenColumn ? "sticky" : "absolute",
-                  left: isFrozenColumn ? col * colWidth : 0,
+                  left: isFrozenColumn ? col * currentColWidth : 0,
                   width: `${virtualCol.size}px`,
                   transform: isFrozenColumn ? undefined : `translateX(${virtualCol.start}px)`,
                   height: rowHeight,
@@ -237,6 +301,25 @@ export function ResponsiveExcelGrid({
                 }}
               >
                 {data.headers[virtualCol.index]}
+                
+                {/* Resize handle */}
+                {!isMobile && (
+                  <div
+                    className={cn(
+                      "absolute right-0 top-0 bottom-0 w-1 cursor-col-resize",
+                      "hover:bg-blue-500 transition-colors",
+                      "group-hover:bg-blue-300",
+                      resizingColumn === col && "bg-blue-500"
+                    )}
+                    onMouseDown={(e) => handleResizeStart(e, col)}
+                    style={{
+                      zIndex: 30,
+                    }}
+                  >
+                    {/* Wider hit area for easier grabbing */}
+                    <div className="absolute inset-y-0 -left-1 -right-1" />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -263,6 +346,7 @@ export function ResponsiveExcelGrid({
               const isSelected = selectedCellSet.has(cellRef);
               const isEditing = editingCell?.col === col && editingCell?.row === row;
               const cellValue = getCellValue(col, row);
+              const currentColWidth = getColumnWidth(col);
 
               // Determine if this cell should be frozen
               const isFrozenRow = row < frozenRows;
@@ -280,7 +364,7 @@ export function ResponsiveExcelGrid({
               }
 
               if (isFrozenColumn) {
-                stickyLeft = col * colWidth;
+                stickyLeft = col * currentColWidth;
                 zIndex = isFrozenRow ? 30 : 10; // Higher z-index for intersection
               }
 
