@@ -30,6 +30,7 @@ import {
   Trash2,
   Wand2,
   Sparkles,
+  Save,
 } from 'lucide-react';
 import {
   ExcelData,
@@ -59,6 +60,7 @@ interface ExcelPreviewProps {
   onDeleteSelection?: (mode: 'clear' | 'delete') => void;
   onRunAudit?: () => void;
   onRunInsights?: () => void;
+  onSaveAsTemplate?: () => void;
   formulaBarValue?: string;
   selectedCellRef?: string;
   onFormulaBarChange?: (value: string) => void;
@@ -80,6 +82,7 @@ const ExcelPreview = ({
   onDeleteSelection,
   onRunAudit,
   onRunInsights,
+  onSaveAsTemplate,
   formulaBarValue = '',
   selectedCellRef = '',
   onFormulaBarChange = () => {},
@@ -648,6 +651,19 @@ const ExcelPreview = ({
             >
               <Sparkles className="h-3.5 w-3.5" />
               Wawasan
+            </Button>
+          )}
+
+          {onSaveAsTemplate && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSaveAsTemplate}
+              className="h-8 gap-2 border-green-500/20 hover:bg-green-500/5 hover:border-green-500 text-green-600 text-xs"
+              aria-label="Save current structure as template"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save as Template
             </Button>
           )}
 

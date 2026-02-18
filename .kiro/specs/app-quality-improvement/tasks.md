@@ -517,26 +517,26 @@ This implementation plan breaks down the quality improvement initiative into act
     - Implement SVG export
     - _Requirements: 7.2.5_
 
-- [ ] 16. Expand template library
-  - [ ] 16.1 Create additional templates
+- [x] 16. Expand template library
+  - [x] 16.1 Create additional templates
     - Create 10+ new professional templates
     - Organize by category (Business, Finance, HR, Sales)
     - Add template metadata (name, description, category)
     - _Requirements: 7.3.1, 7.3.2_
 
-  - [ ] 16.2 Add template preview
+  - [x] 16.2 Add template preview
     - Create template preview modal
     - Show template structure and sample data
     - Add apply button
     - _Requirements: 7.3.3_
 
-  - [ ] 16.3 Implement custom template creation
+  - [x] 16.3 Implement custom template creation
     - Add "Save as Template" button
     - Create template creation form
     - Store custom templates in Supabase
     - _Requirements: 7.3.4_
 
-- [ ] 17. Final checkpoint - Complete testing and polish
+- [x] 17. Final checkpoint - Complete testing and polish
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
