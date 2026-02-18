@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, X, Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
-import { ExcelData, SheetData } from "@/types/excel";
+import { ExcelData, SheetData, MergeRange } from "@/types/excel";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
 import UpgradeModal from "./UpgradeModal";
 
@@ -42,6 +42,7 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
 
         // Parse ALL sheets with normalization
         const allSheets: { [sheetName: string]: SheetData } = {};
+        let mergedCells: MergeRange[] = [];
 
         for (const sheetName of sheets) {
           const worksheet = workbook.Sheets[sheetName];
@@ -67,6 +68,36 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
             return newRow.slice(0, headers.length);
           });
 
+          // Handle merged cells
+          if (worksheet['!merges'] && worksheet['!merges'].length > 0) {
+            worksheet['!merges'].forEach((merge: any) => {
+              const startRow = merge.s.r - 1; // Adjust for header row
+              const endRow = merge.e.r - 1;
+              const startCol = merge.s.c;
+              const endCol = merge.e.c;
+
+              // Track the merge range for the first sheet
+              if (sheetName === sheets[0]) {
+                mergedCells.push({
+                  startRow,
+                  endRow,
+                  startCol,
+                  endCol,
+                });
+              }
+
+              // Fill merged cells with the value from the first cell
+              const firstCellValue = normalizedRows[startRow]?.[startCol];
+              for (let r = startRow; r <= endRow; r++) {
+                for (let c = startCol; c <= endCol; c++) {
+                  if (normalizedRows[r] && r !== startRow || c !== startCol) {
+                    normalizedRows[r][c] = firstCellValue;
+                  }
+                }
+              }
+            });
+          }
+
           allSheets[sheetName] = { headers, rows: normalizedRows };
         }
 
@@ -85,6 +116,7 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
           selectedCells: [],
           pendingChanges: [],
           allSheets,
+          mergedCells: mergedCells.length > 0 ? mergedCells : undefined,
           cellStyles: {},
         };
 

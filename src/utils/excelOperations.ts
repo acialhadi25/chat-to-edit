@@ -107,6 +107,11 @@ export function applyFormulaToColumn(
   return { data: newData, changes };
 }
 
+// Helper function to escape regex special characters
+function escapeRegexSpecialChars(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Find and replace in data
 export function findReplace(
   data: ExcelData,
@@ -147,7 +152,9 @@ export function findReplace(
         if (wholeCell) {
           newValue = replace;
         } else {
-          const regex = new RegExp(find, caseSensitive ? "g" : "gi");
+          // Escape regex special characters to treat find value as literal string
+          const escapedFind = escapeRegexSpecialChars(find);
+          const regex = new RegExp(escapedFind, caseSensitive ? "g" : "gi");
           newValue = strValue.replace(regex, replace);
         }
 
@@ -1304,4 +1311,3 @@ export function extractText(
 
   return { data: newData, newColumnName: newHeader };
 }
-

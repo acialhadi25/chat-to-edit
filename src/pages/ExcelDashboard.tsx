@@ -807,6 +807,10 @@ const ExcelDashboard = () => {
           if (action.changes && action.changes.length > 0) {
             newData = applyChanges(newData, action.changes);
             description = `${action.type}: ${action.changes.length} cells changed`;
+          } else if (action.target) {
+            // Fallback: if no changes provided but target exists, ask for clarification
+            console.warn(`${action.type} action received without changes array. Target: ${action.target.ref}`);
+            description = `${action.type}: Unable to apply - no changes specified`;
           }
           break;
         }
@@ -851,11 +855,14 @@ const ExcelDashboard = () => {
             targetColumns = action.targetColumns;
           } else if (action.target?.type === 'column') {
             targetColumns = parseColumnRefs(action.target.ref);
+          } else {
+            // Fallback: if no target specified, apply to all columns
+            targetColumns = Array.from({ length: newData.headers.length }, (_, i) => i);
           }
           const { data: transformedData, changes } = transformText(
             newData,
-            transformType,
-            targetColumns
+            targetColumns,
+            transformType
           );
           newData = transformedData;
           description = `Transform: ${changes.length} cells changed to ${transformType}`;
@@ -1018,10 +1025,20 @@ const ExcelDashboard = () => {
         }
         case 'RENAME_COLUMN': {
           if (action.target?.type === 'column' && action.renameTo) {
-            const colIndex = getColumnIndex(action.target.ref);
-            const { data: renamedData, oldName } = renameColumn(newData, colIndex, action.renameTo);
-            newData = renamedData;
-            description = `Renamed column "${oldName}" to "${action.renameTo}"`;
+            // Try to parse ref as column letter first, then as column name
+            let colIndex = -1;
+            try {
+              colIndex = getColumnIndex(action.target.ref);
+            } catch (e) {
+              // If ref is not a column letter, try to find by column name
+              colIndex = newData.headers.findIndex(h => h === action.target!.ref);
+            }
+
+            if (colIndex >= 0) {
+              const { data: renamedData, oldName } = renameColumn(newData, colIndex, action.renameTo);
+              newData = renamedData;
+              description = `Renamed column "${oldName}" to "${action.renameTo}"`;
+            }
           }
           break;
         }
@@ -1333,9 +1350,9 @@ Gunakan format JSON wajib berikut:
         />
       )}
 
-      <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden" style={{ touchAction: 'manipulation' }}>
         {/* Preview/Upload Area */}
-        <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden">
+        <div className="flex flex-1 flex-col border-r border-border min-h-0 min-w-0 overflow-hidden" style={{ touchAction: 'auto' }}>
           {!excelData ? (
             <div className="flex flex-col h-full">
               <div className="p-4 border-b flex items-center justify-between">
@@ -1410,6 +1427,7 @@ Gunakan format JSON wajib berikut:
             transition-transform duration-300 ease-in-out
             ${chatOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}
           `}
+          style={{ touchAction: chatOpen ? 'auto' : 'none' }}
           role="dialog"
           aria-modal="true"
           aria-label="AI Chat"

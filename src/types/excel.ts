@@ -169,6 +169,14 @@ export interface SheetData {
   rows: (string | number | null)[][];
 }
 
+// Merged cell range
+export interface MergeRange {
+  startRow: number;
+  endRow: number;
+  startCol: number;
+  endCol: number;
+}
+
 // Excel data structure
 export interface ExcelData {
   fileName: string;
@@ -181,6 +189,7 @@ export interface ExcelData {
   isSelecting?: boolean;
   pendingChanges: DataChange[];
   allSheets?: { [sheetName: string]: SheetData }; // All sheets data for switching
+  mergedCells?: MergeRange[]; // Merged cells information
   cellStyles: {
     [cellRef: string]: {
       color?: string;
