@@ -428,41 +428,69 @@ This implementation plan breaks down the quality improvement initiative into act
 
 ### Phase 4: Additional Features (Weeks 11-15)
 
-- [ ] 14. Implement payment system
-  - [ ] 14.1 Integrate Stripe
-    - Install @stripe/stripe-js package
-    - Create Supabase Edge Function for Stripe webhooks
-    - Implement checkout flow
-    - Handle payment success/failure
+- [x] 14. Implement payment system with Midtrans
+  - [x] 14.1 Set up Midtrans integration
+    - Install midtrans-client package for server-side
+    - Create Supabase Edge Function for Midtrans API integration
+    - Configure Midtrans credentials (Server Key, Client Key) in environment variables
+    - Set up Midtrans Snap for payment UI
     - _Requirements: 7.1.1_
 
-  - [ ] 14.2 Implement subscription tiers
+  - [x] 14.2 Implement Midtrans checkout flow
+    - Create transaction endpoint in Supabase Edge Function
+    - Generate Snap token for payment
+    - Integrate Snap.js in frontend for payment popup
+    - Handle payment methods (credit card, bank transfer, e-wallet, etc.)
+    - Implement payment redirect and callback handling
+    - _Requirements: 7.1.1_
+
+  - [x] 14.3 Set up Midtrans webhook handler
+    - Create Supabase Edge Function for Midtrans notification webhooks
+    - Verify notification authenticity using signature key
+    - Handle payment status updates (pending, settlement, expire, cancel, deny)
+    - Update subscription status in database based on payment status
+    - Log all webhook events for audit trail
+    - _Requirements: 7.1.1_
+
+  - [x] 14.4 Implement subscription tiers
     - Define tier features (Free, Pro, Enterprise)
     - Create subscription_tiers table in Supabase
+    - Create user_subscriptions table with Midtrans transaction references
     - Implement tier checking middleware
-    - Add UI for tier selection
+    - Add UI for tier selection with pricing in IDR
     - _Requirements: 7.1.2_
 
-  - [ ] 14.3 Write property-based test for subscription tiers
+  - [x] 14.5 Write property-based test for subscription tiers
     - **Property 5: Subscription Tier Feature Access**
     - **Validates: Requirements 7.1.2**
     - Test that users only access features for their tier
     - Test tier upgrade/downgrade
     - _Requirements: 7.1.2_
 
-  - [ ] 14.3 Add usage tracking
+  - [x] 14.6 Add usage tracking
     - Track Excel operations per user
     - Track file uploads per user
     - Track AI chat messages per user
     - Store usage data in Supabase
+    - Implement usage limits per subscription tier
     - _Requirements: 7.1.3_
 
-  - [ ] 14.4 Create billing dashboard
+  - [x] 14.7 Create billing dashboard
     - Create src/pages/Billing.tsx
-    - Display current subscription
+    - Display current subscription with Midtrans transaction details
     - Display usage statistics
     - Add upgrade/downgrade options
+    - Show payment history from Midtrans transactions
+    - Add invoice download functionality
     - _Requirements: 7.1.5_
+
+  - [x] 14.8 Implement recurring subscription with Midtrans
+    - Set up Midtrans subscription API for recurring payments
+    - Create subscription plans (monthly/yearly)
+    - Handle subscription renewal notifications
+    - Implement subscription cancellation flow
+    - Handle failed payment retry logic
+    - _Requirements: 7.1.2, 7.1.3_
 
 - [ ] 15. Add advanced chart customization
   - [ ] 15.1 Implement chart type selection

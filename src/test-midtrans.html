@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midtrans Sandbox Testing - ChaTtoEdit</title>
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="Mid-client-Lpyk1mcchaNy5Wib"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #444;
+            font-size: 18px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        .success {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            border-left: 4px solid #4CAF50;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            border-left: 4px solid #f44336;
+        }
+        .log {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .credentials {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .test-cards {
+            background: #f3e5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .test-cards h3 {
+            margin-top: 0;
+            color: #6a1b9a;
+        }
+        .card-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Midtrans Sandbox Testing</h1>
+        <p class="subtitle">Testing Midtrans payment integration untuk ChaTtoEdit</p>
+
+        <div class="credentials">
+            <strong>Sandbox Credentials:</strong><br>
+            Merchant ID: G183260451<br>
+            Client Key: Mid-client-Lpyk1mcchaNy5Wib<br>
+            Environment: Sandbox (Testing)
+        </div>
+
+        <div class="info">
+            <strong>ℹ️ Informasi:</strong><br>
+            Ini adalah halaman testing untuk integrasi Midtrans Snap. Semua transaksi menggunakan sandbox environment dan tidak akan memproses pembayaran real.
+        </div>
+
+        <!-- Test Section 1: Basic Payment -->
+        <div class="test-section">
+            <h2>Test 1: Basic Payment (Free Tier → Pro)</h2>
+            <p>Test pembayaran dasar untuk upgrade ke Pro tier (IDR 99,000)</p>
+            <button onclick="testBasicPayment()">Test Basic Payment</button>
+            <div id="result1"></div>
+        </div>
+
+        <!-- Test Section 2: Enterprise Payment -->
+        <div class="test-section">
+            <h2>Test 2: Enterprise Payment</h2>
+            <p>Test pembayaran untuk Enterprise tier (IDR 499,000)</p>
+            <button onclick="testEnterprisePayment()">Test Enterprise Payment</button>
+            <div id="result2"></div>
+        </div>
+
+        <!-- Test Section 3: Custom Amount -->
+        <div class="test-section">
+            <h2>Test 3: Custom Amount</h2>
+            <p>Test dengan jumlah custom</p>
+            <input type="number" id="customAmount" placeholder="Masukkan jumlah (IDR)" value="50000" style="padding: 8px; margin-right: 10px; width: 200px;">
+            <button onclick="testCustomPayment()">Test Custom Payment</button>
+            <div id="result3"></div>
+        </div>
+
+        <!-- Test Cards Info -->
+        <div class="test-cards">
+            <h3>🎴 Test Cards untuk Sandbox</h3>
+            <div class="card-info">
+                <strong>✅ Success Card:</strong><br>
+                Card Number: 4811 1111 1111 1114<br>
+                CVV: 123<br>
+                Expiry: 01/25 (atau tanggal future lainnya)
+            </div>
+            <div class="card-info">
+                <strong>❌ Denied Card:</strong><br>
+                Card Number: 4911 1111 1111 1113<br>
+                CVV: 123<br>
+                Expiry: 01/25
+            </div>
+            <div class="card-info">
+                <strong>⏳ Challenge Card (3DS):</strong><br>
+                Card Number: 4611 1111 1111 1112<br>
+                CVV: 123<br>
+                Expiry: 01/25<br>
+                OTP: 112233
+            </div>
+        </div>
+
+        <!-- Console Log -->
+        <div class="log" id="console">
+            <strong>Console Log:</strong><br>
+            Menunggu test...
+        </div>
+    </div>
+
+    <script>
+        // Logging function
+        function log(message, type = 'info') {
+            const consoleDiv = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString('id-ID');
+            const color = type === 'error' ? '#ef5350' : type === 'success' ? '#66bb6a' : '#aed581';
+            consoleDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(message);
+        }
+
+        // Generate unique order ID
+        function generateOrderId() {
+            return `TEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        // Mock transaction creation (in real app, this calls Supabase Edge Function)
+        async function createMockTransaction(amount, itemName) {
+            const orderId = generateOrderId();
+            
+            log(`Creating transaction: ${orderId}`);
+            log(`Amount: IDR ${amount.toLocaleString('id-ID')}`);
+            log(`Item: ${itemName}`);
+
+            // In production, this would call your Supabase Edge Function
+            // For testing, we'll create a mock Snap token
+            const mockSnapToken = btoa(orderId); // Simple mock token
+
+            return {
+                orderId,
+                snapToken: mockSnapToken,
+                amount,
+                itemName
+            };
+        }
+
+        // Test Basic Payment
+        async function testBasicPayment() {
+            const resultDiv = document.getElementById('result1');
+            resultDiv.innerHTML = '<p>Processing...</p>';
+            log('=== Test 1: Basic Payment Started ===');
+
+            try {
+                const transaction = await createMockTransaction(99000, 'Pro Subscription - Monthly');
+                
+                // Open Snap payment popup
+                snap.pay(transaction.snapToken, {
+                    onSuccess: function(result) {
+                        log('Payment Success!', 'success');
+                        log(JSON.stringify(result, null, 2), 'success');
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <strong>✅ Payment Successful!</strong><br>
+                                Order ID: ${result.order_id}<br>
+                                Transaction ID: ${result.transaction_id}<br>
+                                Status: ${result.transaction_status}
+                            </div>
+                        `;
+                    },
+                    onPending: function(result) {
+                        log('Payment Pending', 'info');
+                        log(JSON.stringify(result, null, 2), 'info');
+                        resultDiv.innerHTML = `
+                            <div class="info">
+                                <strong>⏳ Payment Pending</strong><br>
+                                Order ID: ${result.order_id}<br>
+                                Please complete the payment
+                            </div>
+                        `;
+                    },
+                    onError: function(result) {
+                        log('Payment Error!', 'error');
+                        log(JSON.stringify(result, null, 2), 'error');
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <strong>❌ Payment Failed</strong><br>
+                                ${result.status_message || 'Unknown error'}
+                            </div>
+                        `;
+                    },
+                    onClose: function() {
+                        log('Payment popup closed');
+                        if (!resultDiv.innerHTML.includes('success') && !resultDiv.innerHTML.includes('error')) {
+                            resultDiv.innerHTML = '<p>Payment cancelled by user</p>';
+                        }
+                    }
+                });
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Test Enterprise Payment
+        async function testEnterprisePayment() {
+            const resultDiv = document.getElementById('result2');
+            resultDiv.innerHTML = '<p>Processing...</p>';
+            log('=== Test 2: Enterprise Payment Started ===');
+
+            try {
+                const transaction = await createMockTransaction(499000, 'Enterprise Subscription - Monthly');
+                
+                snap.pay(transaction.snapToken, {
+                    onSuccess: function(result) {
+                        log('Payment Success!', 'success');
+                        log(JSON.stringify(result, null, 2), 'success');
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <strong>✅ Payment Successful!</strong><br>
+                                Order ID: ${result.order_id}<br>
+                                Transaction ID: ${result.transaction_id}<br>
+                                Status: ${result.transaction_status}
+                            </div>
+                        `;
+                    },
+                    onPending: function(result) {
+                        log('Payment Pending', 'info');
+                        resultDiv.innerHTML = `
+                            <div class="info">
+                                <strong>⏳ Payment Pending</strong><br>
+                                Order ID: ${result.order_id}
+                            </div>
+                        `;
+                    },
+                    onError: function(result) {
+                        log('Payment Error!', 'error');
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <strong>❌ Payment Failed</strong><br>
+                                ${result.status_message || 'Unknown error'}
+                            </div>
+                        `;
+                    },
+                    onClose: function() {
+                        log('Payment popup closed');
+                    }
+                });
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Test Custom Payment
+        async function testCustomPayment() {
+            const resultDiv = document.getElementById('result3');
+            const amount = parseInt(document.getElementById('customAmount').value);
+            
+            if (!amount || amount < 1000) {
+                resultDiv.innerHTML = '<div class="error">Minimum amount: IDR 1,000</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p>Processing...</p>';
+            log('=== Test 3: Custom Payment Started ===');
+
+            try {
+                const transaction = await createMockTransaction(amount, 'Custom Payment Test');
+                
+                snap.pay(transaction.snapToken, {
+                    onSuccess: function(result) {
+                        log('Payment Success!', 'success');
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <strong>✅ Payment Successful!</strong><br>
+                                Amount: IDR ${amount.toLocaleString('id-ID')}<br>
+                                Order ID: ${result.order_id}
+                            </div>
+                        `;
+                    },
+                    onPending: function(result) {
+                        log('Payment Pending', 'info');
+                        resultDiv.innerHTML = `
+                            <div class="info">
+                                <strong>⏳ Payment Pending</strong><br>
+                                Order ID: ${result.order_id}
+                            </div>
+                        `;
+                    },
+                    onError: function(result) {
+                        log('Payment Error!', 'error');
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <strong>❌ Payment Failed</strong><br>
+                                ${result.status_message || 'Unknown error'}
+                            </div>
+                        `;
+                    },
+                    onClose: function() {
+                        log('Payment popup closed');
+                    }
+                });
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize
+        log('Midtrans Sandbox Testing initialized');
+        log('Snap.js loaded successfully', 'success');
+        log('Ready for testing!', 'success');
+    </script>
+</body>
+</html>

@@ -23,3 +23,17 @@ dist-ssr
 *.sln
 *.sw?
 **/tempobook/**
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.backup
+
+# Midtrans testing
+test-results/
+*.backup
+
+# Supabase
+.temp/
+.branches/

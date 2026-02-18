@@ -1,0 +1,208 @@
+{
+  "info": {
+    "name": "Midtrans Sandbox - ChaTtoEdit",
+    "description": "Collection untuk testing Midtrans integration di ChaTtoEdit",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "supabase_url",
+      "value": "https://your-project.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_anon_key",
+      "value": "your-supabase-anon-key",
+      "type": "string"
+    },
+    {
+      "key": "midtrans_server_key",
+      "value": "YOUR_MIDTRANS_SERVER_KEY",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Transaction - Pro Tier",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{supabase_anon_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"TEST-PRO-{{$timestamp}}\",\n  \"amount\": 99000,\n  \"customerDetails\": {\n    \"firstName\": \"Test\",\n    \"lastName\": \"User\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"+628123456789\"\n  },\n  \"itemDetails\": [\n    {\n      \"id\": \"PRO-MONTHLY\",\n      \"price\": 99000,\n      \"quantity\": 1,\n      \"name\": \"Pro Subscription - Monthly\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{supabase_url}}/functions/v1/midtrans-create-transaction",
+          "host": ["{{supabase_url}}"],
+          "path": ["functions", "v1", "midtrans-create-transaction"]
+        },
+        "description": "Create transaction untuk Pro tier subscription (IDR 99,000)"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Transaction - Enterprise Tier",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{supabase_anon_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"TEST-ENT-{{$timestamp}}\",\n  \"amount\": 499000,\n  \"customerDetails\": {\n    \"firstName\": \"Enterprise\",\n    \"lastName\": \"User\",\n    \"email\": \"enterprise@example.com\",\n    \"phone\": \"+628123456789\"\n  },\n  \"itemDetails\": [\n    {\n      \"id\": \"ENT-MONTHLY\",\n      \"price\": 499000,\n      \"quantity\": 1,\n      \"name\": \"Enterprise Subscription - Monthly\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{supabase_url}}/functions/v1/midtrans-create-transaction",
+          "host": ["{{supabase_url}}"],
+          "path": ["functions", "v1", "midtrans-create-transaction"]
+        },
+        "description": "Create transaction untuk Enterprise tier (IDR 499,000)"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Webhook - Settlement",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction_time\": \"{{$isoTimestamp}}\",\n  \"transaction_status\": \"settlement\",\n  \"transaction_id\": \"test-txn-{{$timestamp}}\",\n  \"status_message\": \"Success\",\n  \"status_code\": \"200\",\n  \"signature_key\": \"test-signature-{{$timestamp}}\",\n  \"payment_type\": \"credit_card\",\n  \"order_id\": \"TEST-PRO-1234567890\",\n  \"merchant_id\": \"G183260451\",\n  \"gross_amount\": \"99000.00\",\n  \"fraud_status\": \"accept\",\n  \"currency\": \"IDR\"\n}"
+        },
+        "url": {
+          "raw": "{{supabase_url}}/functions/v1/midtrans-webhook",
+          "host": ["{{supabase_url}}"],
+          "path": ["functions", "v1", "midtrans-webhook"]
+        },
+        "description": "Simulate webhook notification untuk successful payment"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Webhook - Pending",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction_time\": \"{{$isoTimestamp}}\",\n  \"transaction_status\": \"pending\",\n  \"transaction_id\": \"test-txn-{{$timestamp}}\",\n  \"status_message\": \"Pending\",\n  \"status_code\": \"201\",\n  \"signature_key\": \"test-signature-{{$timestamp}}\",\n  \"payment_type\": \"bank_transfer\",\n  \"order_id\": \"TEST-PRO-1234567890\",\n  \"merchant_id\": \"G183260451\",\n  \"gross_amount\": \"99000.00\",\n  \"currency\": \"IDR\"\n}"
+        },
+        "url": {
+          "raw": "{{supabase_url}}/functions/v1/midtrans-webhook",
+          "host": ["{{supabase_url}}"],
+          "path": ["functions", "v1", "midtrans-webhook"]
+        },
+        "description": "Simulate webhook untuk pending payment (bank transfer)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Webhook - Denied",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction_time\": \"{{$isoTimestamp}}\",\n  \"transaction_status\": \"deny\",\n  \"transaction_id\": \"test-txn-{{$timestamp}}\",\n  \"status_message\": \"Denied\",\n  \"status_code\": \"400\",\n  \"signature_key\": \"test-signature-{{$timestamp}}\",\n  \"payment_type\": \"credit_card\",\n  \"order_id\": \"TEST-PRO-1234567890\",\n  \"merchant_id\": \"G183260451\",\n  \"gross_amount\": \"99000.00\",\n  \"fraud_status\": \"deny\",\n  \"currency\": \"IDR\"\n}"
+        },
+        "url": {
+          "raw": "{{supabase_url}}/functions/v1/midtrans-webhook",
+          "host": ["{{supabase_url}}"],
+          "path": ["functions", "v1", "midtrans-webhook"]
+        },
+        "description": "Simulate webhook untuk denied payment"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Direct Midtrans API - Create Snap Token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Basic {{midtrans_auth}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction_details\": {\n    \"order_id\": \"DIRECT-{{$timestamp}}\",\n    \"gross_amount\": 99000\n  },\n  \"customer_details\": {\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"email\": \"test@example.com\",\n    \"phone\": \"+628123456789\"\n  },\n  \"item_details\": [\n    {\n      \"id\": \"PRO-MONTHLY\",\n      \"price\": 99000,\n      \"quantity\": 1,\n      \"name\": \"Pro Subscription - Monthly\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "https://app.sandbox.midtrans.com/snap/v1/transactions",
+          "protocol": "https",
+          "host": ["app", "sandbox", "midtrans", "com"],
+          "path": ["snap", "v1", "transactions"]
+        },
+        "description": "Direct call ke Midtrans API untuk create Snap token"
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate Basic Auth for Midtrans",
+          "const serverKey = pm.variables.get('midtrans_server_key');",
+          "const auth = btoa(serverKey + ':');",
+          "pm.variables.set('midtrans_auth', auth);"
+        ]
+      }
+    }
+  ]
+}
