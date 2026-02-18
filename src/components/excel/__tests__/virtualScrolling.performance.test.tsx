@@ -1,20 +1,20 @@
 /**
  * Performance tests for virtual scrolling
- * 
+ *
  * These tests ensure that virtual scrolling maintains 60fps (16ms per frame)
  * when rendering large datasets.
- * 
+ *
  * Performance Budgets:
  * - Initial render: < 100ms
  * - Scroll frame: < 16ms (60fps)
  * - Cell render: < 1ms per cell
  * - Viewport update: < 16ms
- * 
+ *
  * Requirements: 3.3.3 - Custom metrics for Excel operations
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { ResponsiveExcelGrid } from '../ResponsiveExcelGrid';
 import { createMockExcelData } from '@/test/utils/testHelpers';
 import type { ExcelData } from '@/types/excel';
@@ -34,14 +34,10 @@ const PERFORMANCE_BUDGET = {
  * Generate large dataset for virtual scrolling tests
  */
 function generateLargeDataset(rows: number, cols: number): ExcelData {
-  const headers = Array.from({ length: cols }, (_, i) => 
-    String.fromCharCode(65 + (i % 26))
-  );
-  
+  const headers = Array.from({ length: cols }, (_, i) => String.fromCharCode(65 + (i % 26)));
+
   const data = Array.from({ length: rows }, (_, rowIdx) =>
-    Array.from({ length: cols }, (_, colIdx) => 
-      `Cell ${rowIdx}-${colIdx}`
-    )
+    Array.from({ length: cols }, (_, colIdx) => `Cell ${rowIdx}-${colIdx}`)
   );
 
   return createMockExcelData({
@@ -62,15 +58,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Initial Render Performance', () => {
     it('should render 10,000 rows initially in under 500ms', () => {
       const start = performance.now();
-      
+
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={false}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={false} />
       );
-      
+
       const duration = performance.now() - start;
 
       // Relaxed budget for test environment (includes React rendering overhead)
@@ -80,15 +72,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should render mobile view efficiently', () => {
       const start = performance.now();
-      
+
       render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={true}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={true} />
       );
-      
+
       const duration = performance.now() - start;
 
       expect(duration).toBeLessThan(PERFORMANCE_BUDGET.INITIAL_RENDER);
@@ -96,9 +84,9 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should render with selected cells efficiently', () => {
       const selectedCells = Array.from({ length: 100 }, (_, i) => `A${i + 1}`);
-      
+
       const start = performance.now();
-      
+
       render(
         <ResponsiveExcelGrid
           data={largeDataset}
@@ -106,7 +94,7 @@ describe('Performance Tests: Virtual Scrolling', () => {
           selectedCells={selectedCells}
         />
       );
-      
+
       const duration = performance.now() - start;
 
       expect(duration).toBeLessThan(PERFORMANCE_BUDGET.INITIAL_RENDER * 1.5);
@@ -116,31 +104,25 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Viewport Rendering Performance', () => {
     it('should render component efficiently with virtualization', () => {
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       // Component should render without errors
       expect(container.firstChild).toBeTruthy();
-      
+
       // Virtual scrolling means not all rows are in DOM
       // This is validated by the component's use of useVirtualizer
     });
 
     it('should handle wide datasets efficiently', () => {
       const wideDataset = generateLargeDataset(100, 100);
-      
+
       const start = performance.now();
-      
+
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={wideDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={wideDataset} onCellChange={mockOnCellChange} />
       );
-      
+
       const duration = performance.now() - start;
 
       // Should render efficiently even with many columns
@@ -152,10 +134,7 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Scroll Performance', () => {
     it('should render scrollable component', () => {
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       // Component renders successfully
@@ -164,15 +143,12 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should handle rapid re-renders efficiently', async () => {
       const { rerender } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       const rerenders = 10;
       const start = performance.now();
-      
+
       // Simulate rapid updates (like during scrolling)
       for (let i = 0; i < rerenders; i++) {
         rerender(
@@ -183,7 +159,7 @@ describe('Performance Tests: Virtual Scrolling', () => {
           />
         );
       }
-      
+
       const duration = performance.now() - start;
 
       // Should handle multiple re-renders efficiently
@@ -194,16 +170,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Cell Rendering Performance', () => {
     it('should render individual cells quickly', () => {
       const smallDataset = generateLargeDataset(10, 10);
-      
+
       const start = performance.now();
-      
-      render(
-        <ResponsiveExcelGrid
-          data={smallDataset}
-          onCellChange={mockOnCellChange}
-        />
-      );
-      
+
+      render(<ResponsiveExcelGrid data={smallDataset} onCellChange={mockOnCellChange} />);
+
       const duration = performance.now() - start;
       const cellCount = 10 * 10; // 100 cells
       const avgCellRenderTime = duration / cellCount;
@@ -214,31 +185,21 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should handle cell updates efficiently', async () => {
       const dataset = generateLargeDataset(100, 10);
-      
+
       const { rerender } = render(
-        <ResponsiveExcelGrid
-          data={dataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={dataset} onCellChange={mockOnCellChange} />
       );
 
       // Update a single cell
       const updatedDataset = {
         ...dataset,
-        rows: dataset.rows.map((row, idx) => 
-          idx === 0 ? [...row.slice(0, -1), 'Updated'] : row
-        ),
+        rows: dataset.rows.map((row, idx) => (idx === 0 ? [...row.slice(0, -1), 'Updated'] : row)),
       };
 
       const start = performance.now();
-      
-      rerender(
-        <ResponsiveExcelGrid
-          data={updatedDataset}
-          onCellChange={mockOnCellChange}
-        />
-      );
-      
+
+      rerender(<ResponsiveExcelGrid data={updatedDataset} onCellChange={mockOnCellChange} />);
+
       const duration = performance.now() - start;
 
       // Single cell update should be very fast
@@ -249,10 +210,7 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Overscan Performance', () => {
     it('should render with appropriate overscan configuration', () => {
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       // Component uses overscan for smooth scrolling (configured in useVirtualizer)
@@ -262,21 +220,13 @@ describe('Performance Tests: Virtual Scrolling', () => {
     it('should render mobile and desktop views efficiently', () => {
       const desktopStart = performance.now();
       const { container: desktopContainer } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={false}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={false} />
       );
       const desktopDuration = performance.now() - desktopStart;
 
       const mobileStart = performance.now();
       const { container: mobileContainer } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={true}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={true} />
       );
       const mobileDuration = performance.now() - mobileStart;
 
@@ -291,39 +241,28 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Memory Efficiency', () => {
     it('should not render all rows in DOM', () => {
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       const renderedRows = container.querySelectorAll('[data-index]');
-      
+
       // Should render only a small fraction of total rows
       expect(renderedRows.length).toBeLessThan(largeDataset.rows.length * 0.01);
     });
 
     it('should handle dataset changes without memory leaks', () => {
       const { rerender } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} />
       );
 
       const start = performance.now();
-      
+
       // Simulate multiple dataset updates
       for (let i = 0; i < 10; i++) {
         const newDataset = generateLargeDataset(10000, 50);
-        rerender(
-          <ResponsiveExcelGrid
-            data={newDataset}
-            onCellChange={mockOnCellChange}
-          />
-        );
+        rerender(<ResponsiveExcelGrid data={newDataset} onCellChange={mockOnCellChange} />);
       }
-      
+
       const duration = performance.now() - start;
 
       // Multiple updates should still be efficient
@@ -334,15 +273,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Touch Gesture Performance', () => {
     it('should render mobile component with gesture support', () => {
       const start = performance.now();
-      
+
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={true}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={true} />
       );
-      
+
       const duration = performance.now() - start;
 
       // Mobile component with gesture support should render efficiently
@@ -352,15 +287,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should handle component updates efficiently on mobile', () => {
       const { rerender } = render(
-        <ResponsiveExcelGrid
-          data={largeDataset}
-          onCellChange={mockOnCellChange}
-          isMobile={true}
-        />
+        <ResponsiveExcelGrid data={largeDataset} onCellChange={mockOnCellChange} isMobile={true} />
       );
 
       const start = performance.now();
-      
+
       // Simulate gesture state changes
       rerender(
         <ResponsiveExcelGrid
@@ -370,7 +301,7 @@ describe('Performance Tests: Virtual Scrolling', () => {
           selectedCells={['A1', 'A2', 'A3']}
         />
       );
-      
+
       const duration = performance.now() - start;
 
       expect(duration).toBeLessThan(PERFORMANCE_BUDGET.SCROLL_FRAME * 2);
@@ -380,21 +311,18 @@ describe('Performance Tests: Virtual Scrolling', () => {
   describe('Stress Tests', () => {
     it('should handle extremely large dataset (50,000 rows)', () => {
       const extremeDataset = generateLargeDataset(50000, 20);
-      
+
       const start = performance.now();
-      
+
       const { container } = render(
-        <ResponsiveExcelGrid
-          data={extremeDataset}
-          onCellChange={mockOnCellChange}
-        />
+        <ResponsiveExcelGrid data={extremeDataset} onCellChange={mockOnCellChange} />
       );
-      
+
       const duration = performance.now() - start;
 
       // Even with 50k rows, initial render should be reasonable
       expect(duration).toBeLessThan(PERFORMANCE_BUDGET.LARGE_DATASET_RENDER);
-      
+
       // Should still only render visible rows
       const renderedRows = container.querySelectorAll('[data-index]');
       expect(renderedRows.length).toBeLessThan(100);
@@ -402,16 +330,11 @@ describe('Performance Tests: Virtual Scrolling', () => {
 
     it('should handle wide dataset (100 columns)', () => {
       const wideDataset = generateLargeDataset(1000, 100);
-      
+
       const start = performance.now();
-      
-      render(
-        <ResponsiveExcelGrid
-          data={wideDataset}
-          onCellChange={mockOnCellChange}
-        />
-      );
-      
+
+      render(<ResponsiveExcelGrid data={wideDataset} onCellChange={mockOnCellChange} />);
+
       const duration = performance.now() - start;
 
       expect(duration).toBeLessThan(PERFORMANCE_BUDGET.LARGE_DATASET_RENDER);
