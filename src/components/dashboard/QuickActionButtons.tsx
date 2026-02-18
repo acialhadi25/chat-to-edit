@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { QuickOption, AIAction } from "@/types/excel";
-import { Check, X, MousePointer } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { QuickOption, AIAction } from '@/types/excel';
+import { Check, X, MousePointer } from 'lucide-react';
 
 interface QuickActionButtonsProps {
   options: QuickOption[];
@@ -26,18 +26,23 @@ const QuickActionButtons = ({
             size="sm"
             disabled={disabled || isApplied}
             onClick={() => onOptionClick(option.value, option.action, option.id)}
-            className={`text-xs h-8 px-3 transition-all duration-300 border-none ${isApplied
-                ? "bg-green-600 hover:bg-green-600 text-white opacity-90 cursor-default"
-                : "bg-slate-900 hover:bg-slate-800 text-white"
-              }`}
+            className={`text-xs h-8 px-3 transition-all duration-300 border-none ${
+              isApplied
+                ? 'bg-green-600 hover:bg-green-600 text-white opacity-90 cursor-default'
+                : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
+            aria-label={isApplied ? `${option.label} - Applied` : option.label}
+            aria-pressed={isApplied}
           >
             {isApplied ? (
               <Check className="mr-1.5 h-3.5 w-3.5" />
             ) : (
-              (option.variant === "success" || option.isApplyAction) && <Zap className="mr-1.5 h-3 w-3 fill-current" />
+              (option.variant === 'success' || option.isApplyAction) && (
+                <Zap className="mr-1.5 h-3 w-3 fill-current" />
+              )
             )}
 
-            {option.label.toLowerCase().includes("pilih") && !isApplied && (
+            {option.label.toLowerCase().includes('pilih') && !isApplied && (
               <MousePointer className="mr-1.5 h-3 w-3" />
             )}
 
@@ -51,5 +56,5 @@ const QuickActionButtons = ({
   );
 };
 
-import { Zap } from "lucide-react";
+import { Zap } from 'lucide-react';
 export default QuickActionButtons;

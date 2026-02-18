@@ -1,6 +1,6 @@
-import { useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FileHistoryRecord {
   id: string;
@@ -29,7 +29,7 @@ export const useFileHistory = (): UseFileHistoryReturn => {
       if (!user) return null;
 
       const { data, error } = await supabase
-        .from("file_history")
+        .from('file_history')
         .insert({
           user_id: user.id,
           file_name: fileName,
@@ -41,35 +41,35 @@ export const useFileHistory = (): UseFileHistoryReturn => {
         .single();
 
       if (error) {
-        console.error("Failed to save file history:", error);
+        console.error('Failed to save file history:', error);
         return null;
       }
 
       // Increment usage counter
-      await supabase.rpc("reset_monthly_usage").then(() => {
+      await supabase.rpc('reset_monthly_usage').then(() => {
         // After resetting if needed, increment
         supabase
-          .from("profiles")
+          .from('profiles')
           .update({
-            files_used_this_month: (data as any)?.files_used_this_month ?? 1,
+            files_used_this_month: (data as FileHistoryRecord)?.files_used_this_month ?? 1,
           })
-          .eq("user_id", user.id);
+          .eq('user_id', user.id);
       });
 
       // Simpler: just increment via raw update
       await supabase
-        .from("profiles")
-        .select("files_used_this_month")
-        .eq("user_id", user.id)
+        .from('profiles')
+        .select('files_used_this_month')
+        .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data: profile }) => {
           if (profile) {
             supabase
-              .from("profiles")
+              .from('profiles')
               .update({
                 files_used_this_month: profile.files_used_this_month + 1,
               })
-              .eq("user_id", user.id)
+              .eq('user_id', user.id)
               .then(() => {});
           }
         });
@@ -79,15 +79,9 @@ export const useFileHistory = (): UseFileHistoryReturn => {
     [user]
   );
 
-  const updateFormulasCount = useCallback(
-    async (fileHistoryId: string, count: number) => {
-      await supabase
-        .from("file_history")
-        .update({ formulas_applied: count })
-        .eq("id", fileHistoryId);
-    },
-    []
-  );
+  const updateFormulasCount = useCallback(async (fileHistoryId: string, count: number) => {
+    await supabase.from('file_history').update({ formulas_applied: count }).eq('id', fileHistoryId);
+  }, []);
 
   return { saveFileRecord, updateFormulasCount };
 };

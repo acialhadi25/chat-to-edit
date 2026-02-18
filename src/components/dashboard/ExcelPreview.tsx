@@ -1,36 +1,50 @@
-import { useCallback, useMemo, useState, useRef, useEffect } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { Button } from "@/components/ui/button";
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { FileSpreadsheet, Download, X, Sheet, MousePointer, Check, ChevronDown, Plus, Trash2, Wand2, Sparkles } from "lucide-react";
-import { ExcelData, DataChange, getColumnLetter, createCellRef, getColumnIndex, parseCellRef } from "@/types/excel";
-import { evaluateFormula } from "@/utils/formulaEvaluator";
-import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
-import XLSXStyle from "xlsx-js-style";
+  FileSpreadsheet,
+  Download,
+  X,
+  Sheet,
+  MousePointer,
+  Check,
+  ChevronDown,
+  Plus,
+  Trash2,
+  Wand2,
+  Sparkles,
+} from 'lucide-react';
+import {
+  ExcelData,
+  DataChange,
+  getColumnLetter,
+  createCellRef,
+  getColumnIndex,
+  parseCellRef,
+} from '@/types/excel';
+import { evaluateFormula } from '@/utils/formulaEvaluator';
+import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+import XLSXStyle from 'xlsx-js-style';
 
-import FormulaBar from "@/components/dashboard/FormulaBar";
+import FormulaBar from '@/components/dashboard/FormulaBar';
 
 interface ExcelPreviewProps {
   data: ExcelData;
@@ -42,7 +56,7 @@ interface ExcelPreviewProps {
   appliedChanges?: DataChange[];
   onAddRow?: () => void;
   onAddColumn?: () => void;
-  onDeleteSelection?: (mode: "clear" | "delete") => void;
+  onDeleteSelection?: (mode: 'clear' | 'delete') => void;
   onRunAudit?: () => void;
   onRunInsights?: () => void;
   formulaBarValue?: string;
@@ -66,15 +80,15 @@ const ExcelPreview = ({
   onDeleteSelection,
   onRunAudit,
   onRunInsights,
-  formulaBarValue = "",
-  selectedCellRef = "",
-  onFormulaBarChange = () => { },
-  onFormulaBarCommit = () => { },
+  formulaBarValue = '',
+  selectedCellRef = '',
+  onFormulaBarChange = () => {},
+  onFormulaBarCommit = () => {},
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<{ col: number; row: number } | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editValue, setEditValue] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
   const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -128,7 +142,7 @@ const ExcelPreview = ({
         .map((p) => p.row);
       if (rowIndices.length > 0) {
         const target = Math.max(...rowIndices);
-        rowVirtualizer.scrollToIndex(target, { align: "center" });
+        rowVirtualizer.scrollToIndex(target, { align: 'center' });
       }
     }
   }, [appliedChanges, rowVirtualizer]);
@@ -173,33 +187,39 @@ const ExcelPreview = ({
     [cellSelectionMode, selectedCellSet, data.selectedCells, onCellSelect]
   );
 
-  const handleCellMouseDown = useCallback((colIndex: number, rowIndex: number) => {
-    setDragStart({ col: colIndex, row: rowIndex });
-    setIsDragging(true);
-    onCellSelect([createCellRef(colIndex, rowIndex)], true);
-  }, [onCellSelect]);
+  const handleCellMouseDown = useCallback(
+    (colIndex: number, rowIndex: number) => {
+      setDragStart({ col: colIndex, row: rowIndex });
+      setIsDragging(true);
+      onCellSelect([createCellRef(colIndex, rowIndex)], true);
+    },
+    [onCellSelect]
+  );
 
-  const handleCellMouseEnter = useCallback((colIndex: number, rowIndex: number) => {
-    if (!isDragging || !dragStart) return;
-    const minCol = Math.min(dragStart.col, colIndex);
-    const maxCol = Math.max(dragStart.col, colIndex);
-    const minRow = Math.min(dragStart.row, rowIndex);
-    const maxRow = Math.max(dragStart.row, rowIndex);
-    const selected: string[] = [];
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
-        selected.push(createCellRef(c, r));
+  const handleCellMouseEnter = useCallback(
+    (colIndex: number, rowIndex: number) => {
+      if (!isDragging || !dragStart) return;
+      const minCol = Math.min(dragStart.col, colIndex);
+      const maxCol = Math.max(dragStart.col, colIndex);
+      const minRow = Math.min(dragStart.row, rowIndex);
+      const maxRow = Math.max(dragStart.row, rowIndex);
+      const selected: string[] = [];
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          selected.push(createCellRef(c, r));
+        }
       }
-    }
-    onCellSelect(selected, true);
-  }, [dragStart, isDragging, onCellSelect]);
+      onCellSelect(selected, true);
+    },
+    [dragStart, isDragging, onCellSelect]
+  );
 
   const handleCellDoubleClick = useCallback(
     (colIndex: number, rowIndex: number) => {
       if (cellSelectionMode) return;
       const cellValue = data.rows[rowIndex]?.[colIndex];
       setEditingCell({ col: colIndex, row: rowIndex });
-      setEditValue(cellValue !== null && cellValue !== undefined ? String(cellValue) : "");
+      setEditValue(cellValue !== null && cellValue !== undefined ? String(cellValue) : '');
     },
     [cellSelectionMode, data.rows]
   );
@@ -216,12 +236,12 @@ const ExcelPreview = ({
 
   const handleEditKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         e.preventDefault();
         commitEdit();
-      } else if (e.key === "Escape") {
+      } else if (e.key === 'Escape') {
         cancelEdit();
-      } else if (e.key === "Tab") {
+      } else if (e.key === 'Tab') {
         e.preventDefault();
         commitEdit();
         // Move to next cell
@@ -230,7 +250,7 @@ const ExcelPreview = ({
           if (nextCol < data.headers.length) {
             const val = data.rows[editingCell.row]?.[nextCol];
             setEditingCell({ col: nextCol, row: editingCell.row });
-            setEditValue(val !== null && val !== undefined ? String(val) : "");
+            setEditValue(val !== null && val !== undefined ? String(val) : '');
           }
         }
       }
@@ -238,51 +258,63 @@ const ExcelPreview = ({
     [commitEdit, cancelEdit, editingCell, data.headers.length, data.rows]
   );
 
-  const handleColumnMouseDown = useCallback((colIndex: number) => {
-    setColDragStart(colIndex);
-    const selectedCells: string[] = [];
-    for (let r = 0; r < data.rows.length; r++) {
-      selectedCells.push(createCellRef(colIndex, r));
-    }
-    onCellSelect(selectedCells, true);
-  }, [data.rows.length, onCellSelect]);
-
-  const handleColumnMouseEnter = useCallback((colIndex: number) => {
-    if (colDragStart === null) return;
-    const minCol = Math.min(colDragStart, colIndex);
-    const maxCol = Math.max(colDragStart, colIndex);
-    const selectedCells: string[] = [];
-    for (let c = minCol; c <= maxCol; c++) {
+  const handleColumnMouseDown = useCallback(
+    (colIndex: number) => {
+      setColDragStart(colIndex);
+      const selectedCells: string[] = [];
       for (let r = 0; r < data.rows.length; r++) {
-        selectedCells.push(createCellRef(c, r));
+        selectedCells.push(createCellRef(colIndex, r));
       }
-    }
-    onCellSelect(selectedCells, true);
-  }, [colDragStart, data.rows.length, onCellSelect]);
+      onCellSelect(selectedCells, true);
+    },
+    [data.rows.length, onCellSelect]
+  );
 
-  const handleRowMouseDown = useCallback((rowIndex: number) => {
-    setRowDragStart(rowIndex);
-    const selectedCells: string[] = [];
-    for (let c = 0; c < data.headers.length; c++) {
-      selectedCells.push(createCellRef(c, rowIndex));
-    }
-    onCellSelect(selectedCells, true);
-  }, [data.headers.length, onCellSelect]);
+  const handleColumnMouseEnter = useCallback(
+    (colIndex: number) => {
+      if (colDragStart === null) return;
+      const minCol = Math.min(colDragStart, colIndex);
+      const maxCol = Math.max(colDragStart, colIndex);
+      const selectedCells: string[] = [];
+      for (let c = minCol; c <= maxCol; c++) {
+        for (let r = 0; r < data.rows.length; r++) {
+          selectedCells.push(createCellRef(c, r));
+        }
+      }
+      onCellSelect(selectedCells, true);
+    },
+    [colDragStart, data.rows.length, onCellSelect]
+  );
 
-  const handleRowMouseEnter = useCallback((rowIndex: number) => {
-    if (rowDragStart === null) return;
-    const minRow = Math.min(rowDragStart, rowIndex);
-    const maxRow = Math.max(rowDragStart, rowIndex);
-    const selectedCells: string[] = [];
-    for (let r = minRow; r <= maxRow; r++) {
+  const handleRowMouseDown = useCallback(
+    (rowIndex: number) => {
+      setRowDragStart(rowIndex);
+      const selectedCells: string[] = [];
       for (let c = 0; c < data.headers.length; c++) {
-        selectedCells.push(createCellRef(c, r));
+        selectedCells.push(createCellRef(c, rowIndex));
       }
-    }
-    onCellSelect(selectedCells, true);
-  }, [rowDragStart, data.headers.length, onCellSelect]);
+      onCellSelect(selectedCells, true);
+    },
+    [data.headers.length, onCellSelect]
+  );
 
-  const handleDownload = (format: "xlsx" | "csv") => {
+  const handleRowMouseEnter = useCallback(
+    (rowIndex: number) => {
+      if (rowDragStart === null) return;
+      const minRow = Math.min(rowDragStart, rowIndex);
+      const maxRow = Math.max(rowDragStart, rowIndex);
+      const selectedCells: string[] = [];
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = 0; c < data.headers.length; c++) {
+          selectedCells.push(createCellRef(c, r));
+        }
+      }
+      onCellSelect(selectedCells, true);
+    },
+    [rowDragStart, data.headers.length, onCellSelect]
+  );
+
+  const handleDownload = (format: 'xlsx' | 'csv') => {
     try {
       const workbook = XLSX.utils.book_new();
       const wsData = [data.headers, ...data.rows];
@@ -293,36 +325,36 @@ const ExcelPreview = ({
         if (worksheet[cellRef]) {
           worksheet[cellRef].f = formula;
         } else {
-          worksheet[cellRef] = { t: "s", v: "", f: formula };
+          worksheet[cellRef] = { t: 's', v: '', f: formula };
         }
       });
 
       // Apply styles if format is xlsx
-      if (format === "xlsx") {
+      if (format === 'xlsx') {
         const colorMap: Record<string, string> = {
-          "red": "FF0000",
-          "green": "00FF00",
-          "blue": "0000FF",
-          "yellow": "FFFF00",
-          "orange": "FFA500",
-          "purple": "800080",
-          "pink": "FFC0CB",
-          "black": "000000",
-          "white": "FFFFFF",
-          "gray": "808080",
-          "lightgray": "D3D3D3",
-          "darkgray": "A9A9A9",
-          "success": "22C55E",
-          "warning": "F59E0B",
-          "destructive": "EF4444",
-          "primary": "0EA5E9"
+          red: 'FF0000',
+          green: '00FF00',
+          blue: '0000FF',
+          yellow: 'FFFF00',
+          orange: 'FFA500',
+          purple: '800080',
+          pink: 'FFC0CB',
+          black: '000000',
+          white: 'FFFFFF',
+          gray: '808080',
+          lightgray: 'D3D3D3',
+          darkgray: 'A9A9A9',
+          success: '22C55E',
+          warning: 'F59E0B',
+          destructive: 'EF4444',
+          primary: '0EA5E9',
         };
 
         const normalizeColor = (color: string) => {
-          if (!color) return "000000";
+          if (!color) return '000000';
           const lowerColor = color.toLowerCase();
           if (colorMap[lowerColor]) return colorMap[lowerColor];
-          return color.startsWith("#") ? color.slice(1).toUpperCase() : color.toUpperCase();
+          return color.startsWith('#') ? color.slice(1).toUpperCase() : color.toUpperCase();
         };
 
         Object.entries(data.cellStyles).forEach(([cellRef, style]) => {
@@ -331,7 +363,7 @@ const ExcelPreview = ({
 
             if (style.backgroundColor) {
               xlsxStyle.fill = {
-                fgColor: { rgb: normalizeColor(style.backgroundColor) }
+                fgColor: { rgb: normalizeColor(style.backgroundColor) },
               };
             }
 
@@ -340,7 +372,7 @@ const ExcelPreview = ({
               if (style.color) {
                 xlsxStyle.font.color = { rgb: normalizeColor(style.color) };
               }
-              if (style.fontWeight === "bold") {
+              if (style.fontWeight === 'bold') {
                 xlsxStyle.font.bold = true;
               }
             }
@@ -353,17 +385,14 @@ const ExcelPreview = ({
       XLSX.utils.book_append_sheet(workbook, worksheet, data.currentSheet);
 
       const timestamp = new Date().toISOString().slice(0, 10);
-      const ext = format === "csv" ? "csv" : "xlsx";
-      const fileName = data.fileName.replace(
-        /\.(xlsx|xls)$/i,
-        `_edited_${timestamp}.${ext}`
-      );
+      const ext = format === 'csv' ? 'csv' : 'xlsx';
+      const fileName = data.fileName.replace(/\.(xlsx|xls)$/i, `_edited_${timestamp}.${ext}`);
 
-      if (format === "csv") {
+      if (format === 'csv') {
         const csv = XLSX.utils.sheet_to_csv(worksheet);
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         a.click();
@@ -374,15 +403,15 @@ const ExcelPreview = ({
       }
 
       toast({
-        title: "Download successful!",
+        title: 'Download successful!',
         description: `File ${fileName} has been downloaded with styles`,
       });
     } catch (error) {
-      console.error("Download error:", error);
+      console.error('Download error:', error);
       toast({
-        variant: "destructive",
-        title: "Download failed",
-        description: "An error occurred while creating the file",
+        variant: 'destructive',
+        title: 'Download failed',
+        description: 'An error occurred while creating the file',
       });
     }
   };
@@ -398,7 +427,7 @@ const ExcelPreview = ({
     const rowSet = new Set<number>();
     const colSet = new Set<number>();
 
-    data.selectedCells.forEach(ref => {
+    data.selectedCells.forEach((ref) => {
       const parsed = parseCellRef(ref);
       if (parsed) {
         rowSet.add(parsed.row);
@@ -406,31 +435,33 @@ const ExcelPreview = ({
       }
     });
 
-    const isFullRow = Array.from(rowSet).every(r =>
-      Array.from({ length: data.headers.length }, (_, i) => createCellRef(i, r))
-        .every(ref => data.selectedCells.includes(ref))
+    const isFullRow = Array.from(rowSet).every((r) =>
+      Array.from({ length: data.headers.length }, (_, i) => createCellRef(i, r)).every((ref) =>
+        data.selectedCells.includes(ref)
+      )
     );
 
-    const isFullCol = Array.from(colSet).every(c =>
-      Array.from({ length: data.rows.length }, (_, i) => createCellRef(c, i))
-        .every(ref => data.selectedCells.includes(ref))
+    const isFullCol = Array.from(colSet).every((c) =>
+      Array.from({ length: data.rows.length }, (_, i) => createCellRef(c, i)).every((ref) =>
+        data.selectedCells.includes(ref)
+      )
     );
 
-    if (isFullRow) return { type: "row", count: rowSet.size };
-    if (isFullCol) return { type: "column", count: colSet.size };
-    return { type: "cell", count: selectedCount };
+    if (isFullRow) return { type: 'row', count: rowSet.size };
+    if (isFullCol) return { type: 'column', count: colSet.size };
+    return { type: 'cell', count: selectedCount };
   }, [data.selectedCells, data.headers.length, data.rows.length, selectedCount]);
 
   const getCellClassName = (cellRef: string) => {
-    const classes: string[] = ["transition-colors"];
+    const classes: string[] = ['transition-colors'];
 
-    if (appliedCellSet.has(cellRef)) classes.push("cell-applied");
-    if (pendingCellSet.has(cellRef)) classes.push("cell-pending");
-    if (formulaCellSet.has(cellRef)) classes.push("cell-formula");
-    if (selectedCellSet.has(cellRef)) classes.push("ring-2 ring-primary ring-inset bg-primary/10");
-    if (cellSelectionMode) classes.push("cursor-pointer hover:bg-accent");
+    if (appliedCellSet.has(cellRef)) classes.push('cell-applied');
+    if (pendingCellSet.has(cellRef)) classes.push('cell-pending');
+    if (formulaCellSet.has(cellRef)) classes.push('cell-formula');
+    if (selectedCellSet.has(cellRef)) classes.push('ring-2 ring-primary ring-inset bg-primary/10');
+    if (cellSelectionMode) classes.push('cursor-pointer hover:bg-accent');
 
-    return classes.join(" ");
+    return classes.join(' ');
   };
 
   const getCellStyle = (cellRef: string) => {
@@ -445,17 +476,22 @@ const ExcelPreview = ({
   };
 
   const formatCellValue = (value: string | number | null | undefined): string => {
-    if (value === null || value === undefined || value === "") {
-      return "";
+    if (value === null || value === undefined || value === '') {
+      return '';
     }
     return String(value);
   };
 
   const formatNumber = (value: number): string => {
-    return value.toLocaleString("en-US");
+    return value.toLocaleString('en-US');
   };
 
-  const renderCellContent = (cellRef: string, cellValue: string | number | null, colIndex: number, rowIndex: number) => {
+  const renderCellContent = (
+    cellRef: string,
+    cellValue: string | number | null,
+    colIndex: number,
+    rowIndex: number
+  ) => {
     // If editing this cell
     if (editingCell && editingCell.col === colIndex && editingCell.row === rowIndex) {
       return (
@@ -476,7 +512,7 @@ const ExcelPreview = ({
 
     if (formula) {
       const result = evaluateFormula(formula, data);
-      const displayValue = result !== null ? result : "#ERROR";
+      const displayValue = result !== null ? result : '#ERROR';
 
       return (
         <TooltipProvider>
@@ -487,9 +523,7 @@ const ExcelPreview = ({
                   fx
                 </span>
                 <span className="font-medium text-primary truncate">
-                  {typeof displayValue === "number"
-                    ? formatNumber(displayValue)
-                    : displayValue}
+                  {typeof displayValue === 'number' ? formatNumber(displayValue) : displayValue}
                 </span>
               </div>
             </TooltipTrigger>
@@ -549,10 +583,16 @@ const ExcelPreview = ({
             <div>
               <h3 className="font-medium text-foreground">{data.fileName}</h3>
               <p className="text-xs text-muted-foreground flex items-center gap-2">
-                <span>{data.rows.length.toLocaleString()} rows • {data.headers.length} columns</span>
+                <span>
+                  {data.rows.length.toLocaleString()} rows • {data.headers.length} columns
+                </span>
                 {formulaCount > 0 && <span>• {formulaCount} formulas</span>}
-                {appliedCount > 0 && <span className="text-success font-medium">• {appliedCount} applied</span>}
-                {pendingCount > 0 && <span className="text-warning font-medium">• {pendingCount} pending</span>}
+                {appliedCount > 0 && (
+                  <span className="text-success font-medium">• {appliedCount} applied</span>
+                )}
+                {pendingCount > 0 && (
+                  <span className="text-warning font-medium">• {pendingCount} pending</span>
+                )}
               </p>
             </div>
           </div>
@@ -591,6 +631,7 @@ const ExcelPreview = ({
               size="sm"
               onClick={onRunAudit}
               className="h-8 gap-2 border-primary/20 hover:bg-primary/5 hover:border-primary text-primary text-xs"
+              aria-label="Run data audit to check for issues"
             >
               <Wand2 className="h-3.5 w-3.5" />
               Audit Data
@@ -603,6 +644,7 @@ const ExcelPreview = ({
               size="sm"
               onClick={onRunInsights}
               className="h-8 gap-2 border-indigo-500/20 hover:bg-indigo-500/5 hover:border-indigo-500 text-indigo-500 text-xs"
+              aria-label="Generate insights from data"
             >
               <Sparkles className="h-3.5 w-3.5" />
               Wawasan
@@ -611,17 +653,22 @@ const ExcelPreview = ({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="default" size="sm" className="h-8 gap-2 text-xs">
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-2 text-xs"
+                aria-label="Download file options"
+              >
                 <Download className="h-3.5 w-3.5" />
                 Download
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDownload("xlsx")} className="text-xs">
+              <DropdownMenuItem onClick={() => handleDownload('xlsx')} className="text-xs">
                 Download as .xlsx
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload("csv")} className="text-xs">
+              <DropdownMenuItem onClick={() => handleDownload('csv')} className="text-xs">
                 Download as .csv
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -638,6 +685,7 @@ const ExcelPreview = ({
               size="sm"
               onClick={onAddRow}
               className="h-8 gap-1 text-xs"
+              aria-label="Add new row to spreadsheet"
             >
               <Plus className="h-3 w-3" />
               Tambah Baris
@@ -647,6 +695,7 @@ const ExcelPreview = ({
               size="sm"
               onClick={onAddColumn}
               className="h-8 gap-1 text-xs"
+              aria-label="Add new column to spreadsheet"
             >
               <Plus className="h-3 w-3" />
               Tambah Kolom
@@ -655,24 +704,35 @@ const ExcelPreview = ({
             {selectionInfo && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="destructive" size="sm" className="h-8 gap-2 text-xs">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 gap-2 text-xs"
+                    aria-label={`Delete ${selectionInfo.count} selected ${selectionInfo.type}${selectionInfo.count > 1 ? 's' : ''}`}
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                     Hapus
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {selectionInfo.type === "cell" ? (
-                    <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                  {selectionInfo.type === 'cell' ? (
+                    <DropdownMenuItem
+                      onClick={() => onDeleteSelection?.('clear')}
+                      className="text-xs"
+                    >
                       Hapus isi {selectionInfo.count} cell
                     </DropdownMenuItem>
-                  ) : selectionInfo.type === "row" ? (
+                  ) : selectionInfo.type === 'row' ? (
                     <>
-                      <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                      <DropdownMenuItem
+                        onClick={() => onDeleteSelection?.('clear')}
+                        className="text-xs"
+                      >
                         Hapus isi {selectionInfo.count} baris
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => onDeleteSelection?.("delete")}
+                        onClick={() => onDeleteSelection?.('delete')}
                         className="text-destructive focus:text-destructive text-xs"
                       >
                         Hapus {selectionInfo.count} baris secara permanen
@@ -680,11 +740,14 @@ const ExcelPreview = ({
                     </>
                   ) : (
                     <>
-                      <DropdownMenuItem onClick={() => onDeleteSelection?.("clear")} className="text-xs">
+                      <DropdownMenuItem
+                        onClick={() => onDeleteSelection?.('clear')}
+                        className="text-xs"
+                      >
                         Hapus isi {selectionInfo.count} kolom
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => onDeleteSelection?.("delete")}
+                        onClick={() => onDeleteSelection?.('delete')}
                         className="text-destructive focus:text-destructive text-xs"
                       >
                         Hapus {selectionInfo.count} kolom secara permanen
@@ -700,7 +763,7 @@ const ExcelPreview = ({
             variant="outline"
             size="sm"
             onClick={() => {
-              if (window.confirm("Clear file and discard all changes?")) {
+              if (window.confirm('Clear file and discard all changes?')) {
                 onClear();
               }
             }}
@@ -717,7 +780,10 @@ const ExcelPreview = ({
       {cellSelectionMode && (
         <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 text-sm text-primary flex items-center gap-2">
           <MousePointer className="h-4 w-4" />
-          <span>Click cell to select • Shift+click for range • Ctrl+click for multi-select • Esc to cancel</span>
+          <span>
+            Click cell to select • Shift+click for range • Ctrl+click for multi-select • Esc to
+            cancel
+          </span>
         </div>
       )}
 
@@ -744,14 +810,17 @@ const ExcelPreview = ({
                 onMouseDown={() => handleColumnMouseDown(index)}
                 onMouseEnter={() => handleColumnMouseEnter(index)}
                 className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative select-none"
-                style={{ cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M12 5v14M19 12l-7 7-7-7\'/></svg>") 8 8, s-resize' }}
+                style={{
+                  cursor:
+                    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>\") 8 8, s-resize",
+                }}
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[9px] sm:text-[10px] font-mono text-muted-foreground/70 group-hover:text-primary transition-colors">
                     {getColumnLetter(index)}
                   </span>
                   <span className="truncate font-medium text-foreground text-xs sm:text-sm">
-                    {header || "(empty)"}
+                    {header || '(empty)'}
                   </span>
                 </div>
               </div>
@@ -762,8 +831,8 @@ const ExcelPreview = ({
           <div
             style={{
               height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
+              width: '100%',
+              position: 'relative',
             }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -773,8 +842,9 @@ const ExcelPreview = ({
               return (
                 <div
                   key={virtualRow.key}
-                  className={`flex absolute w-full border-b border-border ${rowIndex % 2 === 0 ? "bg-background" : "bg-muted/20"
-                    }`}
+                  className={`flex absolute w-full border-b border-border ${
+                    rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/20'
+                  }`}
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
@@ -784,7 +854,10 @@ const ExcelPreview = ({
                     onMouseDown={() => handleRowMouseDown(rowIndex)}
                     onMouseEnter={() => handleRowMouseEnter(rowIndex)}
                     className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none"
-                    style={{ cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M5 12h14M12 5l7 7-7 7\'/></svg>") 8 8, e-resize' }}
+                    style={{
+                      cursor:
+                        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5l7 7-7 7'/></svg>\") 8 8, e-resize",
+                    }}
                   >
                     {rowIndex + 2}
                   </div>
@@ -802,10 +875,10 @@ const ExcelPreview = ({
                         onClick={(e) => handleCellClick(colIndex, rowIndex, e)}
                         onDoubleClick={() => handleCellDoubleClick(colIndex, rowIndex)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === 'Enter') {
                             e.preventDefault();
                             handleCellDoubleClick(colIndex, rowIndex);
-                          } else if (e.key === " ") {
+                          } else if (e.key === ' ') {
                             e.preventDefault();
                             handleCellClick(colIndex, rowIndex, e as any);
                           }

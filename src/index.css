@@ -26,21 +26,21 @@
 
     /* Muted: Subtle green-gray */
     --muted: 145 10% 96%;
-    --muted-foreground: 145 10% 45%;
+    --muted-foreground: 145 10% 38%;
 
     /* Accent: Light green for highlights */
     --accent: 145 50% 95%;
     --accent-foreground: 145 63% 28%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
 
     /* Success green for applied formulas */
-    --success: 142 76% 36%;
+    --success: 142 76% 30%;
     --success-foreground: 0 0% 100%;
 
     /* Warning orange for validation */
-    --warning: 38 92% 50%;
+    --warning: 38 92% 33%;
     --warning-foreground: 0 0% 100%;
 
     --border: 145 10% 89%;
@@ -76,8 +76,8 @@
     --popover: 145 10% 13%;
     --popover-foreground: 145 10% 93%;
 
-    --primary: 145 63% 42%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 145 63% 65%;
+    --primary-foreground: 145 10% 10%;
 
     --secondary: 145 10% 18%;
     --secondary-foreground: 145 10% 93%;
@@ -86,16 +86,16 @@
     --muted-foreground: 145 10% 60%;
 
     --accent: 145 15% 20%;
-    --accent-foreground: 145 63% 50%;
+    --accent-foreground: 145 63% 65%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 69% 45%;
-    --success-foreground: 0 0% 100%;
+    --success: 142 69% 70%;
+    --success-foreground: 145 10% 10%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 38 92% 70%;
+    --warning-foreground: 145 10% 10%;
 
     --border: 145 10% 20%;
     --input: 145 10% 20%;
@@ -124,12 +124,85 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   /* Professional typography */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
+  }
+
+  /* ============= ACCESSIBILITY: FOCUS INDICATORS ============= */
+  /* WCAG 2.4.7 Focus Visible - Ensure all interactive elements have visible focus indicators */
+
+  /* Default focus style for all focusable elements */
+  *:focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Remove default focus for elements that will have custom focus styles */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Focus-visible for keyboard navigation (not mouse clicks) */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Enhanced focus for buttons */
+  button:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.1);
+  }
+
+  /* Enhanced focus for links */
+  a:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+
+  /* Enhanced focus for form inputs */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 0px;
+    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.1);
+  }
+
+  /* Focus for custom controls (Excel cells, etc.) */
+  [role='gridcell']:focus-visible,
+  [role='row']:focus-visible,
+  [role='tab']:focus-visible,
+  [role='menuitem']:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 2px hsl(var(--ring));
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    *:focus-visible {
+      outline-width: 3px;
+      outline-offset: 3px;
+    }
+  }
+
+  /* Ensure sufficient contrast for focus indicators in dark mode */
+  .dark *:focus-visible {
+    outline-color: hsl(var(--ring));
   }
 }
 
@@ -204,21 +277,60 @@
 }
 
 /* Restore heading sizes that Tailwind reset removes */
-.docx-preview-wrapper h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0; }
-.docx-preview-wrapper h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0; }
-.docx-preview-wrapper h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0; }
-.docx-preview-wrapper h4 { font-size: 1em; font-weight: bold; margin: 1.33em 0; }
-.docx-preview-wrapper h5 { font-size: 0.83em; font-weight: bold; margin: 1.67em 0; }
-.docx-preview-wrapper h6 { font-size: 0.67em; font-weight: bold; margin: 2.33em 0; }
+.docx-preview-wrapper h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+.docx-preview-wrapper h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+.docx-preview-wrapper h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 1em 0;
+}
+.docx-preview-wrapper h4 {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 1.33em 0;
+}
+.docx-preview-wrapper h5 {
+  font-size: 0.83em;
+  font-weight: bold;
+  margin: 1.67em 0;
+}
+.docx-preview-wrapper h6 {
+  font-size: 0.67em;
+  font-weight: bold;
+  margin: 2.33em 0;
+}
 
 /* Restore list styles that Tailwind reset removes */
-.docx-preview-wrapper ul { list-style-type: disc; padding-left: 40px; margin: 1em 0; }
-.docx-preview-wrapper ol { list-style-type: decimal; padding-left: 40px; margin: 1em 0; }
-.docx-preview-wrapper li { display: list-item; }
+.docx-preview-wrapper ul {
+  list-style-type: disc;
+  padding-left: 40px;
+  margin: 1em 0;
+}
+.docx-preview-wrapper ol {
+  list-style-type: decimal;
+  padding-left: 40px;
+  margin: 1em 0;
+}
+.docx-preview-wrapper li {
+  display: list-item;
+}
 
 /* Restore table defaults */
-.docx-preview-wrapper table { border-collapse: collapse; }
-.docx-preview-wrapper td, .docx-preview-wrapper th { padding: 1px; }
+.docx-preview-wrapper table {
+  border-collapse: collapse;
+}
+.docx-preview-wrapper td,
+.docx-preview-wrapper th {
+  padding: 1px;
+}
 
 /* Restore blockquote */
 .docx-preview-wrapper blockquote {
@@ -228,21 +340,46 @@
 }
 
 /* Restore paragraph margins */
-.docx-preview-wrapper p { margin: 1em 0; }
+.docx-preview-wrapper p {
+  margin: 1em 0;
+}
 
 /* Restore strong/em */
-.docx-preview-wrapper strong, .docx-preview-wrapper b { font-weight: bold; }
-.docx-preview-wrapper em, .docx-preview-wrapper i { font-style: italic; }
+.docx-preview-wrapper strong,
+.docx-preview-wrapper b {
+  font-weight: bold;
+}
+.docx-preview-wrapper em,
+.docx-preview-wrapper i {
+  font-style: italic;
+}
 
 /* Restore links */
-.docx-preview-wrapper a { color: #0563C1; text-decoration: underline; }
+.docx-preview-wrapper a {
+  color: #0563c1;
+  text-decoration: underline;
+}
 
 /* Ensure images display properly */
-.docx-preview-wrapper img { max-width: 100%; height: auto; border-style: none; }
+.docx-preview-wrapper img {
+  max-width: 100%;
+  height: auto;
+  border-style: none;
+}
 
 /* Restore hr */
-.docx-preview-wrapper hr { border: none; border-top: 1px solid #ccc; margin: 1em 0; }
+.docx-preview-wrapper hr {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 1em 0;
+}
 
 /* Restore sub/sup */
-.docx-preview-wrapper sub { vertical-align: sub; font-size: smaller; }
-.docx-preview-wrapper sup { vertical-align: super; font-size: smaller; }
+.docx-preview-wrapper sub {
+  vertical-align: sub;
+  font-size: smaller;
+}
+.docx-preview-wrapper sup {
+  vertical-align: super;
+  font-size: smaller;
+}

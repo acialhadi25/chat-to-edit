@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Undo2, Redo2 } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Undo2, Redo2 } from 'lucide-react';
 
 interface UndoRedoBarProps {
   canUndo: boolean;
@@ -29,13 +29,14 @@ const UndoRedoBar = ({
             onClick={onUndo}
             disabled={!canUndo}
             className="h-7 gap-1.5 px-2 text-xs"
+            aria-label={canUndo ? `Undo: ${undoDescription}` : 'Undo - No actions to undo'}
           >
             <Undo2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Undo</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {canUndo ? `Undo: ${undoDescription}` : "Tidak ada yang bisa di-undo"}
+          {canUndo ? `Undo: ${undoDescription}` : 'Tidak ada yang bisa di-undo'}
           <span className="ml-2 text-muted-foreground">Ctrl+Z</span>
         </TooltipContent>
       </Tooltip>
@@ -48,21 +49,20 @@ const UndoRedoBar = ({
             onClick={onRedo}
             disabled={!canRedo}
             className="h-7 gap-1.5 px-2 text-xs"
+            aria-label={canRedo ? `Redo: ${redoDescription}` : 'Redo - No actions to redo'}
           >
             <Redo2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Redo</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {canRedo ? `Redo: ${redoDescription}` : "Tidak ada yang bisa di-redo"}
+          {canRedo ? `Redo: ${redoDescription}` : 'Tidak ada yang bisa di-redo'}
           <span className="ml-2 text-muted-foreground">Ctrl+Y</span>
         </TooltipContent>
       </Tooltip>
 
       <div className="ml-2 text-xs text-muted-foreground">
-        {canUndo && undoDescription && (
-          <span>Terakhir: {undoDescription}</span>
-        )}
+        {canUndo && undoDescription && <span>Terakhir: {undoDescription}</span>}
       </div>
     </div>
   );

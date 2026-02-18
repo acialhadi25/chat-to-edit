@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Profile {
   plan: string;
@@ -36,20 +36,20 @@ export const useProfile = (): UseProfileReturn => {
 
         // First, try to fetch the profile
         const { data, error: queryError } = await supabase
-          .from("profiles")
-          .select("plan, files_used_this_month, email")
-          .eq("user_id", user.id)
+          .from('profiles')
+          .select('plan, files_used_this_month, email')
+          .eq('user_id', user.id)
           .maybeSingle();
 
         if (!isMounted) return;
 
         if (queryError) {
           // Improved error logging for debugging
-          const errorCode = (queryError as any)?.code || "UNKNOWN";
-          const errorMessage = (queryError as any)?.message || "Unknown error";
-          const errorStatus = (queryError as any)?.status || "UNKNOWN";
+          const errorCode = (queryError as { code?: string })?.code || 'UNKNOWN';
+          const errorMessage = (queryError as { message?: string })?.message || 'Unknown error';
+          const errorStatus = (queryError as { status?: number })?.status || 'UNKNOWN';
 
-          console.error("Profile fetch error:", {
+          console.error('Profile fetch error:', {
             code: errorCode,
             status: errorStatus,
             message: errorMessage,
@@ -57,15 +57,15 @@ export const useProfile = (): UseProfileReturn => {
           });
 
           // Check if it's a 404 (not found) - this is expected if profile doesn't exist
-          if (errorStatus === 404 || errorCode === "PGRST116") {
-            console.info("Profile not found, using defaults for user:", user.id);
+          if (errorStatus === 404 || errorCode === 'PGRST116') {
+            console.info('Profile not found, using defaults for user:', user.id);
           }
 
           setError(null); // Don't show error to user - this is expected
 
           // Always provide default profile as fallback
           setProfile({
-            plan: "free",
+            plan: 'free',
             files_used_this_month: 0,
             email: user.email || null,
           });
@@ -75,22 +75,22 @@ export const useProfile = (): UseProfileReturn => {
         } else {
           // No profile exists yet (maybeSingle returns null if no rows)
           // This is expected - use defaults
-          console.info("No profile found for user, using defaults");
+          console.info('No profile found for user, using defaults');
           setProfile({
-            plan: "free",
+            plan: 'free',
             files_used_this_month: 0,
             email: user.email || null,
           });
         }
       } catch (err) {
         if (!isMounted) return;
-        const errorMsg = err instanceof Error ? err.message : "Unknown error occurred";
-        console.error("Profile fetch exception:", errorMsg, err);
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('Profile fetch exception:', errorMsg, err);
 
         // Don't show error to user - just use defaults
         setError(null);
         setProfile({
-          plan: "free",
+          plan: 'free',
           files_used_this_month: 0,
           email: user.email || null,
         });
@@ -106,13 +106,13 @@ export const useProfile = (): UseProfileReturn => {
     // Subscribe to realtime updates (optional - don't fail if it doesn't work)
     try {
       const channel = supabase
-        .channel("profile-changes")
+        .channel('profile-changes')
         .on(
-          "postgres_changes",
+          'postgres_changes',
           {
-            event: "UPDATE",
-            schema: "public",
-            table: "profiles",
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
@@ -127,7 +127,7 @@ export const useProfile = (): UseProfileReturn => {
         supabase.removeChannel(channel);
       };
     } catch (err) {
-      console.warn("Realtime subscription failed:", err);
+      console.warn('Realtime subscription failed:', err);
     }
 
     return () => {
