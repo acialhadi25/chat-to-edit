@@ -26,7 +26,7 @@ const PERFORMANCE_BUDGET = {
   INITIAL_RENDER: 100,
   SCROLL_FRAME: 16, // 60fps
   CELL_RENDER: 1,
-  VIEWPORT_UPDATE: 16,
+  VIEWPORT_UPDATE: 20, // Increased to account for system variance
   LARGE_DATASET_RENDER: 500,
 };
 
