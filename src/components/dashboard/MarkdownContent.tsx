@@ -74,13 +74,20 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
   const contentToRender = isLongContent && !isExpanded ? content.slice(0, 500) + '...' : content;
 
   return (
-    <div className="prose prose-sm max-w-none text-sm text-accent-foreground prose-headings:text-accent-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:rounded prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-pre:my-2 prose-pre:overflow-x-auto prose-pre:max-w-full prose-strong:text-accent-foreground prose-a:text-primary">
+    <div className="prose prose-sm max-w-none text-sm text-accent-foreground prose-headings:text-accent-foreground prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2 prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-2 prose-ul:space-y-1 prose-ol:my-2 prose-ol:space-y-1 prose-li:my-0.5 prose-li:leading-relaxed prose-code:rounded prose-code:bg-background/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:text-xs prose-pre:my-2 prose-pre:overflow-x-auto prose-pre:max-w-full prose-strong:text-accent-foreground prose-strong:font-semibold prose-a:text-primary prose-blockquote:border-l-primary prose-blockquote:bg-background/30 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:my-2 prose-hr:my-3 prose-hr:border-border prose-table:text-xs prose-table:my-2">
       {isLongContent ? (
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               code: CodeBlock,
+              h1: ({ children }) => <h1 className="text-lg font-semibold mt-2 mb-1.5 text-accent-foreground">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-base font-semibold mt-2 mb-1.5 text-accent-foreground">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1 text-accent-foreground">{children}</h3>,
+              ul: ({ children }) => <ul className="space-y-1 my-2 list-disc pl-5">{children}</ul>,
+              ol: ({ children }) => <ol className="space-y-1 my-2 list-decimal pl-5">{children}</ol>,
+              li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+              p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
             }}
           >
             {contentToRender}
@@ -106,6 +113,13 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
           remarkPlugins={[remarkGfm]}
           components={{
             code: CodeBlock,
+            h1: ({ children }) => <h1 className="text-lg font-semibold mt-2 mb-1.5 text-accent-foreground">{children}</h1>,
+            h2: ({ children }) => <h2 className="text-base font-semibold mt-2 mb-1.5 text-accent-foreground">{children}</h2>,
+            h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1 text-accent-foreground">{children}</h3>,
+            ul: ({ children }) => <ul className="space-y-1 my-2 list-disc pl-5">{children}</ul>,
+            ol: ({ children }) => <ol className="space-y-1 my-2 list-decimal pl-5">{children}</ol>,
+            li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+            p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
           }}
         >
           {content}

@@ -40,10 +40,10 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const maxFiles = profile?.plan === "pro" ? 50 : 5;
-  const usedFiles = profile?.files_used_this_month ?? 0;
-  const usagePercent = Math.min((usedFiles / maxFiles) * 100, 100);
-  const planLabel = profile?.plan === "pro" ? "Pro Plan" : "Free Plan";
+  const maxFiles = profile?.subscription_tier === "pro" ? 50 : profile?.subscription_tier === "enterprise" ? 100 : 5;
+  const creditsRemaining = profile?.credits_remaining ?? 100;
+  const usagePercent = Math.max(0, Math.min(((100 - creditsRemaining) / 100) * 100, 100));
+  const planLabel = profile?.subscription_tier === "pro" ? "Pro Plan" : profile?.subscription_tier === "enterprise" ? "Enterprise Plan" : "Free Plan";
 
   const handleSignOut = async () => {
     await signOut();
@@ -70,11 +70,11 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
           <SidebarGroupContent className="px-2">
             <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3">
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-sidebar-foreground">{usedFiles} of {maxFiles} files</span>
-                <span className="text-sidebar-foreground/60">{Math.round(usagePercent)}%</span>
+                <span className="text-sidebar-foreground">{creditsRemaining} credits left</span>
+                <span className="text-sidebar-foreground/60">{Math.round(usagePercent)}% used</span>
               </div>
               <Progress value={usagePercent} className="h-2" />
-              {usedFiles >= maxFiles && (
+              {creditsRemaining <= 10 && (
                 <Button
                   variant="outline"
                   size="sm"

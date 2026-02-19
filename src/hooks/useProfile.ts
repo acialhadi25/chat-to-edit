@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Profile {
-  plan: string;
-  files_used_this_month: number;
+  subscription_tier: string;
+  credits_remaining: number;
   email: string | null;
 }
 
@@ -37,8 +37,8 @@ export const useProfile = (): UseProfileReturn => {
         // First, try to fetch the profile
         const { data, error: queryError } = await supabase
           .from('profiles')
-          .select('plan, files_used_this_month, email')
-          .eq('user_id', user.id)
+          .select('subscription_tier, credits_remaining, email')
+          .eq('id', user.id)
           .maybeSingle();
 
         if (!isMounted) return;
@@ -65,8 +65,8 @@ export const useProfile = (): UseProfileReturn => {
 
           // Always provide default profile as fallback
           setProfile({
-            plan: 'free',
-            files_used_this_month: 0,
+            subscription_tier: 'free',
+            credits_remaining: 100,
             email: user.email || null,
           });
         } else if (data) {
@@ -77,8 +77,8 @@ export const useProfile = (): UseProfileReturn => {
           // This is expected - use defaults
           console.info('No profile found for user, using defaults');
           setProfile({
-            plan: 'free',
-            files_used_this_month: 0,
+            subscription_tier: 'free',
+            credits_remaining: 100,
             email: user.email || null,
           });
         }
@@ -90,8 +90,8 @@ export const useProfile = (): UseProfileReturn => {
         // Don't show error to user - just use defaults
         setError(null);
         setProfile({
-          plan: 'free',
-          files_used_this_month: 0,
+          subscription_tier: 'free',
+          credits_remaining: 100,
           email: user.email || null,
         });
       } finally {
@@ -113,7 +113,7 @@ export const useProfile = (): UseProfileReturn => {
             event: 'UPDATE',
             schema: 'public',
             table: 'profiles',
-            filter: `user_id=eq.${user.id}`,
+            filter: `id=eq.${user.id}`,
           },
           (payload) => {
             if (isMounted) {

@@ -136,10 +136,10 @@ export async function streamChat({
       };
       throw handleStreamError(configError);
     }
-    if (!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+    if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
       const configError: StreamError = {
         type: 'api',
-        message: 'VITE_SUPABASE_PUBLISHABLE_KEY is not configured',
+        message: 'VITE_SUPABASE_ANON_KEY is not configured',
         context: 'Environment validation',
         recoverable: false,
       };
@@ -149,11 +149,16 @@ export async function streamChat({
     // Construct URL after validation
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
+    // Use anon key for edge function calls (edge function doesn't require user auth)
+    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    console.log('Using correct anon key for edge function');
+
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${authToken}`,
+        'apikey': authToken,
       },
       body: JSON.stringify({ messages, excelContext }),
       signal: timeoutController.signal,

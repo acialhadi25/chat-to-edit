@@ -1,4 +1,4 @@
-import { useRef, memo, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { useRef, memo, forwardRef, useImperativeHandle, useEffect, useMemo } from 'react';
 import { Workbook } from '@fortune-sheet/react';
 import '@fortune-sheet/react/dist/index.css';
 import '@/styles/fortunesheet-override.css';
@@ -112,143 +112,11 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
     const workbookRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Expose imperative methods
+    // Expose imperative methods (kept for compatibility)
+    // NOTE: applyAction is no longer used - FortuneSheet syncs automatically via data prop
     useImperativeHandle(ref, () => ({
-      applyAction: (action: AIAction) => {
-        if (!workbookRef.current) {
-          console.warn('Workbook not initialized');
-          return;
-        }
-
-        const luckysheet = (window as any).luckysheet;
-        if (!luckysheet) {
-          console.warn('Luckysheet not available');
-          return;
-        }
-
-        try {
-          switch (action.type) {
-            case 'EDIT_CELL':
-            case 'EDIT_COLUMN':
-            case 'EDIT_ROW':
-            case 'FILL_DOWN':
-              action.changes?.forEach((change) => {
-                const row = change.row + 1; // +1 because row 0 is headers
-                const col = change.col;
-                luckysheet.setCellValue(row, col, change.newValue);
-              });
-              break;
-
-            case 'DELETE_ROW':
-              const rowsToDelete = action.changes?.map((c) => c.row + 1) || [];
-              const uniqueRows = [...new Set(rowsToDelete)].sort((a, b) => b - a);
-              uniqueRows.forEach((row) => {
-                luckysheet.deleteRow(row, row);
-              });
-              break;
-
-            case 'DELETE_COLUMN':
-              const colsToDelete = action.changes?.map((c) => c.col) || [];
-              const uniqueCols = [...new Set(colsToDelete)].sort((a, b) => b - a);
-              uniqueCols.forEach((col) => {
-                luckysheet.deleteColumn(col, col);
-              });
-              break;
-
-            case 'RENAME_COLUMN':
-              if (action.params?.from && action.params?.to) {
-                const colIndex = data.headers.indexOf(action.params.from as string);
-                if (colIndex !== -1) {
-                  luckysheet.setCellValue(0, colIndex, action.params.to);
-                }
-              }
-              break;
-
-            case 'INSERT_FORMULA':
-            case 'REMOVE_FORMULA':
-              if (action.formula) {
-                // Apply formula to all changed cells
-                action.changes?.forEach((change) => {
-                  const row = change.row + 1;
-                  const col = change.col;
-                  const formula = action.formula!.replace(/\{row\}/g, String(row));
-                  luckysheet.setCellValue(row, col, formula);
-                });
-              }
-              break;
-
-            case 'SORT_DATA':
-            case 'FILTER_DATA':
-            case 'REMOVE_DUPLICATES':
-            case 'REMOVE_EMPTY_ROWS':
-              // These operations are handled by applyChanges in the parent
-              // Just apply the resulting changes
-              action.changes?.forEach((change) => {
-                const row = change.row + 1;
-                const col = change.col;
-                luckysheet.setCellValue(row, col, change.newValue);
-              });
-              break;
-
-            case 'CONDITIONAL_FORMAT':
-              if (action.params?.formatStyle) {
-                const style = action.params.formatStyle as any;
-                action.changes?.forEach((change) => {
-                  const row = change.row + 1;
-                  const col = change.col;
-                  
-                  if (style.backgroundColor) {
-                    luckysheet.setCellFormat(row, col, 'bg', style.backgroundColor);
-                  }
-                  if (style.color) {
-                    luckysheet.setCellFormat(row, col, 'fc', style.color);
-                  }
-                  if (style.fontWeight === 'bold') {
-                    luckysheet.setCellFormat(row, col, 'bl', 1);
-                  }
-                });
-              }
-              break;
-
-            case 'FIND_REPLACE':
-            case 'DATA_CLEANSING':
-            case 'DATA_TRANSFORM':
-            case 'ADD_COLUMN':
-            case 'SPLIT_COLUMN':
-            case 'MERGE_COLUMNS':
-            case 'FORMAT_NUMBER':
-            case 'EXTRACT_NUMBER':
-            case 'GENERATE_ID':
-            case 'CONCATENATE':
-            case 'STATISTICS':
-            case 'PIVOT_SUMMARY':
-            case 'CREATE_CHART':
-            case 'COPY_COLUMN':
-              // These operations are handled by applyChanges
-              // Apply the resulting changes
-              action.changes?.forEach((change) => {
-                const row = change.row + 1;
-                const col = change.col;
-                luckysheet.setCellValue(row, col, change.newValue);
-              });
-              break;
-
-            case 'INFO':
-            case 'CLARIFY':
-            case 'DATA_AUDIT':
-            case 'INSIGHTS':
-            case 'DATA_VALIDATION':
-            case 'TEXT_EXTRACTION':
-            case 'DATE_CALCULATION':
-              // These are informational only, no changes to apply
-              break;
-
-            default:
-              console.warn(`Action type ${action.type} not implemented`);
-          }
-        } catch (error) {
-          console.error('Error applying action:', error);
-        }
+      applyAction: () => {
+        console.log('applyAction called but not needed - FortuneSheet syncs via React state');
       },
 
       getData: () => {
@@ -258,7 +126,40 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       },
     }));
 
-    const fortuneSheetData = convertToFortuneSheetFormat(data);
+    const fortuneSheetData = useMemo(() => {
+      console.log('useMemo: Converting data to FortuneSheet format, rows:', data.rows.length);
+      return convertToFortuneSheetFormat(data);
+    }, [data]);
+
+    // Update FortuneSheet when data changes using proper API
+    useEffect(() => {
+      if (!workbookRef.current) {
+        console.log('Workbook ref not ready yet');
+        return;
+      }
+
+      console.log('Updating FortuneSheet via API, rows:', data.rows.length);
+      
+      try {
+        // Update all cells including new rows
+        data.rows.forEach((row, rowIndex) => {
+          row.forEach((cellValue, colIndex) => {
+            // Always update to ensure new rows are added
+            // Use setCellValue API from workbook ref
+            // Row index: rowIndex + 1 (because row 0 is headers in FortuneSheet)
+            workbookRef.current.setCellValue(
+              rowIndex + 1, 
+              colIndex, 
+              cellValue ?? ''  // Use empty string for null/undefined
+            );
+          });
+        });
+        
+        console.log(`✅ FortuneSheet updated: ${data.rows.length} data rows`);
+      } catch (error) {
+        console.error('Error updating FortuneSheet:', error);
+      }
+    }, [data]);
 
     // Add resize observer to trigger FortuneSheet resize - MORE AGGRESSIVE
     useEffect(() => {
@@ -347,4 +248,23 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
 );
 
 ExcelPreview.displayName = 'ExcelPreview';
-export default memo(ExcelPreview);
+
+// Custom comparison function for memo - always re-render if data changes
+const areEqual = (prevProps: ExcelPreviewProps, nextProps: ExcelPreviewProps) => {
+  const rowsChanged = prevProps.data.rows.length !== nextProps.data.rows.length;
+  const dataRefChanged = prevProps.data !== nextProps.data;
+  
+  console.log('ExcelPreview memo comparison:', { 
+    prevRows: prevProps.data.rows.length, 
+    nextRows: nextProps.data.rows.length,
+    rowsChanged,
+    dataRefChanged,
+    shouldUpdate: rowsChanged || dataRefChanged
+  });
+  
+  // Return true if props are equal (don't re-render)
+  // Return false if props changed (do re-render)
+  return !rowsChanged && !dataRefChanged;
+};
+
+export default memo(ExcelPreview, areEqual);

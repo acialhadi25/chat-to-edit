@@ -72,11 +72,21 @@ export interface AIAction {
   description: string;
 }
 
+export interface QuickOption {
+  id: string;
+  label: string;
+  value: string;
+  variant?: 'default' | 'success' | 'destructive';
+  isApplyAction?: boolean;
+  action?: AIAction;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   action?: AIAction;
+  quickOptions?: QuickOption[];
   timestamp: Date;
 }
 

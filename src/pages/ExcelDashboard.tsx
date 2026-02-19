@@ -145,11 +145,17 @@ const ExcelDashboard = () => {
 
   const handleApplyAction = useCallback(
     async (action: AIAction) => {
+      console.log('handleApplyAction called with:', action);
+      
       const currentData = excelData;
-      if (!currentData) return;
+      if (!currentData) {
+        console.error('No excel data available');
+        return;
+      }
 
       const validation = validateExcelAction(action);
       if (!validation.isValid) {
+        console.error('Action validation failed:', validation);
         toast({
           title: 'Invalid Action',
           description:
@@ -160,22 +166,43 @@ const ExcelDashboard = () => {
         return;
       }
 
-      // Apply action directly to FortuneSheet via imperative API
-      excelPreviewRef.current?.applyAction(action);
+      console.log('Action validated, generating changes...');
 
-      // Get updated data from FortuneSheet
-      excelPreviewRef.current?.getData();
-      
-      // Also apply to React state for undo/redo
-      const { data: newData, description } = applyChanges(currentData, action.changes || []);
+      // Generate changes if not present
+      let actionWithChanges = action;
+      if (!action.changes || action.changes.length === 0) {
+        // Import generateChanges dynamically
+        const { generateChangesFromAction } = await import('@/utils/excelOperations');
+        const generatedChanges = generateChangesFromAction(currentData, action);
+        console.log('Generated changes:', generatedChanges);
+        actionWithChanges = { ...action, changes: generatedChanges };
+      } else {
+        console.log('Using existing changes:', action.changes);
+      }
+
+      if (!actionWithChanges.changes || actionWithChanges.changes.length === 0) {
+        console.warn('No changes to apply');
+        toast({
+          title: 'No Changes',
+          description: 'This action does not produce any changes.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('Applying changes to React state...');
+      // Apply to React state - FortuneSheet will sync automatically via useEffect
+      const { data: newData, description } = applyChanges(currentData, actionWithChanges.changes || []);
 
       setExcelData(newData);
       pushState(currentData, newData, 'EDIT_CELL', description);
+      
+      console.log('Action applied successfully:', description);
       toast({ title: 'Action Applied!', description });
 
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.action?.id === action.id) {
-        handleUpdateMessageAction(lastMessage.id, { ...action, status: 'applied' });
+        handleUpdateMessageAction(lastMessage.id, { ...actionWithChanges, status: 'applied' });
       }
 
       handleSetPendingChanges([]);

@@ -111,6 +111,9 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             const parseResult = parseAIResponse(fullText, fullText);
             logParseResult(parseResult, 'Excel Chat');
 
+            console.log('Parsed AI response:', parseResult.data);
+            console.log('Quick options:', parseResult.data?.quickOptions);
+
             let finalAction = parseResult.data?.action;
             const messageContent = parseResult.data?.content || fullText;
 
@@ -129,8 +132,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
               action: finalAction
                 ? { ...finalAction, id: finalAction.id || crypto.randomUUID(), status: 'pending' }
                 : undefined,
+              quickOptions: parseResult.data?.quickOptions || [],
               timestamp: new Date(),
             };
+
+            console.log('Assistant message created:', assistantMessage);
 
             onNewMessage(assistantMessage);
             if (assistantMessage.action?.changes?.length) {
@@ -212,29 +218,120 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                       </code>
                     </div>
                   )}
-                  {message.action &&
-                    message.action.status === 'pending' &&
-                    !['CLARIFY', 'INFO', 'DATA_AUDIT'].includes(message.action.type) && (
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => onApplyAction(message.action!)}
-                          disabled={isProcessing}
-                          className="gap-1"
-                        >
-                          <Check className="h-3 w-3" /> Apply
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onRejectAction(message.action!.id!)}
-                          disabled={isProcessing}
-                          className="gap-1"
-                        >
-                          <X className="h-3 w-3" /> Reject
-                        </Button>
+                  {message.action && message.action.status === 'pending' && (
+                    <div className="mt-3 space-y-2">
+                      {/* Show action description */}
+                      {message.action.description && (
+                        <div className="text-xs text-muted-foreground border-l-2 border-primary pl-2">
+                          {message.action.description}
+                        </div>
+                      )}
+                      
+                      {/* Show action buttons ONLY if no quickOptions with isApplyAction */}
+                      {!['CLARIFY', 'INFO', 'DATA_AUDIT', 'INSIGHTS'].includes(message.action.type) && 
+                       !(message.quickOptions && message.quickOptions.some(opt => opt.isApplyAction)) && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => onApplyAction(message.action!)}
+                            disabled={isProcessing}
+                            className="gap-1 bg-green-600 hover:bg-green-700"
+                          >
+                            <Check className="h-3 w-3" /> Apply Changes
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onRejectAction(message.action!.id!)}
+                            disabled={isProcessing}
+                            className="gap-1"
+                          >
+                            <X className="h-3 w-3" /> Reject
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Show changes preview if available */}
+                      {message.action.changes && message.action.changes.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {message.action.changes.length} change{message.action.changes.length > 1 ? 's' : ''} will be applied
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Quick Options - Action buttons from AI suggestions */}
+                  {message.quickOptions && message.quickOptions.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Quick Actions:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {message.quickOptions.map((option) => {
+                          // Debug: Log option structure
+                          console.log('Quick option:', {
+                            id: option.id,
+                            label: option.label,
+                            hasAction: !!option.action,
+                            action: option.action,
+                            isApplyAction: option.isApplyAction,
+                          });
+                          
+                          return (
+                            <Button
+                              key={option.id}
+                              size="sm"
+                              variant={option.variant === 'success' ? 'default' : option.variant === 'destructive' ? 'destructive' : 'outline'}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                console.log('Button clicked for option:', option.label);
+                                console.log('Option has action?', !!option.action);
+                                console.log('Full option:', option);
+                                
+                                // Priority 1: Use action if exists
+                                if (option.action) {
+                                  // Normalize action structure - move all properties to params if not already there
+                                  const normalizedAction = {
+                                    id: option.action.id || crypto.randomUUID(),
+                                    type: option.action.type,
+                                    status: 'pending' as const,
+                                    description: option.action.description || '',
+                                    formula: option.action.formula,
+                                    changes: option.action.changes || [],
+                                    params: {
+                                      ...option.action.params,
+                                      // Copy root-level properties to params if they exist
+                                      ...(option.action as any).target && { target: (option.action as any).target },
+                                      ...(option.action as any).formula && { formula: (option.action as any).formula },
+                                      ...(option.action as any).transformType && { transformType: (option.action as any).transformType },
+                                      ...(option.action as any).sortColumn && { sortColumn: (option.action as any).sortColumn },
+                                      ...(option.action as any).sortDirection && { sortDirection: (option.action as any).sortDirection },
+                                    },
+                                  };
+                                  console.log('Normalized action:', normalizedAction);
+                                  onApplyAction(normalizedAction);
+                                }
+                                // Priority 2: If isApplyAction is true but no action, use main message action
+                                else if (option.isApplyAction && message.action) {
+                                  console.log('Using main message action');
+                                  onApplyAction(message.action);
+                                }
+                                // Priority 3: Send as message
+                                else {
+                                  console.log('No action found, sending message:', option.value);
+                                  sendMessage(option.value, option.label);
+                                }
+                              }}
+                              disabled={isProcessing}
+                              className={option.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+                            >
+                              {option.label}
+                            </Button>
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
                 {message.role === 'user' && (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">

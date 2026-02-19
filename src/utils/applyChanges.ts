@@ -5,13 +5,20 @@ import { ExcelData, DataChange, getColumnIndex, getColumnLetter } from '@/types/
 
 function applyCellUpdates(data: ExcelData, changes: DataChange[]): ExcelData {
   const newRows = [...data.rows];
+  
   changes.forEach((change) => {
-    if (newRows[change.row]) {
-      const newRow = [...newRows[change.row]];
-      newRow[change.col] = change.newValue;
-      newRows[change.row] = newRow;
+    // Ensure row exists - add empty rows if needed
+    while (newRows.length <= change.row) {
+      // Create empty row with same number of columns as headers
+      newRows.push(new Array(data.headers.length).fill(null));
     }
+    
+    // Now update the cell
+    const newRow = [...newRows[change.row]];
+    newRow[change.col] = change.newValue;
+    newRows[change.row] = newRow;
   });
+  
   return { ...data, rows: newRows };
 }
 

@@ -49,14 +49,14 @@ const Settings = () => {
             <div>
               <p className="text-sm font-medium text-foreground">Plan</p>
               <p className="text-sm text-muted-foreground">
-                {profile?.files_used_this_month ?? 0} files used this month
+                {profile?.credits_remaining ?? 100} credits remaining
               </p>
             </div>
-            <Badge variant={profile?.plan === "pro" ? "default" : "secondary"}>
-              {profile?.plan === "pro" ? "Pro" : "Free"}
+            <Badge variant={profile?.subscription_tier === "pro" ? "default" : "secondary"}>
+              {profile?.subscription_tier === "pro" ? "Pro" : profile?.subscription_tier === "enterprise" ? "Enterprise" : "Free"}
             </Badge>
           </div>
-          {profile?.plan !== "pro" && (
+          {profile?.subscription_tier !== "pro" && profile?.subscription_tier !== "enterprise" && (
             <Button className="w-full gap-2">
               <Crown className="h-4 w-4" />
               Upgrade to Pro
