@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   FileSpreadsheet,
@@ -152,7 +151,12 @@ const ExcelPreview = ({
         return null;
       }
       for (const merge of data.mergedCells) {
-        if (col >= merge.startCol && col <= merge.endCol && row >= merge.startRow && row <= merge.endRow) {
+        if (
+          col >= merge.startCol &&
+          col <= merge.endCol &&
+          row >= merge.startRow &&
+          row <= merge.endRow
+        ) {
           return {
             merge,
             isMasterCell: col === merge.startCol && row === merge.startRow,
@@ -520,7 +524,7 @@ const ExcelPreview = ({
     return classes.join(' ');
   };
 
-  const getCellStyle = (cellRef: string) => {
+  const getCellStyle = (cellRef: string): React.CSSProperties => {
     const style = data.cellStyles[cellRef];
     if (!style) return {};
 
@@ -575,17 +579,23 @@ const ExcelPreview = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={`flex items-center gap-1 cursor-help ${hasError ? 'bg-destructive/10' : ''}`}>
-                <span className={`text-xs font-mono px-1 rounded shrink-0 ${
-                  hasError
-                    ? 'bg-destructive text-destructive-foreground'
-                    : 'bg-primary/10 text-primary'
-                }`}>
+              <div
+                className={`flex items-center gap-1 cursor-help ${hasError ? 'bg-destructive/10' : ''}`}
+              >
+                <span
+                  className={`text-xs font-mono px-1 rounded shrink-0 ${
+                    hasError
+                      ? 'bg-destructive text-destructive-foreground'
+                      : 'bg-primary/10 text-primary'
+                  }`}
+                >
                   {hasError ? '!' : 'fx'}
                 </span>
-                <span className={`font-medium truncate ${
-                  hasError ? 'text-destructive font-bold' : 'text-primary'
-                }`}>
+                <span
+                  className={`font-medium truncate ${
+                    hasError ? 'text-destructive font-bold' : 'text-primary'
+                  }`}
+                >
                   {typeof displayValue === 'number' ? formatNumber(displayValue) : displayValue}
                 </span>
               </div>
@@ -630,23 +640,17 @@ const ExcelPreview = ({
   };
 
   // Handle column resize
-  const handleColumnResizeStart = useCallback(
-    (colIndex: number, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setColResizing({ colIndex, startX: e.clientX });
-    },
-    []
-  );
+  const handleColumnResizeStart = useCallback((colIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setColResizing({ colIndex, startX: e.clientX });
+  }, []);
 
-  const handleRowResizeStart = useCallback(
-    (rowIndex: number, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setRowResizing({ rowIndex, startY: e.clientY });
-    },
-    []
-  );
+  const handleRowResizeStart = useCallback((rowIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRowResizing({ rowIndex, startY: e.clientY });
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -684,7 +688,14 @@ const ExcelPreview = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [colResizing, rowResizing, onSetColumnWidth, onSetRowHeight, data.columnWidths, data.rowHeights]);
+  }, [
+    colResizing,
+    rowResizing,
+    onSetColumnWidth,
+    onSetRowHeight,
+    data.columnWidths,
+    data.rowHeights,
+  ]);
 
   const handleGlobalMouseUp = useCallback(() => {
     if (isDragging || colDragStart !== null || rowDragStart !== null) {
@@ -981,7 +992,7 @@ const ExcelPreview = ({
         <div className="min-w-max">
           {/* Sticky header */}
           <div className="sticky top-0 z-10 flex border-b border-border">
-            <div className="w-14 shrink-0 border-r border-border text-center font-semibold bg-muted px-2 py-2 sticky left-0 z-20">
+            <div className="w-14 shrink-0 border-r border-b border-border text-center font-semibold bg-muted px-2 py-2 sticky left-0 z-20">
               <span className="text-xs text-muted-foreground">#</span>
             </div>
             {data.headers.map((header, index) => {
@@ -991,14 +1002,13 @@ const ExcelPreview = ({
                   key={index}
                   onMouseDown={() => handleColumnMouseDown(index)}
                   onMouseEnter={() => handleColumnMouseEnter(index)}
-                  className="shrink-0 border-r border-border font-semibold bg-muted px-2 py-2 cursor-pointer hover:bg-muted/80 group relative select-none flex flex-col justify-center"
+                  className="shrink-0 border-r border-b border-border font-semibold bg-muted px-2 py-2 cursor-pointer hover:bg-muted/80 group relative select-none flex flex-col justify-center"
                   style={{
                     width: `${colWidth}px`,
                     minWidth: `${colWidth}px`,
                     maxWidth: `${colWidth}px`,
                     flexBasis: `${colWidth}px`,
-                    cursor:
-                      "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>\") 8 8, s-resize",
+                    cursor: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>") 8 8, s-resize`,
                   }}
                 >
                   <div className="flex flex-col gap-0.5">
@@ -1013,9 +1023,7 @@ const ExcelPreview = ({
                   <div
                     onMouseDown={(e) => handleColumnResizeStart(index, e)}
                     className="absolute right-0 top-0 bottom-0 w-0.5 bg-transparent hover:bg-primary/70 cursor-col-resize group-hover:w-1 transition-all"
-                    style={{
-                      cursor: 'col-resize',
-                    }}
+                    style={{ cursor: 'col-resize' }}
                   />
                 </div>
               );
@@ -1038,7 +1046,7 @@ const ExcelPreview = ({
               return (
                 <div
                   key={virtualRow.key}
-                  className={`flex absolute w-full border-b border-border group relative ${
+                  className={`flex absolute w-full group relative ${
                     rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                   }`}
                   style={{
@@ -1049,10 +1057,9 @@ const ExcelPreview = ({
                   <div
                     onMouseDown={() => handleRowMouseDown(rowIndex)}
                     onMouseEnter={() => handleRowMouseEnter(rowIndex)}
-                    className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none relative"
+                    className="w-14 shrink-0 border-r border-b border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none relative"
                     style={{
-                      cursor:
-                        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5l7 7-7 7'/></svg>\") 8 8, e-resize",
+                      cursor: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5l7 7-7 7'/></svg>") 8 8, e-resize`,
                     }}
                   >
                     {rowIndex + 2}
@@ -1060,9 +1067,7 @@ const ExcelPreview = ({
                     <div
                       onMouseDown={(e) => handleRowResizeStart(rowIndex, e)}
                       className="absolute bottom-0 left-0 right-0 h-1 bg-transparent hover:bg-primary/50 cursor-row-resize group-hover:h-1.5 transition-all"
-                      style={{
-                        cursor: 'row-resize',
-                      }}
+                      style={{ cursor: 'row-resize' }}
                     />
                   </div>
                   {data.headers.map((_, colIndex) => {
@@ -1076,7 +1081,7 @@ const ExcelPreview = ({
                       return (
                         <div
                           key={colIndex}
-                          className="shrink-0 border-r border-border"
+                          className="shrink-0 border-r border-b border-border"
                           style={{
                             width: `${colWidth}px`,
                             minWidth: `${colWidth}px`,
@@ -1118,7 +1123,7 @@ const ExcelPreview = ({
                             handleCellClick(colIndex, rowIndex, e as any);
                           }
                         }}
-                        className={`shrink-0 border-r border-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
+                        className={`shrink-0 border-r border-b border-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
                           isWrapText ? 'flex flex-col justify-center' : 'flex items-center'
                         } ${getCellClassName(cellRef)}`}
                         style={{
