@@ -33,6 +33,9 @@ import {
   Merge,
   Split,
   Type,
+  Maximize2,
+  Minimize2,
+  Search,
 } from 'lucide-react';
 import {
   ExcelData,
@@ -44,6 +47,7 @@ import {
 } from '@/types/excel';
 import { evaluateFormula } from '@/utils/formulaEvaluator';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import XLSXStyle from 'xlsx-js-style';
 
@@ -112,6 +116,13 @@ const ExcelPreview = ({
   const [rowDragStart, setRowDragStart] = useState<number | null>(null);
   const [colResizing, setColResizing] = useState<{ colIndex: number; startX: number } | null>(null);
   const [rowResizing, setRowResizing] = useState<{ rowIndex: number; startY: number } | null>(null);
+
+  // Excel Viewer inspired features
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create sets for quick lookup
   const pendingCellSet = useMemo(() => {
@@ -512,7 +523,7 @@ const ExcelPreview = ({
     return { type: 'cell', count: selectedCount };
   }, [data.selectedCells, data.headers.length, data.rows.length, selectedCount]);
 
-  const getCellClassName = (cellRef: string) => {
+  const getCellClassName = (cellRef: string, cellValue: string | number | null) => {
     const classes: string[] = ['transition-colors'];
 
     if (appliedCellSet.has(cellRef)) classes.push('cell-applied');
@@ -520,6 +531,11 @@ const ExcelPreview = ({
     if (formulaCellSet.has(cellRef)) classes.push('cell-formula');
     if (selectedCellSet.has(cellRef)) classes.push('ring-2 ring-primary ring-inset bg-primary/10');
     if (cellSelectionMode) classes.push('cursor-pointer hover:bg-accent');
+
+    // Search highlight
+    if (searchQuery && String(cellValue).toLowerCase().includes(searchQuery.toLowerCase())) {
+      classes.push('bg-yellow-200 dark:bg-yellow-900/50');
+    }
 
     return classes.join(' ');
   };
@@ -688,6 +704,7 @@ const ExcelPreview = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
+    return undefined;
   }, [
     colResizing,
     rowResizing,
@@ -707,8 +724,22 @@ const ExcelPreview = ({
     }
   }, [isDragging, colDragStart, rowDragStart, onCellSelect, data.selectedCells]);
 
+  const handleScroll = useCallback(() => {
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 500);
+  }, []);
+
   return (
-    <div className="flex flex-1 flex-col min-h-0" onMouseUp={handleGlobalMouseUp}>
+    <div
+      className={cn(
+        'flex flex-1 flex-col min-h-0 relative bg-background',
+        isFullscreen && 'fixed inset-0 z-[100] p-4 bg-background/95 backdrop-blur-sm'
+      )}
+      onMouseUp={handleGlobalMouseUp}
+    >
       {/* Header */}
       <div className="flex flex-col border-b border-border bg-card">
         {/* Top: Metadata & Filename */}
@@ -734,13 +765,54 @@ const ExcelPreview = ({
             </div>
           </div>
 
-          {cellSelectionMode && (
-            <Badge variant="default" className="gap-1 animate-pulse">
-              <MousePointer className="h-3 w-3" />
-              Select cells...
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {cellSelectionMode && (
+              <Badge variant="default" className="gap-1 animate-pulse">
+                <MousePointer className="h-3 w-3" />
+                Select cells...
+              </Badge>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSearch(!showSearch)}
+              className={cn('h-8 w-8 p-0', showSearch && 'bg-accent')}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="h-8 w-8 p-0"
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
+
+        {showSearch && (
+          <div className="px-4 pb-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search in sheet..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-muted/50 border-none rounded-md pl-8 pr-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+                autoFocus
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5">
+                  <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <Separator className="bg-border/50" />
 
@@ -988,15 +1060,26 @@ const ExcelPreview = ({
       />
 
       {/* Virtualized Table */}
-      <div ref={parentRef} className="flex-1 overflow-auto min-h-0 min-w-0">
+      <div
+        ref={parentRef}
+        className="flex-1 overflow-auto min-h-0 min-w-0 relative"
+        onScroll={handleScroll}
+      >
+        {isScrolling && (
+          <div className="absolute top-4 right-4 z-[60] bg-primary text-primary-foreground px-3 py-1 rounded-full text-[10px] font-bold shadow-lg animate-in fade-in zoom-in duration-200">
+            SCROLLING
+          </div>
+        )}
+
         <div className="min-w-max">
           {/* Sticky header */}
           <div className="sticky top-0 z-10 flex border-b border-border">
             <div className="w-14 shrink-0 border-r border-b border-border text-center font-semibold bg-muted px-2 py-2 sticky left-0 z-20">
               <span className="text-xs text-muted-foreground">#</span>
             </div>
-            {data.headers.map((header, index) => {
+            {data.headers.map((_, index) => {
               const colWidth = getColumnWidth(index);
+              const header = data.headers[index];
               return (
                 <div
                   key={index}
@@ -1123,9 +1206,11 @@ const ExcelPreview = ({
                             handleCellClick(colIndex, rowIndex, e as any);
                           }
                         }}
-                        className={`shrink-0 border-r border-b border-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
-                          isWrapText ? 'flex flex-col justify-center' : 'flex items-center'
-                        } ${getCellClassName(cellRef)}`}
+                        className={cn(
+                          'shrink-0 border-r border-b border-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
+                          isWrapText ? 'flex flex-col justify-center' : 'flex items-center',
+                          getCellClassName(cellRef, cellValue)
+                        )}
                         style={{
                           ...getCellStyle(cellRef),
                           width: `${totalWidth}px`,
@@ -1154,8 +1239,13 @@ const ExcelPreview = ({
       </div>
 
       {/* Row count indicator */}
-      <div className="border-t border-border bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground">
-        {data.rows.length.toLocaleString()} rows total • Double-click a cell to edit
+      <div className="border-t border-border bg-muted/50 px-4 py-1.5 text-xs text-muted-foreground flex justify-between items-center">
+        <div>{data.rows.length.toLocaleString()} rows total • Double-click a cell to edit</div>
+        {searchQuery && (
+          <div className="text-primary font-medium animate-pulse">
+            Search active: showing matches for "{searchQuery}"
+          </div>
+        )}
       </div>
     </div>
   );
