@@ -1,17 +1,15 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sun, Moon, Monitor, Crown, Mail, Shield } from "lucide-react";
+import { Crown, Mail, Shield } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
   const { profile, isLoading } = useProfile();
-  const { theme, setTheme } = useTheme();
 
   if (isLoading) {
     return (
@@ -22,12 +20,6 @@ const Settings = () => {
       </div>
     );
   }
-
-  const themes = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
-  ];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
@@ -70,32 +62,6 @@ const Settings = () => {
               Upgrade to Pro
             </Button>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Theme */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-          <CardDescription>Choose your preferred theme</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            {themes.map((t) => {
-              const Icon = t.icon;
-              return (
-                <Button
-                  key={t.value}
-                  variant={theme === t.value ? "default" : "outline"}
-                  className="flex-1 gap-2"
-                  onClick={() => setTheme(t.value)}
-                >
-                  <Icon className="h-4 w-4" />
-                  {t.label}
-                </Button>
-              );
-            })}
-          </div>
         </CardContent>
       </Card>
 

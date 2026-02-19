@@ -1,5 +1,6 @@
 /* FortuneSheet Override Styles for Better Readability */
 
+/* ===== RESPONSIVE LAYOUT ===== */
 /* Ensure FortuneSheet container is responsive - AGGRESSIVE */
 #luckysheet-container,
 .luckysheet-container,
@@ -33,6 +34,7 @@ canvas.luckysheet-cell-main {
   max-width: 100% !important;
 }
 
+/* ===== LIGHT MODE STYLES ===== */
 /* Fix toolbar text readability */
 .luckysheet-wa-editor,
 .luckysheet-toolbar-menu-button,
@@ -83,11 +85,6 @@ textarea {
   background-color: #ffffff !important;
   border: 1px solid #e5e7eb !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-}
-
-.luckysheet-cols-menu-item,
-.luckysheet-rightclick-menu-item {
-  color: #1f2937 !important;
 }
 
 .luckysheet-cols-menu-item:hover,
@@ -164,48 +161,21 @@ textarea {
   border: 2px solid #3b82f6 !important;
 }
 
-/* Dark mode support - only apply if dark mode is active */
-.dark .luckysheet-wa-editor,
-.dark .luckysheet-toolbar-menu-button,
-.dark .luckysheet-toolbar-button,
-.dark .luckysheet-toolbar-combo-button,
-.dark .luckysheet-toolbar-select,
-.dark .luckysheet-toolbar-menu-button-caption,
-.dark .luckysheet-toolbar-button-caption {
-  color: #f9fafb !important;
+/* Fix freeze pane borders - normalize border thickness */
+.luckysheet-freezebar-horizontal,
+.luckysheet-freezebar-vertical {
+  display: none !important;
 }
 
-.dark .luckysheet-cols-menu,
-.dark .luckysheet-cols-menu-item,
-.dark .luckysheet-rightclick-menu,
-.dark .luckysheet-rightclick-menu-item {
-  background-color: #1f2937 !important;
-  color: #f9fafb !important;
+/* Normalize all cell borders to consistent thickness */
+.luckysheet-cell-main canvas {
+  image-rendering: crisp-edges !important;
 }
 
-.dark .luckysheet-modal-dialog-content input,
-.dark .luckysheet-modal-dialog-content textarea,
-.dark .luckysheet-modal-dialog-content select,
-.dark input[type="text"],
-.dark input[type="number"],
-.dark textarea {
-  background-color: #374151 !important;
-  color: #f9fafb !important;
-  border: 1px solid #4b5563 !important;
-}
-
-.dark .luckysheet-wa-editor,
-.dark .luckysheet-cell-input {
-  background-color: #374151 !important;
-  color: #f9fafb !important;
-}
-
-.dark .luckysheet-toolbar-menu,
-.dark .luckysheet-toolbar {
-  background-color: #1f2937 !important;
-  border-bottom: 1px solid #374151 !important;
-}
-
-.dark .luckysheet-cell {
-  color: #f9fafb !important;
+/* Override freeze pane styling that causes thick borders */
+#luckysheet-freezebar-horizontal,
+#luckysheet-freezebar-vertical,
+.luckysheet-freezebar-horizontal-handle,
+.luckysheet-freezebar-vertical-handle {
+  display: none !important;
 }

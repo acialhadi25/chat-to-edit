@@ -101,10 +101,6 @@ const convertToFortuneSheetFormat = (excelData: ExcelData) => {
         columnlen,
         rowlen: {},
       },
-      frozen: {
-        type: 'row' as const,
-        range: { row_focus: 1, column_focus: 0 },
-      },
       row: rowsData.length + 20, // Add extra rows
       column: headers.length + 5, // Add extra columns
     },

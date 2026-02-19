@@ -36,30 +36,30 @@ interface ToolCard {
 }
 
 const tools: ToolCard[] = [
-  // Chat to Excel tools
-  { icon: <Calculator className="h-6 w-6" />, title: "Formula & Kalkulasi", description: "Insert formula otomatis seperti SUM, VLOOKUP, IF", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
-  { icon: <Trash2 className="h-6 w-6" />, title: "Bersihkan Data", description: "Hapus baris kosong, duplikat, dan trim spasi", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
-  { icon: <BarChart3 className="h-6 w-6" />, title: "Visualisasi AI", description: "Buat grafik dan chart otomatis dari data Anda", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
-  { icon: <SortAsc className="h-6 w-6" />, title: "Sort & Filter", description: "Urutkan dan filter data berdasarkan kolom", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
+  // Chat to Excel tools - AI Copilot Features
+  { icon: <Calculator className="h-6 w-6" />, title: "AI Formula Assistant", description: "AI menulis formula kompleks untuk Anda - SUM, VLOOKUP, IF, dan lainnya", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
+  { icon: <Trash2 className="h-6 w-6" />, title: "Smart Data Cleaning", description: "AI deteksi dan bersihkan data kotor, duplikat, dan error otomatis", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
+  { icon: <BarChart3 className="h-6 w-6" />, title: "Instant Insights", description: "AI analisis data dan buat visualisasi dalam hitungan detik", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
+  { icon: <SortAsc className="h-6 w-6" />, title: "Natural Language Query", description: "Tanya AI untuk sort, filter, dan manipulasi data dengan bahasa natural", category: "chat", link: "/dashboard/excel", color: "text-green-600", bgColor: "bg-green-500/10", available: true },
   
   // Merge Excel tools
-  { icon: <Files className="h-6 w-6" />, title: "Merge Multiple Files", description: "Gabungkan banyak file Excel jadi satu", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
-  { icon: <TableProperties className="h-6 w-6" />, title: "Combine Sheets", description: "Gabungkan antar sheet dalam satu file", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
-  { icon: <Database className="h-6 w-6" />, title: "Data Consolidation", description: "Konsolidasi data dari berbagai sumber", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
+  { icon: <Files className="h-6 w-6" />, title: "Merge Multiple Files", description: "Gabungkan banyak file Excel jadi satu dengan cerdas", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
+  { icon: <TableProperties className="h-6 w-6" />, title: "Combine Sheets", description: "Gabungkan antar sheet dalam satu file secara otomatis", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
+  { icon: <Database className="h-6 w-6" />, title: "Data Consolidation", description: "Konsolidasi data dari berbagai sumber dengan AI", category: "manage", link: "/dashboard/merge", color: "text-blue-600", bgColor: "bg-blue-500/10", available: true },
   
   // Split Excel tools
-  { icon: <Scissors className="h-6 w-6" />, title: "Split by Column", description: "Pecah sheet berdasarkan nilai kolom", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
-  { icon: <FileDown className="h-6 w-6" />, title: "Export to Multiple", description: "Ekspor hasil split ke banyak file", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
-  { icon: <Settings2 className="h-6 w-6" />, title: "Custom Split Rules", description: "Atur aturan pemecahan data Anda", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
+  { icon: <Scissors className="h-6 w-6" />, title: "Smart Split", description: "AI pecah sheet berdasarkan pola dan nilai kolom", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
+  { icon: <FileDown className="h-6 w-6" />, title: "Batch Export", description: "Ekspor hasil split ke banyak file sekaligus", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
+  { icon: <Settings2 className="h-6 w-6" />, title: "Custom Rules", description: "Atur aturan pemecahan data dengan AI assistant", category: "manage", link: "/dashboard/split", color: "text-orange-600", bgColor: "bg-orange-500/10", available: true },
   
   // Data Entry tools
-  { icon: <ClipboardEdit className="h-6 w-6" />, title: "Form Interface", description: "Input data lewat UI formulir yang bersih", category: "entry", link: "/dashboard/data-entry", color: "text-purple-600", bgColor: "bg-purple-500/10", available: true },
-  { icon: <FileUp className="h-6 w-6" />, title: "Batch Entry", description: "Input data dalam jumlah besar dengan cepat", category: "entry", link: "/dashboard/data-entry", color: "text-purple-600", bgColor: "bg-purple-500/10", available: true },
+  { icon: <ClipboardEdit className="h-6 w-6" />, title: "AI Data Entry", description: "AI bantu input data dengan validasi dan saran otomatis", category: "entry", link: "/dashboard/data-entry", color: "text-purple-600", bgColor: "bg-purple-500/10", available: true },
+  { icon: <FileUp className="h-6 w-6" />, title: "Batch Entry", description: "Input data dalam jumlah besar dengan AI assistance", category: "entry", link: "/dashboard/data-entry", color: "text-purple-600", bgColor: "bg-purple-500/10", available: true },
 ];
 
 const categoryConfig: Record<ToolCategory, { label: string; color: string }> = {
-  all: { label: "Semua Tools", color: "bg-primary text-primary-foreground" },
-  chat: { label: "Chat to Excel", color: "bg-green-600 text-white" },
+  all: { label: "All Features", color: "bg-primary text-primary-foreground" },
+  chat: { label: "AI Copilot", color: "bg-green-600 text-white" },
   manage: { label: "Manage & Split", color: "bg-blue-600 text-white" },
   entry: { label: "Data Entry", color: "bg-purple-600 text-white" },
 };
@@ -74,12 +74,15 @@ const Hero = () => {
       <div className="container px-4">
         {/* Heading */}
         <div className="mx-auto max-w-3xl text-center mb-10">
+          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+            ✨ AI Sheet Copilot
+          </Badge>
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl mb-4">
-            Kelola data Excel Anda
-            <span className="block text-primary">dengan kekuatan AI</span>
+            Your AI-Powered
+            <span className="block text-primary">Excel Assistant</span>
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg">
-            Satu platform untuk semua kebutuhan Excel: Chat, Merge, Split, dan Data Entry.
+            Chat dengan spreadsheet Anda. AI yang memahami data, mengotomasi tugas, dan membantu Anda bekerja lebih cepat.
           </p>
         </div>
 

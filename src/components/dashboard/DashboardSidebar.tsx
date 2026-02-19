@@ -1,6 +1,5 @@
 import { User } from "@supabase/supabase-js";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useTheme } from "next-themes";
 import {
   Sidebar,
   SidebarContent,
@@ -25,8 +24,6 @@ import {
   Settings,
   LogOut,
   Crown,
-  Sun,
-  Moon,
   LayoutGrid,
   Sparkles,
 } from "lucide-react";
@@ -40,7 +37,6 @@ interface DashboardSidebarProps {
 const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
   const { signOut } = useAuth();
   const { profile } = useProfile();
-  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -149,21 +145,6 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Theme Toggle */}
-        <SidebarGroup>
-          <SidebarGroupContent className="px-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-            </Button>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

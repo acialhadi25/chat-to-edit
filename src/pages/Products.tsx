@@ -7,19 +7,19 @@ import { Button } from "@/components/ui/button";
 const products = [
   {
     icon: <FileSpreadsheet className="h-8 w-8" />,
-    title: "Chat to Excel",
-    description: "Edit spreadsheet dengan bantuan AI. Cukup chat untuk menambah formula, manipulasi data, formatting, dan lainnya.",
+    title: "AI Sheet Copilot",
+    description: "Your intelligent Excel assistant. Chat dengan spreadsheet untuk edit data, insert formula, clean data, dan analisis - semua dengan natural language.",
     color: "text-green-600",
     bg: "bg-green-500/10",
     border: "border-green-500/20",
     features: [
-      "Insert formula otomatis (SUM, VLOOKUP, IF, dll)",
-      "Hapus baris kosong & duplikat",
-      "Find & replace data",
-      "Sort & filter data",
-      "Format angka (currency, percentage, scientific)",
-      "Split & merge kolom",
-      "Statistik (sum, average, median, std_dev)",
+      "AI Formula Assistant - tulis formula kompleks dengan chat",
+      "Smart Data Cleaning - deteksi dan bersihkan data otomatis",
+      "Natural Language Query - tanya AI untuk manipulasi data",
+      "Instant Insights - analisis dan visualisasi data cepat",
+      "Auto-formatting - format angka, tanggal, currency otomatis",
+      "Intelligent Sort & Filter - AI bantu urutkan dan filter data",
+      "Data Validation - AI cek dan validasi data Anda",
     ],
     link: "/dashboard/excel",
   },
@@ -67,9 +67,9 @@ const Products = () => {
       <Header />
       <main className="container py-16 px-4">
         <div className="mx-auto max-w-4xl text-center mb-16">
-          <h1 className="text-4xl font-bold text-foreground mb-4">Produk Kami</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-4">Our AI-Powered Tools</h1>
           <p className="text-lg text-muted-foreground">
-            Tiga tools AI yang powerful untuk mengelola dokumen Anda sehari-hari.
+            Intelligent assistants untuk mengelola dokumen Anda dengan lebih cepat dan efisien.
           </p>
         </div>
 
