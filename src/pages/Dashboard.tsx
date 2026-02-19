@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import "@/styles/sidebar-override.css";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="flex min-h-svh w-full bg-background">
         <DashboardSidebar user={user} />
-        <SidebarInset className="flex flex-1 flex-col h-svh overflow-hidden min-w-0">
+        <SidebarInset className="flex flex-1 flex-col h-svh overflow-hidden min-w-0 !m-0 !ml-0 !p-0">
           {/* Mobile Header with Sidebar Trigger */}
           <div className="flex h-14 items-center gap-2 border-b border-border bg-background px-4 lg:hidden flex-shrink-0">
             <SidebarTrigger className="-ml-1" />

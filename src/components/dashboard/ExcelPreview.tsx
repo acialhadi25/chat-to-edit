@@ -1,6 +1,7 @@
-import { useRef, memo, forwardRef, useImperativeHandle } from 'react';
+import { useRef, memo, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { Workbook } from '@fortune-sheet/react';
 import '@fortune-sheet/react/dist/index.css';
+import '@/styles/fortunesheet-override.css';
 import { ExcelData, AIAction, CellValue, createCellRef } from '@/types/excel';
 
 export interface ExcelPreviewHandle {
@@ -262,6 +263,76 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
     }));
 
     const fortuneSheetData = convertToFortuneSheetFormat(data);
+
+    // Add resize observer to trigger FortuneSheet resize - MORE AGGRESSIVE
+    useEffect(() => {
+      if (!containerRef.current) return;
+
+      const resizeObserver = new ResizeObserver(() => {
+        // Trigger luckysheet resize multiple times with requestAnimationFrame
+        const luckysheet = (window as any).luckysheet;
+        if (luckysheet && luckysheet.resize) {
+          requestAnimationFrame(() => {
+            luckysheet.resize();
+            
+            // Rapid fire resizes
+            setTimeout(() => luckysheet.resize(), 10);
+            setTimeout(() => luckysheet.resize(), 30);
+            setTimeout(() => luckysheet.resize(), 60);
+            setTimeout(() => luckysheet.resize(), 100);
+            setTimeout(() => luckysheet.resize(), 200);
+          });
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, []);
+
+    // Also trigger resize when component mounts or data changes - MORE AGGRESSIVE
+    useEffect(() => {
+      const luckysheet = (window as any).luckysheet;
+      if (luckysheet && luckysheet.resize) {
+        requestAnimationFrame(() => {
+          luckysheet.resize();
+          setTimeout(() => luckysheet.resize(), 10);
+          setTimeout(() => luckysheet.resize(), 50);
+          setTimeout(() => luckysheet.resize(), 100);
+          setTimeout(() => luckysheet.resize(), 200);
+        });
+      }
+    }, [data]);
+
+    // Add global resize listener for sidebar changes
+    useEffect(() => {
+      const handleResize = () => {
+        const luckysheet = (window as any).luckysheet;
+        if (luckysheet && luckysheet.resize) {
+          requestAnimationFrame(() => {
+            luckysheet.resize();
+          });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      
+      // Also listen for custom sidebar events
+      const handleSidebarChange = () => {
+        setTimeout(handleResize, 10);
+        setTimeout(handleResize, 50);
+        setTimeout(handleResize, 100);
+      };
+      
+      window.addEventListener('sidebar-toggle', handleSidebarChange);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('sidebar-toggle', handleSidebarChange);
+      };
+    }, []);
 
     return (
       <div ref={containerRef} style={{ width: '100%', height: '100%' }}>

@@ -38,7 +38,7 @@ interface ChatInterfaceProps {
   onSetPendingChanges: (changes: DataChange[]) => void;
   isProcessing: boolean;
   setIsProcessing: (value: boolean) => void;
-  getDataAnalysis: () => Record<string, unknown> | null;
+  getDataAnalysis: () => string[] | null;
   onUpdateAction: (messageId: string, updatedAction: AIAction) => void;
 }
 
@@ -88,7 +88,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         setIsStreaming(true);
         setStreamingContent('');
 
-        const context = {
+        const context: Record<string, unknown> = {
           fileName: excelData.fileName,
           headers: excelData.headers,
           sampleRows: excelData.rows.slice(0, 5),
@@ -171,18 +171,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
     };
 
     return (
-      <div className="flex h-full flex-col border-l border-border bg-card">
-        <div className="border-b border-border px-4 py-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div>
-              <h3 className="font-medium text-foreground">AI Assistant</h3>
-              <p className="text-xs text-muted-foreground">Ready to help edit your Excel</p>
-            </div>
-          </div>
-        </div>
+      <div className="flex h-full flex-col bg-card">
         <ScrollArea className="flex-1 min-h-0 px-4">
           <div className="space-y-4 py-4">
             {messages.length === 0 && !isStreaming && (
@@ -268,7 +257,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             <div ref={scrollRef} />
           </div>
         </ScrollArea>
-        <div className="border-t p-3 shrink-0">
+        <div className="border-t p-3 shrink-0 bg-card">
           <div className="flex gap-2">
             <Textarea
               placeholder="Type a command..."

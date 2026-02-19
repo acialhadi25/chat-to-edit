@@ -1,0 +1,22 @@
+/* Override SidebarInset margin/padding to allow full width expansion */
+
+/* Remove all margins and padding from SidebarInset */
+[data-sidebar="inset"],
+main[class*="peer-data"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure SidebarInset takes full available width */
+.peer-data-\[state\=collapsed\]\:peer-data-\[variant\=inset\]\:ml-2,
+.peer-data-\[variant\=inset\]\:ml-0,
+.peer-data-\[variant\=inset\]\:m-2 {
+  margin: 0 !important;
+}
+
+/* Remove rounded corners and shadows that might affect layout */
+.peer-data-\[variant\=inset\]\:rounded-xl,
+.peer-data-\[variant\=inset\]\:shadow {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}

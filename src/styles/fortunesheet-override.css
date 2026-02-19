@@ -1,0 +1,211 @@
+/* FortuneSheet Override Styles for Better Readability */
+
+/* Ensure FortuneSheet container is responsive - AGGRESSIVE */
+#luckysheet-container,
+.luckysheet-container,
+.fortune-container,
+#luckysheet,
+.luckysheet {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Ensure grid area is responsive - AGGRESSIVE */
+.luckysheet-grid-container,
+.luckysheet-cell-main,
+#luckysheet-grid-container,
+#luckysheet-cell-main {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Force scrollbar container to be responsive */
+.luckysheet-scrollbar-x,
+#luckysheet-scrollbar-x {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Force canvas to be responsive */
+canvas.luckysheet-cell-main {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Fix toolbar text readability */
+.luckysheet-wa-editor,
+.luckysheet-toolbar-menu-button,
+.luckysheet-toolbar-button,
+.luckysheet-toolbar-combo-button,
+.luckysheet-toolbar-select,
+.luckysheet-toolbar-menu-button-caption,
+.luckysheet-toolbar-button-caption {
+  color: #1f2937 !important;
+}
+
+/* Fix dropdown menus */
+.luckysheet-cols-menu,
+.luckysheet-cols-menu-item,
+.luckysheet-rightclick-menu,
+.luckysheet-rightclick-menu-item {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+/* Fix input fields in context menu and dialogs */
+.luckysheet-modal-dialog-content input,
+.luckysheet-modal-dialog-content textarea,
+.luckysheet-modal-dialog-content select,
+input[type="text"],
+input[type="number"],
+textarea {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Fix formula bar input */
+.luckysheet-wa-editor {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+/* Fix cell editor input */
+.luckysheet-cell-input {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+/* Fix context menu on right click */
+.luckysheet-cols-menu,
+.luckysheet-rightclick-menu {
+  background-color: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.luckysheet-cols-menu-item,
+.luckysheet-rightclick-menu-item {
+  color: #1f2937 !important;
+}
+
+.luckysheet-cols-menu-item:hover,
+.luckysheet-rightclick-menu-item:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix toolbar background */
+.luckysheet-toolbar-menu,
+.luckysheet-toolbar {
+  background-color: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Fix font selector dropdown */
+.luckysheet-toolbar-select-option {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+.luckysheet-toolbar-select-option:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix modal dialogs */
+.luckysheet-modal-dialog {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+.luckysheet-modal-dialog-title {
+  background-color: #f9fafb !important;
+  color: #1f2937 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Fix buttons in dialogs */
+.luckysheet-modal-dialog-button {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.luckysheet-modal-dialog-button:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix scrollbars */
+.luckysheet-scrollbar-ltr {
+  background-color: #f9fafb !important;
+}
+
+/* Fix sheet tabs */
+.luckysheet-sheet-container {
+  background-color: #f9fafb !important;
+  border-top: 1px solid #e5e7eb !important;
+}
+
+.luckysheet-sheet-item {
+  color: #1f2937 !important;
+}
+
+.luckysheet-sheet-item:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix cell text color for better readability */
+.luckysheet-cell {
+  color: #1f2937 !important;
+}
+
+/* Fix selection highlight */
+.luckysheet-cell-selected {
+  border: 2px solid #3b82f6 !important;
+}
+
+/* Dark mode support - only apply if dark mode is active */
+.dark .luckysheet-wa-editor,
+.dark .luckysheet-toolbar-menu-button,
+.dark .luckysheet-toolbar-button,
+.dark .luckysheet-toolbar-combo-button,
+.dark .luckysheet-toolbar-select,
+.dark .luckysheet-toolbar-menu-button-caption,
+.dark .luckysheet-toolbar-button-caption {
+  color: #f9fafb !important;
+}
+
+.dark .luckysheet-cols-menu,
+.dark .luckysheet-cols-menu-item,
+.dark .luckysheet-rightclick-menu,
+.dark .luckysheet-rightclick-menu-item {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+.dark .luckysheet-modal-dialog-content input,
+.dark .luckysheet-modal-dialog-content textarea,
+.dark .luckysheet-modal-dialog-content select,
+.dark input[type="text"],
+.dark input[type="number"],
+.dark textarea {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border: 1px solid #4b5563 !important;
+}
+
+.dark .luckysheet-wa-editor,
+.dark .luckysheet-cell-input {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .luckysheet-toolbar-menu,
+.dark .luckysheet-toolbar {
+  background-color: #1f2937 !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .luckysheet-cell {
+  color: #f9fafb !important;
+}
