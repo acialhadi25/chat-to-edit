@@ -546,6 +546,8 @@ const ExcelDashboard = () => {
         formulas: {},
         selectedCells: [],
         pendingChanges: [],
+        // Note: mergedCells and cellStyles are only stored for the first sheet in the current implementation
+        // Future: store these per-sheet for full multi-sheet support
       });
       toast({ title: 'Sheet Changed', description: `Showing "${sheetName}"` });
     },

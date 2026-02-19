@@ -225,19 +225,84 @@ export function parseAIResponse(
  * Extract action object from text if AI forgot to wrap response in JSON
  * Useful when AI returns something like:
  * "Here's what I'll do: {\"type\": \"INSERT_FORMULA\", ...}"
+ * Also attempts to salvage partial action objects
  */
 export function extractActionFromText(text: string): Record<string, unknown> | null {
-  const jsonMatch = findJsonObjectInText(text);
-  if (!jsonMatch) return null;
+  // Try multiple strategies to extract action
 
+  // Strategy 1: Look for JSON object that has a 'type' field
+  const jsonMatch = findJsonObjectInText(text);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch);
+      // Check if it looks like an action (has a type field)
+      if (parsed && typeof parsed === 'object' && parsed.type && typeof parsed.type === 'string') {
+        return parsed;
+      }
+    } catch (e) {
+      // Continue to next strategy
+    }
+  }
+
+  // Strategy 2: Look for multiple JSON objects and find one with 'type' field
+  const multipleJsonMatches = text.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+  if (multipleJsonMatches) {
+    for (const match of multipleJsonMatches) {
+      try {
+        const parsed = JSON.parse(match);
+        if (parsed && typeof parsed === 'object' && parsed.type && typeof parsed.type === 'string') {
+          return parsed;
+        }
+      } catch (e) {
+        // Continue searching
+      }
+    }
+  }
+
+  // Strategy 3: Try to extract action from within larger JSON responses
+  // Sometimes AI returns { content: "...", action: {...} } or similar structures
   try {
-    const parsed = JSON.parse(jsonMatch);
-    // Check if it looks like an action (has a type field)
-    if (parsed.type && typeof parsed.type === 'string') {
-      return parsed;
+    // First try parsing the whole thing
+    const parsed = JSON.parse(text.trim());
+    if (parsed && typeof parsed === 'object') {
+      // Check if it's the action object directly
+      if (parsed.type && typeof parsed.type === 'string') {
+        return parsed;
+      }
+      // Check if it has an action property
+      if (parsed.action && typeof parsed.action === 'object' && parsed.action.type) {
+        return parsed.action;
+      }
     }
   } catch (e) {
-    // Ignore parse errors
+    // Continue to next strategy
+  }
+
+  return null;
+}
+
+/**
+ * Attempt to extract and salvage a usable action from a partial/malformed response
+ * This is a last-resort function that tries to be lenient with AI responses
+ */
+export function salvageActionFromResponse(text: string): Record<string, unknown> | null {
+  // Look for action type keywords in the text
+  const actionKeywords = [
+    'INSERT_FORMULA', 'REMOVE_FORMULA', 'EDIT_CELL', 'EDIT_COLUMN', 'EDIT_ROW',
+    'FIND_REPLACE', 'DATA_CLEANSING', 'DATA_TRANSFORM', 'ADD_COLUMN', 'DELETE_COLUMN',
+    'DELETE_ROW', 'SORT_DATA', 'FILTER_DATA', 'REMOVE_DUPLICATES', 'FILL_DOWN',
+    'SPLIT_COLUMN', 'MERGE_COLUMNS', 'CLARIFY', 'INFO', 'REMOVE_EMPTY_ROWS',
+    'RENAME_COLUMN', 'FORMAT_NUMBER', 'EXTRACT_NUMBER', 'CONDITIONAL_FORMAT',
+    'GENERATE_ID', 'DATE_CALCULATION', 'CONCATENATE', 'STATISTICS', 'PIVOT_SUMMARY',
+    'DATA_VALIDATION', 'TEXT_EXTRACTION', 'CREATE_CHART', 'DATA_AUDIT', 'INSIGHTS', 'COPY_COLUMN'
+  ];
+
+  // Check if any action type is mentioned
+  for (const keyword of actionKeywords) {
+    if (text.includes(keyword)) {
+      // Try to construct a minimal action object
+      return { type: keyword, status: 'pending' };
+    }
   }
 
   return null;

@@ -294,7 +294,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             const sanitized = sanitizeStreamingContent(prev + chunk);
             return sanitized;
           }),
-          onDone: (fullText) => {
+          onDone: async (fullText) => {
             setIsStreaming(false);
             setStreamingContent('');
             // Sanitize the full text to extract content if it's JSON
@@ -312,9 +312,28 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
               isApplyAction: opt.isApplyAction,
             })) as QuickOption[] | undefined;
 
-            // Add retry option if parse failed (action is INFO or undefined)
-            const parseFailed = !parseResult.data?.action || parseResult.data.action.type === 'INFO';
-            if (parseFailed) {
+            // Attempt to salvage action if initial parse returned INFO or undefined
+            let finalAction = parseResult.data?.action;
+            if (!finalAction || finalAction.type === 'INFO') {
+              // Try advanced extraction strategies
+              const { extractActionFromText, salvageActionFromResponse } = await import('@/utils/jsonParser');
+
+              // First try: look for any JSON action object in the response
+              const extractedAction = extractActionFromText(fullText);
+              if (extractedAction) {
+                finalAction = extractedAction;
+              } else {
+                // Second try: look for action type keywords
+                const salvagedAction = salvageActionFromResponse(fullText);
+                if (salvagedAction) {
+                  finalAction = salvagedAction;
+                }
+              }
+            }
+
+            // Only show retry if we truly couldn't extract any action
+            const hasValidAction = finalAction && finalAction.type && finalAction.type !== 'INFO';
+            if (!hasValidAction) {
               const retryOption: QuickOption = {
                 id: 'retry-' + Date.now(),
                 label: 'Coba Lagi',
@@ -328,16 +347,16 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
               id: crypto.randomUUID(),
               role: 'assistant',
               content: parseResult.data?.content || fullText,
-              action: parseResult.data?.action
-                ? ({ ...parseResult.data.action, status: 'pending' as const } as AIAction)
+              action: finalAction
+                ? ({ ...finalAction, status: 'pending' as const } as AIAction)
                 : undefined,
               quickOptions,
               timestamp: new Date(),
             };
 
             onNewMessage(assistantMessage);
-            if (parseResult.data?.action?.changes && parseResult.data.action.changes.length > 0) {
-              onSetPendingChanges(parseResult.data.action.changes);
+            if (finalAction?.changes && Array.isArray(finalAction.changes) && finalAction.changes.length > 0) {
+              onSetPendingChanges(finalAction.changes);
             }
             setIsProcessing(false);
           },

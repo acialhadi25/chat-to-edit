@@ -42,7 +42,8 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
 
         // Parse ALL sheets with normalization
         const allSheets: { [sheetName: string]: SheetData } = {};
-        let mergedCells: MergeRange[] = [];
+        const mergedCellsBySheet: { [sheetName: string]: MergeRange[] } = {};
+        const cellStylesBySheet: { [sheetName: string]: { [cellRef: string]: any } } = {};
 
         for (const sheetName of sheets) {
           const worksheet = workbook.Sheets[sheetName];
@@ -68,7 +69,8 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
             return newRow.slice(0, headers.length);
           });
 
-          // Handle merged cells
+          // Handle merged cells for this sheet
+          const sheetMergedCells: MergeRange[] = [];
           if (worksheet['!merges'] && worksheet['!merges'].length > 0) {
             worksheet['!merges'].forEach((merge: any) => {
               const startRow = merge.s.r - 1; // Adjust for header row
@@ -76,21 +78,18 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
               const startCol = merge.s.c;
               const endCol = merge.e.c;
 
-              // Track the merge range for the first sheet
-              if (sheetName === sheets[0]) {
-                mergedCells.push({
-                  startRow,
-                  endRow,
-                  startCol,
-                  endCol,
-                });
-              }
+              sheetMergedCells.push({
+                startRow,
+                endRow,
+                startCol,
+                endCol,
+              });
 
               // Fill merged cells with the value from the first cell
               const firstCellValue = normalizedRows[startRow]?.[startCol];
               for (let r = startRow; r <= endRow; r++) {
                 for (let c = startCol; c <= endCol; c++) {
-                  if (normalizedRows[r] && r !== startRow || c !== startCol) {
+                  if (normalizedRows[r] && (r !== startRow || c !== startCol)) {
                     normalizedRows[r][c] = firstCellValue;
                   }
                 }
@@ -98,6 +97,57 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
             });
           }
 
+          // Extract cell styles/formatting
+          const sheetStyles: { [cellRef: string]: any } = {};
+          for (const cellAddress in worksheet) {
+            if (cellAddress.startsWith('!')) continue; // Skip metadata
+            const cell = worksheet[cellAddress];
+            if (cell && cell.s) {
+              // Extract style information
+              const style: any = {};
+
+              // Background color
+              if (cell.s.fill && cell.s.fill.fgColor) {
+                const rgb = cell.s.fill.fgColor.rgb || cell.s.fill.fgColor.theme;
+                if (rgb) {
+                  style.backgroundColor = rgb.startsWith('FF') ? `#${rgb.slice(2)}` : `#${rgb}`;
+                }
+              }
+
+              // Font color
+              if (cell.s.font) {
+                if (cell.s.font.color) {
+                  const rgb = cell.s.font.color.rgb || cell.s.font.color.theme;
+                  if (rgb) {
+                    style.fontColor = rgb.startsWith('FF') ? `#${rgb.slice(2)}` : `#${rgb}`;
+                  }
+                }
+                if (cell.s.font.bold) {
+                  style.fontWeight = 'bold';
+                }
+                if (cell.s.font.sz) {
+                  style.fontSize = cell.s.font.sz;
+                }
+              }
+
+              // Alignment
+              if (cell.s.alignment && cell.s.alignment.horizontal) {
+                style.textAlign = cell.s.alignment.horizontal;
+              }
+
+              // Border
+              if (cell.s.border) {
+                style.border = true;
+              }
+
+              if (Object.keys(style).length > 0) {
+                sheetStyles[cellAddress] = style;
+              }
+            }
+          }
+
+          mergedCellsBySheet[sheetName] = sheetMergedCells;
+          cellStylesBySheet[sheetName] = sheetStyles;
           allSheets[sheetName] = { headers, rows: normalizedRows };
         }
 
@@ -116,8 +166,8 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
           selectedCells: [],
           pendingChanges: [],
           allSheets,
-          mergedCells: mergedCells.length > 0 ? mergedCells : undefined,
-          cellStyles: {},
+          mergedCells: mergedCellsBySheet[firstSheet]?.length > 0 ? mergedCellsBySheet[firstSheet] : undefined,
+          cellStyles: cellStylesBySheet[firstSheet] || {},
         };
 
         onFileUpload(excelData);

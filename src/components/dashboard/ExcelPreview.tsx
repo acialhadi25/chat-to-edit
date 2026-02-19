@@ -121,6 +121,27 @@ const ExcelPreview = ({
     return map;
   }, [data.pendingChanges]);
 
+  // Helper to find which merge range a cell belongs to
+  const getCellMergeInfo = useCallback(
+    (col: number, row: number) => {
+      if (!data.mergedCells || data.mergedCells.length === 0) {
+        return null;
+      }
+      for (const merge of data.mergedCells) {
+        if (col >= merge.startCol && col <= merge.endCol && row >= merge.startRow && row <= merge.endRow) {
+          return {
+            merge,
+            isMasterCell: col === merge.startCol && row === merge.startRow,
+            colSpan: merge.endCol - merge.startCol + 1,
+            rowSpan: merge.endRow - merge.startRow + 1,
+          };
+        }
+      }
+      return null;
+    },
+    [data.mergedCells]
+  );
+
   // Virtualizer for rows
   const rowVirtualizer = useVirtualizer({
     count: data.rows.length,
@@ -896,6 +917,18 @@ const ExcelPreview = ({
                   {data.headers.map((_, colIndex) => {
                     const cellRef = createCellRef(colIndex, rowIndex);
                     const cellValue = row[colIndex];
+                    const mergeInfo = getCellMergeInfo(colIndex, rowIndex);
+
+                    // Skip rendering non-master cells in a merged range
+                    if (mergeInfo && !mergeInfo.isMasterCell) {
+                      return null;
+                    }
+
+                    // Calculate the width and height for merged cells
+                    const baseColWidth = 100; // base width in pixels (matches w-[100px])
+                    const baseRowHeight = 36; // ROW_HEIGHT constant
+                    const spanWidth = mergeInfo ? mergeInfo.colSpan * baseColWidth : baseColWidth;
+                    const spanHeight = mergeInfo ? mergeInfo.rowSpan * baseRowHeight : baseRowHeight;
 
                     return (
                       <div
@@ -915,8 +948,20 @@ const ExcelPreview = ({
                             handleCellClick(colIndex, rowIndex, e as any);
                           }
                         }}
-                        className={`min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}
-                        style={getCellStyle(cellRef)}
+                        className={`shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}
+                        style={{
+                          ...getCellStyle(cellRef),
+                          width: `${spanWidth}px`,
+                          minWidth: `${spanWidth}px`,
+                          maxWidth: `${spanWidth}px`,
+                          ...(mergeInfo && mergeInfo.rowSpan > 1 && {
+                            height: `${spanHeight}px`,
+                            minHeight: `${spanHeight}px`,
+                            maxHeight: `${spanHeight}px`,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }),
+                        }}
                       >
                         {renderCellContent(cellRef, cellValue, colIndex, rowIndex)}
                       </div>
