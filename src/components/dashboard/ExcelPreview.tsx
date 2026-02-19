@@ -31,6 +31,9 @@ import {
   Wand2,
   Sparkles,
   Save,
+  Merge,
+  Unmerge,
+  Type,
 } from 'lucide-react';
 import {
   ExcelData,
@@ -65,6 +68,11 @@ interface ExcelPreviewProps {
   selectedCellRef?: string;
   onFormulaBarChange?: (value: string) => void;
   onFormulaBarCommit?: () => void;
+  onMergeCells?: () => void;
+  onUnmergeCells?: () => void;
+  onToggleWrapText?: () => void;
+  onSetColumnWidth?: (colIndex: number, width: number) => void;
+  onSetRowHeight?: (rowIndex: number, height: number) => void;
 }
 
 const ROW_HEIGHT = 36;
@@ -87,6 +95,11 @@ const ExcelPreview = ({
   selectedCellRef = '',
   onFormulaBarChange = () => {},
   onFormulaBarCommit = () => {},
+  onMergeCells,
+  onUnmergeCells,
+  onToggleWrapText,
+  onSetColumnWidth,
+  onSetRowHeight,
 }: ExcelPreviewProps) => {
   const { toast } = useToast();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -97,6 +110,8 @@ const ExcelPreview = ({
   const [isDragging, setIsDragging] = useState(false);
   const [colDragStart, setColDragStart] = useState<number | null>(null);
   const [rowDragStart, setRowDragStart] = useState<number | null>(null);
+  const [colResizing, setColResizing] = useState<{ colIndex: number; startX: number } | null>(null);
+  const [rowResizing, setRowResizing] = useState<{ rowIndex: number; startY: number } | null>(null);
 
   // Create sets for quick lookup
   const pendingCellSet = useMemo(() => {
@@ -597,8 +612,70 @@ const ExcelPreview = ({
       );
     }
 
-    return <span className="truncate block">{formatCellValue(cellValue)}</span>;
+    const isWrapText = data.cellStyles[cellRef]?.wrapText;
+    return (
+      <span className={isWrapText ? 'block whitespace-normal' : 'truncate block'}>
+        {formatCellValue(cellValue)}
+      </span>
+    );
   };
+
+  // Handle column resize
+  const handleColumnResizeStart = useCallback(
+    (colIndex: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setColResizing({ colIndex, startX: e.clientX });
+    },
+    []
+  );
+
+  const handleRowResizeStart = useCallback(
+    (rowIndex: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setRowResizing({ rowIndex, startY: e.clientY });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (colResizing) {
+        const delta = e.clientX - colResizing.startX;
+        const baseWidth = 100;
+        const currentWidth = data.columnWidths?.[colResizing.colIndex] || baseWidth;
+        const newWidth = currentWidth + delta;
+        onSetColumnWidth?.(colResizing.colIndex, newWidth);
+        // Update start position for continuous tracking
+        setColResizing({ ...colResizing, startX: e.clientX });
+      }
+
+      if (rowResizing) {
+        const delta = e.clientY - rowResizing.startY;
+        const baseHeight = ROW_HEIGHT;
+        const currentHeight = data.rowHeights?.[rowResizing.rowIndex] || baseHeight;
+        const newHeight = currentHeight + delta;
+        onSetRowHeight?.(rowResizing.rowIndex, newHeight);
+        // Update start position for continuous tracking
+        setRowResizing({ ...rowResizing, startY: e.clientY });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setColResizing(null);
+      setRowResizing(null);
+    };
+
+    if (colResizing || rowResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [colResizing, rowResizing, onSetColumnWidth, onSetRowHeight, data.columnWidths, data.rowHeights]);
 
   const handleGlobalMouseUp = useCallback(() => {
     if (isDragging || colDragStart !== null || rowDragStart !== null) {
@@ -754,6 +831,47 @@ const ExcelPreview = ({
               Tambah Kolom
             </Button>
 
+            <Separator orientation="vertical" className="h-5" />
+
+            {onMergeCells && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onMergeCells}
+                className="h-8 gap-1 text-xs border-blue-500/20 hover:bg-blue-500/5 hover:border-blue-500 text-blue-600"
+                aria-label="Merge selected cells"
+              >
+                <Merge className="h-3.5 w-3.5" />
+                Merge
+              </Button>
+            )}
+
+            {onUnmergeCells && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onUnmergeCells}
+                className="h-8 gap-1 text-xs border-blue-500/20 hover:bg-blue-500/5 hover:border-blue-500 text-blue-600"
+                aria-label="Unmerge selected cells"
+              >
+                <Unmerge className="h-3.5 w-3.5" />
+                Unmerge
+              </Button>
+            )}
+
+            {onToggleWrapText && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onToggleWrapText}
+                className="h-8 gap-1 text-xs border-amber-500/20 hover:bg-amber-500/5 hover:border-amber-500 text-amber-600"
+                aria-label="Toggle text wrapping for selected cells"
+              >
+                <Type className="h-3.5 w-3.5" />
+                Wrap Text
+              </Button>
+            )}
+
             {selectionInfo && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -857,27 +975,44 @@ const ExcelPreview = ({
             <div className="w-14 shrink-0 border-r border-border text-center font-semibold bg-muted px-2 py-2 sticky left-0 z-20">
               <span className="text-xs text-muted-foreground">#</span>
             </div>
-            {data.headers.map((header, index) => (
-              <div
-                key={index}
-                onMouseDown={() => handleColumnMouseDown(index)}
-                onMouseEnter={() => handleColumnMouseEnter(index)}
-                className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative select-none"
-                style={{
-                  cursor:
-                    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>\") 8 8, s-resize",
-                }}
-              >
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] sm:text-[10px] font-mono text-muted-foreground/70 group-hover:text-primary transition-colors">
-                    {getColumnLetter(index)}
-                  </span>
-                  <span className="truncate font-medium text-foreground text-xs sm:text-sm">
-                    {header || '(empty)'}
-                  </span>
+            {data.headers.map((header, index) => {
+              const colWidth = data.columnWidths?.[index];
+              return (
+                <div
+                  key={index}
+                  onMouseDown={() => handleColumnMouseDown(index)}
+                  onMouseEnter={() => handleColumnMouseEnter(index)}
+                  className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative select-none"
+                  style={{
+                    ...(colWidth && {
+                      width: `${colWidth}px`,
+                      minWidth: `${colWidth}px`,
+                      maxWidth: `${colWidth}px`,
+                      flexBasis: `${colWidth}px`,
+                    }),
+                    cursor:
+                      "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>\") 8 8, s-resize",
+                  }}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] sm:text-[10px] font-mono text-muted-foreground/70 group-hover:text-primary transition-colors">
+                      {getColumnLetter(index)}
+                    </span>
+                    <span className="truncate font-medium text-foreground text-xs sm:text-sm">
+                      {header || '(empty)'}
+                    </span>
+                  </div>
+                  {/* Column resize handle */}
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(index, e)}
+                    className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-primary/50 cursor-col-resize group-hover:w-1.5 transition-all"
+                    style={{
+                      cursor: 'col-resize',
+                    }}
+                  />
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Virtualized rows */}
@@ -892,43 +1027,60 @@ const ExcelPreview = ({
               const rowIndex = virtualRow.index;
               const row = data.rows[rowIndex];
 
+              const rowHeight = data.rowHeights?.[rowIndex];
               return (
                 <div
                   key={virtualRow.key}
-                  className={`flex absolute w-full border-b border-border ${
+                  className={`flex absolute w-full border-b border-border group relative ${
                     rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                   }`}
                   style={{
-                    height: `${virtualRow.size}px`,
+                    height: rowHeight ? `${rowHeight}px` : `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
                   <div
                     onMouseDown={() => handleRowMouseDown(rowIndex)}
                     onMouseEnter={() => handleRowMouseEnter(rowIndex)}
-                    className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none"
+                    className="w-14 shrink-0 border-r border-border text-center text-xs text-muted-foreground font-mono bg-muted/50 sticky left-0 flex items-center justify-center cursor-pointer hover:bg-muted/80 hover:text-primary transition-colors select-none relative"
                     style={{
                       cursor:
                         "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5l7 7-7 7'/></svg>\") 8 8, e-resize",
                     }}
                   >
                     {rowIndex + 2}
+                    {/* Row resize handle */}
+                    <div
+                      onMouseDown={(e) => handleRowResizeStart(rowIndex, e)}
+                      className="absolute bottom-0 left-0 right-0 h-1 bg-transparent hover:bg-primary/50 cursor-row-resize group-hover:h-1.5 transition-all"
+                      style={{
+                        cursor: 'row-resize',
+                      }}
+                    />
                   </div>
                   {data.headers.map((_, colIndex) => {
                     const cellRef = createCellRef(colIndex, rowIndex);
                     const cellValue = row[colIndex];
                     const mergeInfo = getCellMergeInfo(colIndex, rowIndex);
 
-                    // Skip rendering non-master cells in a merged range
+                    // For non-master cells in merged range, render invisible placeholder with matching width
                     if (mergeInfo && !mergeInfo.isMasterCell) {
-                      return null;
+                      return (
+                        <div
+                          key={colIndex}
+                          className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border"
+                          style={{
+                            visibility: 'hidden',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      );
                     }
 
-                    // Calculate the width and height for merged cells
-                    const baseColWidth = 100; // base width in pixels (matches w-[100px])
-                    const baseRowHeight = 36; // ROW_HEIGHT constant
-                    const spanWidth = mergeInfo ? mergeInfo.colSpan * baseColWidth : baseColWidth;
-                    const spanHeight = mergeInfo ? mergeInfo.rowSpan * baseRowHeight : baseRowHeight;
+                    // For master cells with colspan, adjust the flex basis
+                    const baseWidth = 100; // matches default w-[100px] in pixels
+                    const mergedColSpan = mergeInfo?.colSpan || 1;
+                    const totalWidthForMerged = baseWidth * mergedColSpan;
 
                     return (
                       <div
@@ -951,15 +1103,25 @@ const ExcelPreview = ({
                         className={`shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}
                         style={{
                           ...getCellStyle(cellRef),
-                          width: `${spanWidth}px`,
-                          minWidth: `${spanWidth}px`,
-                          maxWidth: `${spanWidth}px`,
-                          ...(mergeInfo && mergeInfo.rowSpan > 1 && {
-                            height: `${spanHeight}px`,
-                            minHeight: `${spanHeight}px`,
-                            maxHeight: `${spanHeight}px`,
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                          ...(mergeInfo && mergeInfo.colSpan > 1 && {
+                            width: `${totalWidthForMerged}px`,
+                            minWidth: `${totalWidthForMerged}px`,
+                            maxWidth: `${totalWidthForMerged}px`,
+                            flexBasis: `${totalWidthForMerged}px`,
+                          }),
+                          // Apply default sizes if not merged
+                          ...(!(mergeInfo && mergeInfo.colSpan > 1) && {
+                            width: `${baseWidth}px`,
+                            minWidth: '80px',
+                            maxWidth: '150px',
+                            flexBasis: `${baseWidth}px`,
+                          }),
+                          // Apply wrap text style if enabled
+                          ...(data.cellStyles[cellRef]?.wrapText && {
+                            whiteSpace: 'normal',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            hyphens: 'auto',
                           }),
                         }}
                       >

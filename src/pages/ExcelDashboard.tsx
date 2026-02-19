@@ -1339,6 +1339,187 @@ Gunakan format JSON wajib berikut:
     return analyzeDataForCleansing(excelData);
   }, [excelData]);
 
+  const handleMergeCells = useCallback(() => {
+    if (!excelData || excelData.selectedCells.length < 2) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot merge',
+        description: 'Please select 2 or more cells to merge',
+      });
+      return;
+    }
+
+    const beforeData = cloneExcelData(excelData);
+    let newData = cloneExcelData(excelData);
+
+    // Get all selected cell coordinates
+    const selectedCoords = excelData.selectedCells
+      .map((ref) => parseCellRef(ref))
+      .filter((p): p is { col: number; row: number; excelRow: number } => !!p);
+
+    if (selectedCoords.length < 2) return;
+
+    // Find the bounding box of selected cells
+    const minRow = Math.min(...selectedCoords.map((c) => c.row));
+    const maxRow = Math.max(...selectedCoords.map((c) => c.row));
+    const minCol = Math.min(...selectedCoords.map((c) => c.col));
+    const maxCol = Math.max(...selectedCoords.map((c) => c.col));
+
+    // Create merge range
+    const newMerge = { startRow: minRow, endRow: maxRow, startCol: minCol, endCol: maxCol };
+
+    // Initialize mergedCells if not exists
+    if (!newData.mergedCells) {
+      newData.mergedCells = [];
+    }
+
+    // Check if merge already exists or overlaps
+    const overlaps = newData.mergedCells.some((m) => {
+      return !(maxRow < m.startRow || minRow > m.endRow || maxCol < m.startCol || minCol > m.endCol);
+    });
+
+    if (overlaps) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot merge',
+        description: 'Selected cells overlap with existing merge',
+      });
+      return;
+    }
+
+    // Add merge range
+    newData.mergedCells.push(newMerge);
+
+    // Fill all cells in range with master cell value (first cell value)
+    const masterValue = newData.rows[minRow]?.[minCol];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (r > minRow || c > minCol) {
+          newData.rows[r][c] = masterValue;
+        }
+      }
+    }
+
+    pushState(beforeData, newData, 'EDIT_CELL', `Merged cells ${createCellRef(minCol, minRow)}:${createCellRef(maxCol, maxRow)}`);
+    newData.selectedCells = [];
+    setExcelData(newData);
+    toast({ title: 'Merged', description: 'Cells merged successfully' });
+  }, [excelData, pushState, toast]);
+
+  const handleUnmergeCells = useCallback(() => {
+    if (!excelData || excelData.selectedCells.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot unmerge',
+        description: 'Please select cells to unmerge',
+      });
+      return;
+    }
+
+    const beforeData = cloneExcelData(excelData);
+    let newData = cloneExcelData(excelData);
+
+    if (!newData.mergedCells || newData.mergedCells.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No merged cells',
+        description: 'There are no merged cells to unmerge',
+      });
+      return;
+    }
+
+    // Find merges that contain selected cells
+    const selectedCoords = excelData.selectedCells
+      .map((ref) => parseCellRef(ref))
+      .filter((p): p is { col: number; row: number; excelRow: number } => !!p);
+
+    let mergesRemoved = 0;
+    newData.mergedCells = newData.mergedCells.filter((merge) => {
+      const isInMerge = selectedCoords.some(
+        (coord) =>
+          coord.col >= merge.startCol &&
+          coord.col <= merge.endCol &&
+          coord.row >= merge.startRow &&
+          coord.row <= merge.endRow
+      );
+
+      if (isInMerge) {
+        mergesRemoved++;
+        return false; // Remove this merge
+      }
+      return true;
+    });
+
+    if (mergesRemoved === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No merged cells found',
+        description: 'Selected cells are not part of any merge',
+      });
+      return;
+    }
+
+    pushState(beforeData, newData, 'EDIT_CELL', `Unmerged ${mergesRemoved} cell range(s)`);
+    newData.selectedCells = [];
+    setExcelData(newData);
+    toast({ title: 'Unmerged', description: `${mergesRemoved} merge range(s) removed` });
+  }, [excelData, pushState, toast]);
+
+  const handleSetColumnWidth = useCallback(
+    (colIndex: number, width: number) => {
+      if (!excelData) return;
+      const newData = cloneExcelData(excelData);
+      if (!newData.columnWidths) {
+        newData.columnWidths = {};
+      }
+      newData.columnWidths[colIndex] = Math.max(50, width); // Min 50px
+      setExcelData(newData);
+    },
+    [excelData]
+  );
+
+  const handleSetRowHeight = useCallback(
+    (rowIndex: number, height: number) => {
+      if (!excelData) return;
+      const newData = cloneExcelData(excelData);
+      if (!newData.rowHeights) {
+        newData.rowHeights = {};
+      }
+      newData.rowHeights[rowIndex] = Math.max(20, height); // Min 20px
+      setExcelData(newData);
+    },
+    [excelData]
+  );
+
+  const handleToggleWrapText = useCallback(() => {
+    if (!excelData || excelData.selectedCells.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No cells selected',
+        description: 'Please select cells to toggle wrap text',
+      });
+      return;
+    }
+
+    const beforeData = cloneExcelData(excelData);
+    let newData = cloneExcelData(excelData);
+
+    excelData.selectedCells.forEach((cellRef) => {
+      if (!newData.cellStyles) {
+        newData.cellStyles = {};
+      }
+      if (!newData.cellStyles[cellRef]) {
+        newData.cellStyles[cellRef] = {};
+      }
+      // Toggle wrap text
+      newData.cellStyles[cellRef].wrapText = !newData.cellStyles[cellRef].wrapText;
+    });
+
+    pushState(beforeData, newData, 'EDIT_CELL', `Toggled wrap text for ${excelData.selectedCells.length} cells`);
+    setExcelData(newData);
+    toast({ title: 'Wrap text updated' });
+  }, [excelData, pushState, toast]);
+
   return (
     <div className="flex flex-1 flex-col h-full overflow-hidden">
       {excelData && (
@@ -1390,6 +1571,11 @@ Gunakan format JSON wajib berikut:
               selectedCellRef={selectedCellRef}
               onFormulaBarChange={handleFormulaBarChange}
               onFormulaBarCommit={handleFormulaCommit}
+              onMergeCells={handleMergeCells}
+              onUnmergeCells={handleUnmergeCells}
+              onToggleWrapText={handleToggleWrapText}
+              onSetColumnWidth={handleSetColumnWidth}
+              onSetRowHeight={handleSetRowHeight}
             />
           )}
         </div>
