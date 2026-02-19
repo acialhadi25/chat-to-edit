@@ -1,15 +1,12 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 
 interface FileHistoryRecord {
   id: string;
-  user_id: string;
-  file_name: string;
-  rows_count: number;
-  sheets_count: number;
-  formulas_applied: number;
-  created_at: string;
+  fileName: string;
+  rowsCount: number;
+  sheetsCount: number;
+  formulasApplied: number;
+  createdAt: string;
 }
 
 interface UseFileHistoryReturn {
@@ -19,69 +16,80 @@ interface UseFileHistoryReturn {
     sheetsCount: number
   ) => Promise<FileHistoryRecord | null>;
   updateFormulasCount: (fileHistoryId: string, count: number) => Promise<void>;
+  getFileHistory: () => FileHistoryRecord[];
+  clearFileHistory: () => void;
 }
 
-export const useFileHistory = (): UseFileHistoryReturn => {
-  const { user } = useAuth();
+const STORAGE_KEY = 'chat_to_excel_file_history';
+const MAX_HISTORY = 10; // Keep only last 10 files
 
+export const useFileHistory = (): UseFileHistoryReturn => {
   const saveFileRecord = useCallback(
     async (fileName: string, rowsCount: number, sheetsCount: number) => {
-      if (!user) return null;
+      const record: FileHistoryRecord = {
+        id: crypto.randomUUID(),
+        fileName,
+        rowsCount,
+        sheetsCount,
+        formulasApplied: 0,
+        createdAt: new Date().toISOString(),
+      };
 
-      const { data, error } = await supabase
-        .from('file_history')
-        .insert({
-          user_id: user.id,
-          file_name: fileName,
-          rows_count: rowsCount,
-          sheets_count: sheetsCount,
-          formulas_applied: 0,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to save file history:', error);
+      try {
+        const existing = localStorage.getItem(STORAGE_KEY);
+        const history: FileHistoryRecord[] = existing ? JSON.parse(existing) : [];
+        
+        // Add new record at the beginning
+        history.unshift(record);
+        
+        // Keep only last MAX_HISTORY records
+        const trimmed = history.slice(0, MAX_HISTORY);
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        return record;
+      } catch (error) {
+        console.error('Failed to save file history to local storage:', error);
         return null;
       }
-
-      // Increment usage counter
-      await supabase.rpc('reset_monthly_usage').then(() => {
-        // After resetting if needed, increment
-        supabase
-          .from('profiles')
-          .update({
-            files_used_this_month: (data as FileHistoryRecord)?.files_used_this_month ?? 1,
-          })
-          .eq('user_id', user.id);
-      });
-
-      // Simpler: just increment via raw update
-      await supabase
-        .from('profiles')
-        .select('files_used_this_month')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          if (profile) {
-            supabase
-              .from('profiles')
-              .update({
-                files_used_this_month: profile.files_used_this_month + 1,
-              })
-              .eq('user_id', user.id)
-              .then(() => {});
-          }
-        });
-
-      return data;
     },
-    [user]
+    []
   );
 
   const updateFormulasCount = useCallback(async (fileHistoryId: string, count: number) => {
-    await supabase.from('file_history').update({ formulas_applied: count }).eq('id', fileHistoryId);
+    try {
+      const existing = localStorage.getItem(STORAGE_KEY);
+      if (!existing) return;
+      
+      const history: FileHistoryRecord[] = JSON.parse(existing);
+      const updated = history.map(record =>
+        record.id === fileHistoryId
+          ? { ...record, formulasApplied: count }
+          : record
+      );
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to update formulas count:', error);
+    }
   }, []);
 
-  return { saveFileRecord, updateFormulasCount };
+  const getFileHistory = useCallback((): FileHistoryRecord[] => {
+    try {
+      const existing = localStorage.getItem(STORAGE_KEY);
+      return existing ? JSON.parse(existing) : [];
+    } catch (error) {
+      console.error('Failed to get file history:', error);
+      return [];
+    }
+  }, []);
+
+  const clearFileHistory = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear file history:', error);
+    }
+  }, []);
+
+  return { saveFileRecord, updateFormulasCount, getFileHistory, clearFileHistory };
 };

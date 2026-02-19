@@ -7,141 +7,92 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      chat_history: {
+      payments: {
         Row: {
-          content: string
-          created_at: string
-          file_history_id: string | null
-          formula: string | null
+          created_at: string | null
+          gross_amount: number
           id: string
-          role: string
-          tool_type: string
-          user_id: string
+          metadata: Json | null
+          order_id: string
+          payment_type: string | null
+          settlement_time: string | null
+          transaction_id: string | null
+          transaction_status: string
+          transaction_time: string | null
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          content: string
-          created_at?: string
-          file_history_id?: string | null
-          formula?: string | null
+          created_at?: string | null
+          gross_amount: number
           id?: string
-          role: string
-          tool_type?: string
-          user_id: string
+          metadata?: Json | null
+          order_id: string
+          payment_type?: string | null
+          settlement_time?: string | null
+          transaction_id?: string | null
+          transaction_status: string
+          transaction_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          content?: string
-          created_at?: string
-          file_history_id?: string | null
-          formula?: string | null
+          created_at?: string | null
+          gross_amount?: number
           id?: string
-          role?: string
-          tool_type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_history_file_history_id_fkey"
-            columns: ["file_history_id"]
-            isOneToOne: false
-            referencedRelation: "file_history"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contact_messages: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          message: string
-          name: string
-          subject: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          message: string
-          name: string
-          subject: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          message?: string
-          name?: string
-          subject?: string
-        }
-        Relationships: []
-      }
-      file_history: {
-        Row: {
-          created_at: string
-          file_name: string
-          formulas_applied: number
-          id: string
-          rows_count: number
-          sheets_count: number
-          tool_type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          formulas_applied?: number
-          id?: string
-          rows_count?: number
-          sheets_count?: number
-          tool_type?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          formulas_applied?: number
-          id?: string
-          rows_count?: number
-          sheets_count?: number
-          tool_type?: string
-          user_id?: string
+          metadata?: Json | null
+          order_id?: string
+          payment_type?: string | null
+          settlement_time?: string | null
+          transaction_id?: string | null
+          transaction_status?: string
+          transaction_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
-          created_at: string
-          email: string | null
-          files_used_this_month: number
+          avatar_url: string | null
+          created_at: string | null
+          credits_remaining: number | null
+          email: string
+          full_name: string | null
           id: string
-          plan: string
-          updated_at: string
-          user_id: string
+          subscription_end_date: string | null
+          subscription_status: string | null
+          subscription_tier: string | null
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          email?: string | null
-          files_used_this_month?: number
-          id?: string
-          plan?: string
-          updated_at?: string
-          user_id: string
+          avatar_url?: string | null
+          created_at?: string | null
+          credits_remaining?: number | null
+          email: string
+          full_name?: string | null
+          id: string
+          subscription_end_date?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          email?: string | null
-          files_used_this_month?: number
+          avatar_url?: string | null
+          created_at?: string | null
+          credits_remaining?: number | null
+          email?: string
+          full_name?: string | null
           id?: string
-          plan?: string
-          updated_at?: string
-          user_id?: string
+          subscription_end_date?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -150,7 +101,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      reset_monthly_usage: { Args: never; Returns: undefined }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

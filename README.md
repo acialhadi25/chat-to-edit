@@ -14,10 +14,12 @@ ChaTtoEdit provides four powerful Excel tools:
 
 ### Core Stack
 - **Frontend**: React 18 + TypeScript + Vite
+- **Spreadsheet Engine**: FortuneSheet (Luckysheet fork)
 - **Styling**: Tailwind CSS + shadcn-ui components
 - **Backend**: Supabase (Auth, Database, Edge Functions)
-- **AI Integration**: Lovable AI Gateway (Google Gemini 3 Flash)
+- **AI Integration**: DeepSeek API / Lovable AI Gateway
 - **File Processing**: xlsx, xlsx-js-style libraries
+- **State Management**: TanStack Query + React Hooks
 
 ### Project Structure
 ```
@@ -76,27 +78,43 @@ See `.env.example` for a complete template.
    ```
 
 ### Database Schema
-The app automatically creates required tables via migrations:
-- `profiles` - User profile, plan, monthly file usage
-- `file_history` - Processed files metadata
-- `chat_history` - Chat messages for persistence
+The app uses the following tables (deployed via Supabase Power):
+- `profiles` - User profiles with subscription management (free/pro/enterprise)
+- `file_history` - File upload history with metadata
+- `chat_history` - Chat conversation history with AI
+- `templates` - Custom Excel templates (public/private)
+- `payments` - Payment transactions via Midtrans
+
+All tables have Row Level Security (RLS) enabled for data protection.
 
 ## 🚀 Getting Started
 
-### Installation
+### Quick Start
+
 ```bash
 # Clone repository
 git clone <YOUR_GIT_URL>
-cd chattoedit
+cd chat-to-edit
 
 # Install dependencies
 npm install
+# or
+bun install
 
 # Start development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:8080`
+The app will be available at `http://localhost:5173`
+
+### First Time Setup
+
+1. **Register Account**: Create account at http://localhost:5173
+2. **Upload Excel**: Drag & drop or click to upload .xlsx, .xls, or .csv
+3. **Use AI Chat**: Type natural language commands
+4. **Apply Changes**: Review and apply AI suggestions
+
+See `QUICK_START.md` for detailed guide.
 
 ### Build for Production
 ```bash
@@ -354,7 +372,28 @@ For issues or questions:
 3. Verify VITE_SUPABASE_* and LOVABLE_API_KEY are correctly configured
 4. Check network requests in DevTools
 
+## 📖 Additional Documentation
+
+- `QUICK_START.md` - Quick start guide for users
+- `IMPLEMENTATION_STATUS.md` - Technical implementation details
+- `SUPABASE_SETUP.md` - Supabase backend setup guide
+- `SUPABASE_INTEGRATION_COMPLETE.md` - Integration status
+- `CODE_SPLITTING.md` - Code splitting strategy
+- `CONTRIBUTING.md` - Contribution guidelines
+
+## 🎉 Recent Updates
+
+### v1.1.0 (February 2026)
+- ✅ Integrated FortuneSheet for better spreadsheet experience
+- ✅ Migrated to new Supabase backend with full control
+- ✅ Added template system (save/load custom templates)
+- ✅ Improved database schema with RLS policies
+- ✅ Added subscription management (free/pro/enterprise)
+- ✅ Enhanced TypeScript types for type safety
+- ✅ Optimized build size and performance
+
 ---
 
-**Last Updated**: February 2025
-**Version**: 1.0.0-beta
+**Last Updated**: February 19, 2026
+**Version**: 1.1.0
+**Status**: Production Ready

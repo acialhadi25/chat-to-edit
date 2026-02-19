@@ -7,9 +7,8 @@ import ExcelPreview, { ExcelPreviewHandle } from '@/components/dashboard/ExcelPr
 import ChatInterface, { ChatInterfaceHandle } from '@/components/dashboard/ChatInterface';
 import UndoRedoBar from '@/components/dashboard/UndoRedoBar';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
-import CreateTemplateModal from '@/components/dashboard/CreateTemplateModal';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, X, FileSpreadsheet, Save, Wand2, Sparkles } from 'lucide-react';
+import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles } from 'lucide-react';
 import { ExcelTemplate } from '@/types/template';
 import { ExcelData, ChatMessage, AIAction, DataChange, XSpreadsheetSheet } from '@/types/excel';
 import { analyzeDataForCleansing } from '@/utils/excelOperations';
@@ -28,7 +27,6 @@ const ExcelDashboard = () => {
   const [fileHistoryId, setFileHistoryId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
-  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const spreadsheetDataRef = useRef<XSpreadsheetSheet[] | null>(null);
 
   const { saveFileRecord } = useFileHistory();
@@ -233,14 +231,6 @@ const ExcelDashboard = () => {
                   <Sparkles className="h-3.5 w-3.5" /> Insights
                 </Button>
                 <div className="flex-grow" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCreateTemplate(true)}
-                  className="h-8 gap-2"
-                >
-                  <Save className="h-3.5 w-3.5" /> Save as Template
-                </Button>
                 <Button variant="outline" size="sm" onClick={handleClearFile} className="h-8 gap-2">
                   <X className="h-3.5 w-3.5" /> Start Over
                 </Button>
@@ -263,13 +253,6 @@ const ExcelDashboard = () => {
               setShowTemplateGallery(false);
             }}
             onClose={() => setShowTemplateGallery(false)}
-          />
-        )}
-        {excelData && (
-          <CreateTemplateModal
-            open={showCreateTemplate}
-            onOpenChange={setShowCreateTemplate}
-            currentExcelData={excelData}
           />
         )}
 
