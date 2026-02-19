@@ -76,6 +76,7 @@ interface ExcelPreviewProps {
 }
 
 const ROW_HEIGHT = 36;
+const DEFAULT_COLUMN_WIDTH = 120; // Fixed column width in pixels
 
 const ExcelPreview = ({
   data,
@@ -135,6 +136,14 @@ const ExcelPreview = ({
     data.pendingChanges.forEach((c) => map.set(c.cellRef, c));
     return map;
   }, [data.pendingChanges]);
+
+  // Helper to get column width (respects custom widths)
+  const getColumnWidth = useCallback(
+    (colIndex: number) => {
+      return data.columnWidths?.[colIndex] || DEFAULT_COLUMN_WIDTH;
+    },
+    [data.columnWidths]
+  );
 
   // Helper to find which merge range a cell belongs to
   const getCellMergeInfo = useCallback(
@@ -976,36 +985,34 @@ const ExcelPreview = ({
               <span className="text-xs text-muted-foreground">#</span>
             </div>
             {data.headers.map((header, index) => {
-              const colWidth = data.columnWidths?.[index];
+              const colWidth = getColumnWidth(index);
               return (
                 <div
                   key={index}
                   onMouseDown={() => handleColumnMouseDown(index)}
                   onMouseEnter={() => handleColumnMouseEnter(index)}
-                  className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border font-semibold bg-muted px-2 sm:px-4 py-2 cursor-pointer hover:bg-muted/80 group relative select-none"
+                  className="shrink-0 border-r border-border font-semibold bg-muted px-2 py-2 cursor-pointer hover:bg-muted/80 group relative select-none flex flex-col justify-center"
                   style={{
-                    ...(colWidth && {
-                      width: `${colWidth}px`,
-                      minWidth: `${colWidth}px`,
-                      maxWidth: `${colWidth}px`,
-                      flexBasis: `${colWidth}px`,
-                    }),
+                    width: `${colWidth}px`,
+                    minWidth: `${colWidth}px`,
+                    maxWidth: `${colWidth}px`,
+                    flexBasis: `${colWidth}px`,
                     cursor:
                       "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M19 12l-7 7-7-7'/></svg>\") 8 8, s-resize",
                   }}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] sm:text-[10px] font-mono text-muted-foreground/70 group-hover:text-primary transition-colors">
+                    <span className="text-[9px] font-mono text-muted-foreground/70 group-hover:text-primary transition-colors">
                       {getColumnLetter(index)}
                     </span>
-                    <span className="truncate font-medium text-foreground text-xs sm:text-sm">
+                    <span className="truncate font-medium text-foreground text-xs">
                       {header || '(empty)'}
                     </span>
                   </div>
                   {/* Column resize handle */}
                   <div
                     onMouseDown={(e) => handleColumnResizeStart(index, e)}
-                    className="absolute right-0 top-0 bottom-0 w-1 bg-transparent hover:bg-primary/50 cursor-col-resize group-hover:w-1.5 transition-all"
+                    className="absolute right-0 top-0 bottom-0 w-0.5 bg-transparent hover:bg-primary/70 cursor-col-resize group-hover:w-1 transition-all"
                     style={{
                       cursor: 'col-resize',
                     }}
@@ -1065,11 +1072,16 @@ const ExcelPreview = ({
 
                     // For non-master cells in merged range, render invisible placeholder with matching width
                     if (mergeInfo && !mergeInfo.isMasterCell) {
+                      const colWidth = getColumnWidth(colIndex);
                       return (
                         <div
                           key={colIndex}
-                          className="min-w-[80px] sm:min-w-[100px] md:min-w-[120px] max-w-[150px] sm:max-w-[180px] md:max-w-[200px] w-[100px] sm:w-[130px] md:w-[150px] shrink-0 border-r border-border"
+                          className="shrink-0 border-r border-border"
                           style={{
+                            width: `${colWidth}px`,
+                            minWidth: `${colWidth}px`,
+                            maxWidth: `${colWidth}px`,
+                            flexBasis: `${colWidth}px`,
                             visibility: 'hidden',
                             pointerEvents: 'none',
                           }}
@@ -1077,10 +1089,16 @@ const ExcelPreview = ({
                       );
                     }
 
-                    // For master cells with colspan, adjust the flex basis
-                    const baseWidth = 100; // matches default w-[100px] in pixels
-                    const mergedColSpan = mergeInfo?.colSpan || 1;
-                    const totalWidthForMerged = baseWidth * mergedColSpan;
+                    // Calculate total width for merged cells
+                    let totalWidth = getColumnWidth(colIndex);
+                    if (mergeInfo && mergeInfo.colSpan > 1) {
+                      totalWidth = 0;
+                      for (let i = 0; i < mergeInfo.colSpan; i++) {
+                        totalWidth += getColumnWidth(colIndex + i);
+                      }
+                    }
+
+                    const isWrapText = data.cellStyles[cellRef]?.wrapText;
 
                     return (
                       <div
@@ -1100,28 +1118,22 @@ const ExcelPreview = ({
                             handleCellClick(colIndex, rowIndex, e as any);
                           }
                         }}
-                        className={`shrink-0 border-r border-border px-2 sm:px-4 flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${getCellClassName(cellRef)}`}
+                        className={`shrink-0 border-r border-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
+                          isWrapText ? 'flex flex-col justify-center' : 'flex items-center'
+                        } ${getCellClassName(cellRef)}`}
                         style={{
                           ...getCellStyle(cellRef),
-                          ...(mergeInfo && mergeInfo.colSpan > 1 && {
-                            width: `${totalWidthForMerged}px`,
-                            minWidth: `${totalWidthForMerged}px`,
-                            maxWidth: `${totalWidthForMerged}px`,
-                            flexBasis: `${totalWidthForMerged}px`,
-                          }),
-                          // Apply default sizes if not merged
-                          ...(!(mergeInfo && mergeInfo.colSpan > 1) && {
-                            width: `${baseWidth}px`,
-                            minWidth: '80px',
-                            maxWidth: '150px',
-                            flexBasis: `${baseWidth}px`,
-                          }),
+                          width: `${totalWidth}px`,
+                          minWidth: `${totalWidth}px`,
+                          maxWidth: `${totalWidth}px`,
+                          flexBasis: `${totalWidth}px`,
                           // Apply wrap text style if enabled
-                          ...(data.cellStyles[cellRef]?.wrapText && {
+                          ...(isWrapText && {
                             whiteSpace: 'normal',
                             wordWrap: 'break-word',
                             overflowWrap: 'break-word',
                             hyphens: 'auto',
+                            minHeight: `${ROW_HEIGHT}px`,
                           }),
                         }}
                       >
