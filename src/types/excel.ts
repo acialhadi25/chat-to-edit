@@ -199,6 +199,7 @@ export interface ExcelData {
       fontSize?: number;
       textAlign?: 'left' | 'center' | 'right';
       border?: boolean;
+      wrapText?: boolean;
     };
   };
   validationRules?: {
@@ -213,6 +214,7 @@ export interface ExcelData {
   frozenRows?: number; // Number of rows to freeze from the top (excluding header)
   frozenColumns?: number; // Number of columns to freeze from the left
   columnWidths?: { [columnIndex: number]: number }; // Custom column widths in pixels
+  rowHeights?: { [rowIndex: number]: number }; // Custom row heights in pixels
 }
 
 // Chat message structure
