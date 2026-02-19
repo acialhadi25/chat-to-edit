@@ -32,7 +32,7 @@ import {
   Sparkles,
   Save,
   Merge,
-  Unmerge,
+  Split,
   Type,
 } from 'lucide-react';
 import {
@@ -854,7 +854,7 @@ const ExcelPreview = ({
                 className="h-8 gap-1 text-xs border-blue-500/20 hover:bg-blue-500/5 hover:border-blue-500 text-blue-600"
                 aria-label="Unmerge selected cells"
               >
-                <Unmerge className="h-3.5 w-3.5" />
+                <Split className="h-3.5 w-3.5" />
                 Unmerge
               </Button>
             )}
