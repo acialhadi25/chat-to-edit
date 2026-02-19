@@ -66,6 +66,8 @@ export function validateExcelAction(action: unknown): ValidationResult {
       "INFO",
       "REMOVE_FORMULA",
       "COPY_COLUMN",
+      "GENERATE_DATA",
+      "ADD_COLUMN_WITH_DATA",
     ];
 
     if (!validTypes.includes(a.type as string)) {
@@ -90,9 +92,11 @@ export function validateExcelAction(action: unknown): ValidationResult {
       break;
 
     case "DATA_TRANSFORM":
+      // Check in both root level and params
+      const transformType = a.transformType || (a.params && (a.params as any).transformType);
       if (
-        !a.transformType ||
-        !["uppercase", "lowercase", "titlecase"].includes(a.transformType as string)
+        !transformType ||
+        !["uppercase", "lowercase", "titlecase"].includes(transformType as string)
       ) {
         errors.push(
           "DATA_TRANSFORM requires 'transformType' (uppercase, lowercase, or titlecase)"
@@ -113,8 +117,11 @@ export function validateExcelAction(action: unknown): ValidationResult {
       break;
 
     case "ADD_COLUMN":
-      if (!a.newColumnName || typeof a.newColumnName !== "string") {
-        errors.push("ADD_COLUMN requires 'newColumnName' field");
+      // Check in both root level and params
+      const hasNewColumnName = a.newColumnName || (a.params && (a.params as any).newColumnName);
+      if (!hasNewColumnName) {
+        // More lenient - only warn if missing, allow to proceed
+        warnings.push("ADD_COLUMN should have 'newColumnName' field");
       }
       break;
 
@@ -151,6 +158,27 @@ export function validateExcelAction(action: unknown): ValidationResult {
     case "CREATE_CHART":
       if (!a.chartType || a.xAxisColumn === undefined || !Array.isArray(a.yAxisColumns)) {
         errors.push("CREATE_CHART requires 'chartType', 'xAxisColumn', and 'yAxisColumns' fields");
+      }
+      break;
+
+    case "GENERATE_DATA":
+      // Check in both root level and params
+      const hasTarget = a.target || (a.params && (a.params as any).target);
+      const hasPatterns = a.patterns || (a.params && (a.params as any).patterns);
+      if (!hasTarget && !hasPatterns) {
+        // More lenient - only warn if BOTH are missing
+        warnings.push("GENERATE_DATA should have 'target' and 'patterns' fields");
+      }
+      break;
+
+    case "ADD_COLUMN_WITH_DATA":
+      // Check in both root level and params
+      const columns = a.columns || (a.params && (a.params as any).columns);
+      if (!columns) {
+        // More lenient - only warn if missing
+        warnings.push("ADD_COLUMN_WITH_DATA should have 'columns' array field");
+      } else if (!Array.isArray(columns)) {
+        errors.push("ADD_COLUMN_WITH_DATA 'columns' must be an array");
       }
       break;
 

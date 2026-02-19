@@ -47,6 +47,10 @@ const ExcelDashboard = () => {
   const { saveChatMessage } = useChatHistory();
 
   const {
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     pushState,
     clearHistory,
   } = useUndoRedo(null);
@@ -146,6 +150,9 @@ const ExcelDashboard = () => {
   const handleApplyAction = useCallback(
     async (action: AIAction) => {
       console.log('handleApplyAction called with:', action);
+      console.log('Action type:', action.type);
+      console.log('Action params:', action.params);
+      console.log('Action root level keys:', Object.keys(action));
       
       const currentData = excelData;
       if (!currentData) {
@@ -156,6 +163,8 @@ const ExcelDashboard = () => {
       const validation = validateExcelAction(action);
       if (!validation.isValid) {
         console.error('Action validation failed:', validation);
+        console.error('Validation errors:', validation.errors);
+        console.error('Full action object:', JSON.stringify(action, null, 2));
         toast({
           title: 'Invalid Action',
           description:
@@ -190,8 +199,18 @@ const ExcelDashboard = () => {
         return;
       }
 
+      console.log('Applying action to FortuneSheet via API...');
+      // Apply action to FortuneSheet using proper API
+      const applied = excelPreviewRef.current?.applyAction(actionWithChanges);
+      
+      if (applied) {
+        console.log('✅ Action applied to FortuneSheet successfully');
+      } else {
+        console.warn('⚠️ Action not fully applied to FortuneSheet, will sync via state');
+      }
+
       console.log('Applying changes to React state...');
-      // Apply to React state - FortuneSheet will sync automatically via useEffect
+      // Also apply to React state for undo/redo and persistence
       const { data: newData, description } = applyChanges(currentData, actionWithChanges.changes || []);
 
       setExcelData(newData);
@@ -423,6 +442,7 @@ const ExcelDashboard = () => {
               setIsProcessing={setIsProcessing}
               getDataAnalysis={getDataAnalysis}
               onUpdateAction={handleUpdateMessageAction}
+              onUndo={undo}
             />
           </div>
         </div>

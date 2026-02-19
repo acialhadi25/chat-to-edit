@@ -40,6 +40,7 @@ interface ChatInterfaceProps {
   setIsProcessing: (value: boolean) => void;
   getDataAnalysis: () => string[] | null;
   onUpdateAction: (messageId: string, updatedAction: AIAction) => void;
+  onUndo?: () => void; // NEW: Undo function
 }
 
 export interface ChatInterfaceHandle {
@@ -59,12 +60,14 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
       setIsProcessing,
       getDataAnalysis,
       onUpdateAction,
+      onUndo,
     },
     ref
   ) => {
     const [input, setInput] = useState('');
     const [streamingContent, setStreamingContent] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [appliedActions, setAppliedActions] = useState<Set<string>>(new Set()); // Track applied action IDs
     const scrollRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
@@ -266,31 +269,58 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                       <div className="text-xs font-medium text-muted-foreground">Quick Actions:</div>
                       <div className="flex flex-wrap gap-2">
                         {message.quickOptions.map((option) => {
-                          // Debug: Log option structure
-                          console.log('Quick option:', {
-                            id: option.id,
-                            label: option.label,
-                            hasAction: !!option.action,
-                            action: option.action,
-                            isApplyAction: option.isApplyAction,
-                          });
+                          // Check if this action has been applied
+                          const actionId = option.action?.id || option.id;
+                          const isApplied = appliedActions.has(actionId);
+                          
+                          // Determine button appearance based on state
+                          const buttonLabel = isApplied 
+                            ? (option.label.startsWith('✓') ? option.label.replace('✓', '✅') : `✅ ${option.label}`)
+                            : option.label;
+                          
+                          const buttonVariant = isApplied 
+                            ? 'outline' 
+                            : (option.variant === 'success' ? 'default' : option.variant === 'destructive' ? 'destructive' : 'outline');
                           
                           return (
                             <Button
                               key={option.id}
                               size="sm"
-                              variant={option.variant === 'success' ? 'default' : option.variant === 'destructive' ? 'destructive' : 'outline'}
+                              variant={buttonVariant}
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 
+                                // If already applied and this is a "Batalkan" button, call undo
+                                if (isApplied && (option.label.toLowerCase().includes('batal') || option.label.toLowerCase().includes('undo'))) {
+                                  console.log('Undo action:', actionId);
+                                  if (onUndo) {
+                                    onUndo();
+                                    setAppliedActions(prev => {
+                                      const next = new Set(prev);
+                                      next.delete(actionId);
+                                      return next;
+                                    });
+                                    toast({ title: 'Perubahan dibatalkan', description: 'Action berhasil di-undo' });
+                                  }
+                                  return;
+                                }
+                                
+                                // If already applied, don't apply again
+                                if (isApplied && option.isApplyAction) {
+                                  toast({ 
+                                    title: 'Sudah diterapkan', 
+                                    description: 'Action ini sudah diterapkan sebelumnya',
+                                    variant: 'default'
+                                  });
+                                  return;
+                                }
+                                
                                 console.log('Button clicked for option:', option.label);
-                                console.log('Option has action?', !!option.action);
-                                console.log('Full option:', option);
                                 
                                 // Priority 1: Use action if exists
                                 if (option.action) {
-                                  // Normalize action structure - move all properties to params if not already there
+                                  // Normalize action structure
                                   const normalizedAction = {
                                     id: option.action.id || crypto.randomUUID(),
                                     type: option.action.type,
@@ -300,7 +330,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                     changes: option.action.changes || [],
                                     params: {
                                       ...option.action.params,
-                                      // Copy root-level properties to params if they exist
                                       ...(option.action as any).target && { target: (option.action as any).target },
                                       ...(option.action as any).formula && { formula: (option.action as any).formula },
                                       ...(option.action as any).transformType && { transformType: (option.action as any).transformType },
@@ -308,13 +337,18 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                       ...(option.action as any).sortDirection && { sortDirection: (option.action as any).sortDirection },
                                     },
                                   };
-                                  console.log('Normalized action:', normalizedAction);
+                                  
+                                  console.log('Applying action:', normalizedAction);
                                   onApplyAction(normalizedAction);
+                                  
+                                  // Mark as applied
+                                  setAppliedActions(prev => new Set(prev).add(actionId));
                                 }
                                 // Priority 2: If isApplyAction is true but no action, use main message action
                                 else if (option.isApplyAction && message.action) {
                                   console.log('Using main message action');
                                   onApplyAction(message.action);
+                                  setAppliedActions(prev => new Set(prev).add(actionId));
                                 }
                                 // Priority 3: Send as message
                                 else {
@@ -322,10 +356,14 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                   sendMessage(option.value, option.label);
                                 }
                               }}
-                              disabled={isProcessing}
-                              className={option.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+                              disabled={isProcessing || (isApplied && !option.label.toLowerCase().includes('batal'))}
+                              className={
+                                isApplied 
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200 border-green-300' 
+                                  : (option.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : '')
+                              }
                             >
-                              {option.label}
+                              {buttonLabel}
                             </Button>
                           );
                         })}

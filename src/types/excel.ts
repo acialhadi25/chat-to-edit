@@ -21,8 +21,9 @@ export interface DataChange {
   col: number;
   oldValue: CellValue;
   newValue: CellValue;
-  type?: 'CELL_UPDATE' | 'ROW_DELETE' | 'COLUMN_DELETE' | 'COLUMN_RENAME';
+  type?: 'CELL_UPDATE' | 'ROW_DELETE' | 'COLUMN_DELETE' | 'COLUMN_RENAME' | 'COLUMN_ADD';
   params?: Record<string, unknown>;
+  columnName?: string; // For COLUMN_ADD type
 }
 
 export type ActionType =
@@ -60,7 +61,9 @@ export type ActionType =
   | 'CREATE_CHART'
   | 'DATA_AUDIT'
   | 'INSIGHTS'
-  | 'COPY_COLUMN';
+  | 'COPY_COLUMN'
+  | 'GENERATE_DATA'
+  | 'ADD_COLUMN_WITH_DATA';
 
 export interface AIAction {
   id?: string;

@@ -75,6 +75,26 @@ export function applyChanges(
 
   for (const [type, changeGroup] of Object.entries(changesByType)) {
     switch (type) {
+      case 'COLUMN_ADD': {
+        // Handle adding new columns (headers)
+        const newHeaders = [...newData.headers];
+        const newRows = newData.rows.map(row => [...row]);
+        
+        changeGroup.forEach((change: any) => {
+          // Add header
+          newHeaders[change.col] = change.newValue;
+          // Ensure all rows have the new column (will be filled by CELL_UPDATE changes)
+          newRows.forEach(row => {
+            if (row.length <= change.col) {
+              row[change.col] = null;
+            }
+          });
+        });
+        
+        newData = { ...newData, headers: newHeaders, rows: newRows };
+        descriptions.push(`Added ${changeGroup.length} column(s)`);
+        break;
+      }
       case 'CELL_UPDATE':
         newData = applyCellUpdates(newData, changeGroup);
         descriptions.push(`Updated ${changeGroup.length} cell(s)`);

@@ -3,6 +3,7 @@ import { Workbook } from '@fortune-sheet/react';
 import '@fortune-sheet/react/dist/index.css';
 import '@/styles/fortunesheet-override.css';
 import { ExcelData, AIAction, CellValue, createCellRef } from '@/types/excel';
+import { applyActionToFortuneSheet, syncFortuneSheetWithData, type FortuneSheetRef } from '@/utils/fortuneSheetOperations';
 
 export interface ExcelPreviewHandle {
   applyAction: (action: AIAction) => void;
@@ -112,11 +113,11 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
     const workbookRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Expose imperative methods (kept for compatibility)
-    // NOTE: applyAction is no longer used - FortuneSheet syncs automatically via data prop
+    // Expose imperative methods using FortuneSheet operations
     useImperativeHandle(ref, () => ({
-      applyAction: () => {
-        console.log('applyAction called but not needed - FortuneSheet syncs via React state');
+      applyAction: (action: AIAction) => {
+        console.log('applyAction called with:', action.type);
+        return applyActionToFortuneSheet(workbookRef.current as FortuneSheetRef, action, data);
       },
 
       getData: () => {
@@ -131,34 +132,15 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       return convertToFortuneSheetFormat(data);
     }, [data]);
 
-    // Update FortuneSheet when data changes using proper API
+    // Update FortuneSheet when data changes using FortuneSheet operations
     useEffect(() => {
       if (!workbookRef.current) {
         console.log('Workbook ref not ready yet');
         return;
       }
 
-      console.log('Updating FortuneSheet via API, rows:', data.rows.length);
-      
-      try {
-        // Update all cells including new rows
-        data.rows.forEach((row, rowIndex) => {
-          row.forEach((cellValue, colIndex) => {
-            // Always update to ensure new rows are added
-            // Use setCellValue API from workbook ref
-            // Row index: rowIndex + 1 (because row 0 is headers in FortuneSheet)
-            workbookRef.current.setCellValue(
-              rowIndex + 1, 
-              colIndex, 
-              cellValue ?? ''  // Use empty string for null/undefined
-            );
-          });
-        });
-        
-        console.log(`✅ FortuneSheet updated: ${data.rows.length} data rows`);
-      } catch (error) {
-        console.error('Error updating FortuneSheet:', error);
-      }
+      console.log('Syncing FortuneSheet with data, rows:', data.rows.length);
+      syncFortuneSheetWithData(workbookRef.current as FortuneSheetRef, data);
     }, [data]);
 
     // Add resize observer to trigger FortuneSheet resize - MORE AGGRESSIVE
