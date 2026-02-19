@@ -1,14 +1,13 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useFileHistory } from '@/hooks/useFileHistory';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import ExcelUpload from '@/components/dashboard/ExcelUpload';
-import ExcelPreview, { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 import ChatInterface, { ChatInterfaceHandle } from '@/components/dashboard/ChatInterface';
 import UndoRedoBar from '@/components/dashboard/UndoRedoBar';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles, Download } from 'lucide-react';
+import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles, Download, Loader2 } from 'lucide-react';
 import { ExcelTemplate } from '@/types/template';
 import { ExcelData, ChatMessage, AIAction, DataChange, XSpreadsheetSheet } from '@/types/excel';
 import { analyzeDataForCleansing } from '@/utils/excelOperations';
@@ -17,6 +16,20 @@ import { useToast } from '@/hooks/use-toast';
 import { convertXlsxToExcelData } from '@/utils/xlsxConverter';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
 import * as XLSX from 'xlsx';
+import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
+
+// Lazy load ExcelPreview to reduce initial bundle size
+const ExcelPreview = lazy(() => import('@/components/dashboard/ExcelPreview'));
+
+// Loading fallback for ExcelPreview
+const ExcelPreviewLoader = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-center">
+      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+      <p className="text-sm text-muted-foreground">Loading spreadsheet...</p>
+    </div>
+  </div>
+);
 
 const ExcelDashboard = () => {
   const { toast } = useToast();
@@ -294,11 +307,13 @@ const ExcelDashboard = () => {
                 </Button>
               </div>
               <div className="flex-1 relative min-h-0">
-                <ExcelPreview 
-                  ref={excelPreviewRef}
-                  data={excelData} 
-                  onDataChange={handleSpreadsheetDataChange} 
-                />
+                <Suspense fallback={<ExcelPreviewLoader />}>
+                  <ExcelPreview 
+                    ref={excelPreviewRef}
+                    data={excelData} 
+                    onDataChange={handleSpreadsheetDataChange} 
+                  />
+                </Suspense>
               </div>
             </>
           )}
