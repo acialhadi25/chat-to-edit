@@ -1,155 +1,283 @@
-import React, { useEffect, useRef, memo } from 'react';
-import Spreadsheet from 'x-data-spreadsheet';
-import 'x-data-spreadsheet/dist/xspreadsheet.css';
-import {
-  ExcelData,
-  XSpreadsheetSheet,
-  XSpreadsheetCell,
-  XSpreadsheetStyle,
-  CellValue,
-  createCellRef,
-} from '@/types/excel';
+import { useRef, memo, forwardRef, useImperativeHandle } from 'react';
+import { Workbook } from '@fortune-sheet/react';
+import '@fortune-sheet/react/dist/index.css';
+import { ExcelData, AIAction, CellValue, createCellRef } from '@/types/excel';
+
+export interface ExcelPreviewHandle {
+  applyAction: (action: AIAction) => void;
+  getData: () => any;
+}
 
 interface ExcelPreviewProps {
   data: ExcelData;
-  onDataChange: (data: XSpreadsheetSheet[]) => void;
+  onDataChange?: (data: any) => void;
 }
 
-const SPARE_COL_COUNT = 5;
-const SPARE_ROW_COUNT = 10;
-const PENDING_CHANGE_BG = 'rgba(255, 255, 0, 0.3)';
+const PENDING_CHANGE_BG = '#fff3cd';
 
-// This interface is specific to the structure x-spreadsheet expects for its row data.
-interface XSpreadsheetRowsObject {
-  len: number;
-  [key: number]: { cells: { [key: number]: XSpreadsheetCell } };
-}
-
-// This function converts our app's data format to the x-spreadsheet format
-const convertToXlsxData = (excelData: ExcelData): XSpreadsheetSheet[] => {
+// Convert ExcelData to FortuneSheet format
+const convertToFortuneSheetFormat = (excelData: ExcelData) => {
   const headers = Array.isArray(excelData.headers) ? excelData.headers : [];
   const rowsData = Array.isArray(excelData.rows) ? excelData.rows : [];
 
-  const totalRows = rowsData.length + SPARE_ROW_COUNT + 1;
-  const totalCols = headers.length + SPARE_COL_COUNT;
-  const rows: XSpreadsheetRowsObject = { len: totalRows };
-  const sheetStyles: XSpreadsheetStyle[] = [];
-  const styleMap = new Map<string, number>();
-
-  const getStyleIndex = (styleObj: XSpreadsheetStyle | undefined | null): number | undefined => {
-    if (!styleObj || Object.keys(styleObj).length === 0) return undefined;
-    const styleKey = JSON.stringify(styleObj);
-    if (styleMap.has(styleKey)) return styleMap.get(styleKey);
-    const index = sheetStyles.length;
-    sheetStyles.push(styleObj);
-    styleMap.set(styleKey, index);
-    return index;
-  };
-
+  // Create pending changes map for highlighting
   const pendingChangeMap = new Map<string, CellValue>();
   (excelData.pendingChanges || []).forEach((change) => {
     pendingChangeMap.set(createCellRef(change.col, change.row), change.newValue);
   });
 
-  const headerStyleIndex = getStyleIndex({
-    color: '#000',
-    bgcolor: '#f4f4f4',
-    align: 'center',
-    valign: 'middle',
-    font: { bold: true },
-  });
-  const headerCells: { [key: number]: XSpreadsheetCell } = {};
-  for (let i = 0; i < totalCols; i++) {
-    headerCells[i] = { text: headers[i] || '', style: headerStyleIndex };
-  }
-  rows[0] = { cells: headerCells };
+  // Convert to celldata format (FortuneSheet uses celldata array)
+  const celldata: any[] = [];
 
-  for (let r = 0; r < rowsData.length; r++) {
-    const row = rowsData[r];
-    const cells: { [key: number]: XSpreadsheetCell } = {};
-    for (let c = 0; c < headers.length; c++) {
-      const cellRef = createCellRef(c, r);
+  // Add headers (row 0)
+  headers.forEach((header, colIndex) => {
+    celldata.push({
+      r: 0,
+      c: colIndex,
+      v: {
+        v: header,
+        m: header,
+        ct: { fa: 'General', t: 'g' },
+        bg: '#f4f4f4',
+        bl: 1, // bold
+        ht: 1, // horizontal align center
+        vt: 1, // vertical align middle
+      },
+    });
+  });
+
+  // Add data rows
+  rowsData.forEach((row, rowIndex) => {
+    row.forEach((cellValue, colIndex) => {
+      const cellRef = createCellRef(colIndex, rowIndex);
       const isPending = pendingChangeMap.has(cellRef);
-      const displayValue = isPending ? pendingChangeMap.get(cellRef) : row ? row[c] : '';
+      const displayValue = isPending ? pendingChangeMap.get(cellRef) : cellValue;
       const originalStyle = excelData.cellStyles?.[cellRef];
-      let finalStyleIndex;
+
+      const cellConfig: any = {
+        r: rowIndex + 1, // +1 because row 0 is headers
+        c: colIndex,
+        v: {
+          v: displayValue ?? '',
+          m: String(displayValue ?? ''),
+          ct: { fa: 'General', t: 'g' },
+        },
+      };
+
+      // Apply pending change highlight
       if (isPending) {
-        const combinedStyle: XSpreadsheetStyle = {
-          ...(originalStyle || {}),
-          bgcolor: PENDING_CHANGE_BG,
-        };
-        finalStyleIndex = getStyleIndex(combinedStyle);
-      } else {
-        finalStyleIndex = getStyleIndex(originalStyle);
+        cellConfig.v.bg = PENDING_CHANGE_BG;
+      } else if (originalStyle?.bgcolor) {
+        cellConfig.v.bg = originalStyle.bgcolor;
       }
-      cells[c] = { text: String(displayValue ?? ''), style: finalStyleIndex };
-    }
-    rows[r + 1] = { cells };
-  }
+
+      // Apply other styles
+      if (originalStyle) {
+        if (originalStyle.color) cellConfig.v.fc = originalStyle.color;
+        if (originalStyle.font?.bold) cellConfig.v.bl = 1;
+        if (originalStyle.font?.italic) cellConfig.v.it = 1;
+        if (originalStyle.align === 'center') cellConfig.v.ht = 1;
+        if (originalStyle.align === 'right') cellConfig.v.ht = 2;
+        if (originalStyle.valign === 'middle') cellConfig.v.vt = 1;
+        if (originalStyle.valign === 'bottom') cellConfig.v.vt = 2;
+      }
+
+      celldata.push(cellConfig);
+    });
+  });
+
+  // Column widths
+  const columnlen: any = {};
+  headers.forEach((_, index) => {
+    columnlen[index] = excelData.columnWidths?.[index] || 120;
+  });
 
   return [
     {
       name: excelData.currentSheet || 'Sheet1',
-      freeze: 'A2',
-      styles: sheetStyles,
-      cols: {
-        len: totalCols,
-        ...headers.reduce(
-          (acc, _, index) => ({
-            ...acc,
-            [index]: { width: excelData.columnWidths?.[index] || 120 },
-          }),
-          {}
-        ),
+      celldata,
+      config: {
+        columnlen,
+        rowlen: {},
       },
-      rows,
+      frozen: {
+        type: 'row' as const,
+        range: { row_focus: 1, column_focus: 0 },
+      },
+      row: rowsData.length + 20, // Add extra rows
+      column: headers.length + 5, // Add extra columns
     },
   ];
 };
 
-const ExcelPreview: React.FC<ExcelPreviewProps> = ({ data, onDataChange }) => {
-  const spreadsheetRef = useRef<HTMLDivElement>(null);
-  const spreadsheetInstance = useRef<Spreadsheet | null>(null);
+const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
+  ({ data, onDataChange }, ref) => {
+    const workbookRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (spreadsheetRef.current && data) {
-      if (spreadsheetInstance.current) {
-        spreadsheetInstance.current.destroy();
-      }
+    // Expose imperative methods
+    useImperativeHandle(ref, () => ({
+      applyAction: (action: AIAction) => {
+        if (!workbookRef.current) {
+          console.warn('Workbook not initialized');
+          return;
+        }
 
-      spreadsheetRef.current.innerHTML = '';
+        const luckysheet = (window as any).luckysheet;
+        if (!luckysheet) {
+          console.warn('Luckysheet not available');
+          return;
+        }
 
-      const options = {
-        mode: 'edit' as const,
-        showToolbar: true,
-        showGrid: true,
-        showContextmenu: true,
-        view: {
-          height: () => spreadsheetRef.current?.parentElement?.clientHeight || 600,
-          width: () => spreadsheetRef.current?.parentElement?.clientWidth || 800,
-        },
-        row: { len: (data.rows?.length || 0) + SPARE_ROW_COUNT + 1, height: 25 },
-        col: {
-          len: (data.headers?.length || 0) + SPARE_COL_COUNT,
-          width: 100,
-          indexWidth: 60,
-          minWidth: 60,
-        },
-        locale: 'en' as const,
-      };
+        try {
+          switch (action.type) {
+            case 'EDIT_CELL':
+            case 'EDIT_COLUMN':
+            case 'EDIT_ROW':
+            case 'FILL_DOWN':
+              action.changes?.forEach((change) => {
+                const row = change.row + 1; // +1 because row 0 is headers
+                const col = change.col;
+                luckysheet.setCellValue(row, col, change.newValue);
+              });
+              break;
 
-      const spreadsheet = new Spreadsheet(spreadsheetRef.current, options);
-      spreadsheet.change(onDataChange);
-      spreadsheetInstance.current = spreadsheet;
+            case 'DELETE_ROW':
+              const rowsToDelete = action.changes?.map((c) => c.row + 1) || [];
+              const uniqueRows = [...new Set(rowsToDelete)].sort((a, b) => b - a);
+              uniqueRows.forEach((row) => {
+                luckysheet.deleteRow(row, row);
+              });
+              break;
 
-      const formattedData = convertToXlsxData(data);
-      if (formattedData) {
-        spreadsheet.loadData(formattedData);
-      }
-    }
-  }, [data, onDataChange]);
+            case 'DELETE_COLUMN':
+              const colsToDelete = action.changes?.map((c) => c.col) || [];
+              const uniqueCols = [...new Set(colsToDelete)].sort((a, b) => b - a);
+              uniqueCols.forEach((col) => {
+                luckysheet.deleteColumn(col, col);
+              });
+              break;
 
-  return <div ref={spreadsheetRef} style={{ width: '100%', height: '100%' }} />;
-};
+            case 'RENAME_COLUMN':
+              if (action.params?.from && action.params?.to) {
+                const colIndex = data.headers.indexOf(action.params.from as string);
+                if (colIndex !== -1) {
+                  luckysheet.setCellValue(0, colIndex, action.params.to);
+                }
+              }
+              break;
 
+            case 'INSERT_FORMULA':
+            case 'REMOVE_FORMULA':
+              if (action.formula) {
+                // Apply formula to all changed cells
+                action.changes?.forEach((change) => {
+                  const row = change.row + 1;
+                  const col = change.col;
+                  const formula = action.formula!.replace(/\{row\}/g, String(row));
+                  luckysheet.setCellValue(row, col, formula);
+                });
+              }
+              break;
+
+            case 'SORT_DATA':
+            case 'FILTER_DATA':
+            case 'REMOVE_DUPLICATES':
+            case 'REMOVE_EMPTY_ROWS':
+              // These operations are handled by applyChanges in the parent
+              // Just apply the resulting changes
+              action.changes?.forEach((change) => {
+                const row = change.row + 1;
+                const col = change.col;
+                luckysheet.setCellValue(row, col, change.newValue);
+              });
+              break;
+
+            case 'CONDITIONAL_FORMAT':
+              if (action.params?.formatStyle) {
+                const style = action.params.formatStyle as any;
+                action.changes?.forEach((change) => {
+                  const row = change.row + 1;
+                  const col = change.col;
+                  
+                  if (style.backgroundColor) {
+                    luckysheet.setCellFormat(row, col, 'bg', style.backgroundColor);
+                  }
+                  if (style.color) {
+                    luckysheet.setCellFormat(row, col, 'fc', style.color);
+                  }
+                  if (style.fontWeight === 'bold') {
+                    luckysheet.setCellFormat(row, col, 'bl', 1);
+                  }
+                });
+              }
+              break;
+
+            case 'FIND_REPLACE':
+            case 'DATA_CLEANSING':
+            case 'DATA_TRANSFORM':
+            case 'ADD_COLUMN':
+            case 'SPLIT_COLUMN':
+            case 'MERGE_COLUMNS':
+            case 'FORMAT_NUMBER':
+            case 'EXTRACT_NUMBER':
+            case 'GENERATE_ID':
+            case 'CONCATENATE':
+            case 'STATISTICS':
+            case 'PIVOT_SUMMARY':
+            case 'CREATE_CHART':
+            case 'COPY_COLUMN':
+              // These operations are handled by applyChanges
+              // Apply the resulting changes
+              action.changes?.forEach((change) => {
+                const row = change.row + 1;
+                const col = change.col;
+                luckysheet.setCellValue(row, col, change.newValue);
+              });
+              break;
+
+            case 'INFO':
+            case 'CLARIFY':
+            case 'DATA_AUDIT':
+            case 'INSIGHTS':
+            case 'DATA_VALIDATION':
+            case 'TEXT_EXTRACTION':
+            case 'DATE_CALCULATION':
+              // These are informational only, no changes to apply
+              break;
+
+            default:
+              console.warn(`Action type ${action.type} not implemented`);
+          }
+        } catch (error) {
+          console.error('Error applying action:', error);
+        }
+      },
+
+      getData: () => {
+        const luckysheet = (window as any).luckysheet;
+        if (!luckysheet) return null;
+        return luckysheet.getAllSheets();
+      },
+    }));
+
+    const fortuneSheetData = convertToFortuneSheetFormat(data);
+
+    return (
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+        <Workbook
+          ref={workbookRef}
+          data={fortuneSheetData}
+          onChange={(data) => {
+            if (onDataChange) {
+              onDataChange(data);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+);
+
+ExcelPreview.displayName = 'ExcelPreview';
 export default memo(ExcelPreview);

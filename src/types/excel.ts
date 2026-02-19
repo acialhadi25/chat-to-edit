@@ -25,21 +25,46 @@ export interface DataChange {
   params?: Record<string, unknown>;
 }
 
+export type ActionType =
+  | 'INSERT_FORMULA'
+  | 'REMOVE_FORMULA'
+  | 'EDIT_CELL'
+  | 'EDIT_COLUMN'
+  | 'EDIT_ROW'
+  | 'FIND_REPLACE'
+  | 'DATA_CLEANSING'
+  | 'DATA_TRANSFORM'
+  | 'ADD_COLUMN'
+  | 'DELETE_COLUMN'
+  | 'DELETE_ROW'
+  | 'SORT_DATA'
+  | 'FILTER_DATA'
+  | 'REMOVE_DUPLICATES'
+  | 'FILL_DOWN'
+  | 'SPLIT_COLUMN'
+  | 'MERGE_COLUMNS'
+  | 'CLARIFY'
+  | 'INFO'
+  | 'REMOVE_EMPTY_ROWS'
+  | 'RENAME_COLUMN'
+  | 'FORMAT_NUMBER'
+  | 'EXTRACT_NUMBER'
+  | 'CONDITIONAL_FORMAT'
+  | 'GENERATE_ID'
+  | 'DATE_CALCULATION'
+  | 'CONCATENATE'
+  | 'STATISTICS'
+  | 'PIVOT_SUMMARY'
+  | 'DATA_VALIDATION'
+  | 'TEXT_EXTRACTION'
+  | 'CREATE_CHART'
+  | 'DATA_AUDIT'
+  | 'INSIGHTS'
+  | 'COPY_COLUMN';
+
 export interface AIAction {
   id?: string;
-  type:
-    | 'FORMULA'
-    | 'FORMAT'
-    | 'DELETE_ROWS'
-    | 'DELETE_COLUMNS'
-    | 'FILL_DATA'
-    | 'SORT'
-    | 'FILTER'
-    | 'CHART'
-    | 'INFO'
-    | 'DATA_AUDIT'
-    | 'CLARIFY'
-    | 'RENAME_COLUMN';
+  type: ActionType;
   status?: 'pending' | 'applied' | 'rejected';
   params: { [key: string]: unknown };
   changes?: DataChange[];
@@ -69,6 +94,12 @@ export interface ExcelData {
   pendingChanges?: DataChange[];
 }
 
+export interface EditHistory {
+  state: ExcelData;
+  description: string;
+  timestamp: Date;
+}
+
 export const getColumnLetter = (colIndex: number): string => {
   let temp,
     letter = '';
@@ -92,44 +123,47 @@ export const createCellRef = (col: number, row: number): string => {
   return `${getColumnLetter(col)}${row + 1}`;
 };
 
-// --- X-DATA-SPREADSHEET TYPES ---
+// --- FORTUNE-SHEET TYPES ---
 
-export interface XSpreadsheetCell {
-  text?: string;
-  style?: number;
+export interface FortuneSheetCell {
+  r: number; // row
+  c: number; // column
+  v: {
+    v: string | number | null; // value
+    m?: string; // formatted value
+    ct?: { fa: string; t: string }; // cell type
+    bg?: string; // background color
+    fc?: string; // font color
+    bl?: number; // bold (1 = true)
+    it?: number; // italic (1 = true)
+    ht?: number; // horizontal align (0=left, 1=center, 2=right)
+    vt?: number; // vertical align (0=top, 1=middle, 2=bottom)
+    [key: string]: unknown;
+  };
+}
+
+export interface FortuneSheetData {
+  name: string;
+  celldata: FortuneSheetCell[];
+  config?: {
+    columnlen?: { [key: number]: number };
+    rowlen?: { [key: number]: number };
+  };
+  frozen?: {
+    type: 'row' | 'column' | 'both';
+    range: { row_focus: number; column_focus: number };
+  };
+  row?: number;
+  column?: number;
   [key: string]: unknown;
 }
 
-export interface XSpreadsheetRow {
-  cells: { [key: string]: XSpreadsheetCell };
-}
-
-export interface XSpreadsheetStyle {
-  align?: 'left' | 'center' | 'right';
-  valign?: 'top' | 'middle' | 'bottom';
-  font?: {
-    bold?: boolean;
-    italic?: boolean;
-    size?: number;
-    name?: string;
-  };
-  color?: string;
-  bgcolor?: string;
-}
-
+// Keep XSpreadsheet types for backward compatibility during migration
 export interface XSpreadsheetSheet {
   name?: string;
   freeze?: string;
-  styles?: XSpreadsheetStyle[];
-  rows: {
-    len: number;
-    [key: number]: XSpreadsheetRow;
-  };
-  cols?: {
-    len: number;
-    [key: number]: {
-      width: number;
-    };
-  };
+  styles?: unknown[];
+  rows: unknown;
+  cols?: unknown;
   [key: string]: unknown;
 }

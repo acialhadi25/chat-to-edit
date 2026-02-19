@@ -1,79 +1,118 @@
-import { ExcelData, XSpreadsheetSheet, getColumnLetter } from '@/types/excel';
+import { ExcelData, getColumnLetter } from '@/types/excel';
 
-// Helper to convert data from x-data-spreadsheet format to our internal ExcelData format
+// Helper to convert data from FortuneSheet format to our internal ExcelData format
 export function convertXlsxToExcelData(
-  spreadsheetData: XSpreadsheetSheet[],
+  fortuneSheetData: any[],
   initialData: ExcelData
 ): ExcelData {
-  if (!spreadsheetData || spreadsheetData.length === 0) {
+  if (!fortuneSheetData || fortuneSheetData.length === 0) {
     return initialData;
   }
 
-  const sheet = spreadsheetData[0]; // Assuming one sheet for now
-  if (!sheet || !sheet.rows) {
+  const sheet = fortuneSheetData[0]; // Assuming one sheet for now
+  if (!sheet || !sheet.celldata) {
     return initialData;
   }
 
-  let newHeaders: string[] = [];
-  // Extract headers from row 0 of x-data-spreadsheet data
-  if (sheet.rows[0] && sheet.rows[0].cells) {
-    const headerCells = sheet.rows[0].cells;
-    let maxHeaderCol = -1;
-    for (const cIndexStr in headerCells) {
-      const cIndex = parseInt(cIndexStr, 10);
-      if (cIndex > maxHeaderCol) maxHeaderCol = cIndex;
+  // Build a map of cell data for easy lookup
+  const cellMap = new Map<string, any>();
+  sheet.celldata.forEach((cell: any) => {
+    const key = `${cell.r}_${cell.c}`;
+    cellMap.set(key, cell);
+  });
+
+  // Extract headers from row 0
+  const newHeaders: string[] = [];
+  let maxCol = 0;
+  
+  // Find max column from celldata
+  sheet.celldata.forEach((cell: any) => {
+    if (cell.c > maxCol) maxCol = cell.c;
+  });
+
+  for (let c = 0; c <= maxCol; c++) {
+    const headerCell = cellMap.get(`0_${c}`);
+    if (headerCell && headerCell.v) {
+      newHeaders.push(String(headerCell.v.v || headerCell.v.m || getColumnLetter(c)));
+    } else {
+      newHeaders.push(getColumnLetter(c));
     }
-    for (let i = 0; i <= maxHeaderCol; i++) {
-      newHeaders.push(headerCells[i]?.text || getColumnLetter(i));
-    }
-  } else {
-    // Fallback to initial headers if x-spreadsheet's row 0 is empty
-    newHeaders = [...initialData.headers];
   }
 
+  // Extract data rows
   const newRows: (string | number | null)[][] = [];
+  let maxRow = 0;
 
-  // x-spreadsheet's .len property tells us the total number of rows (including our conceptual header row)
-  const totalXlsxRows = sheet.rows.len || 0;
+  // Find max row from celldata
+  sheet.celldata.forEach((cell: any) => {
+    if (cell.r > maxRow) maxRow = cell.r;
+  });
 
-  // Iterate from row index 1 (actual data rows)
-  for (let i = 1; i < totalXlsxRows; i++) {
-    const rowData = sheet.rows[i];
+  // Start from row 1 (skip header row 0)
+  for (let r = 1; r <= maxRow; r++) {
     const newRow: (string | number | null)[] = Array(newHeaders.length).fill(null);
-    if (rowData && rowData.cells) {
-      for (const cellKey in rowData.cells) {
-        const c = parseInt(cellKey, 10);
-        if (c < newHeaders.length) {
-          const cellContent = rowData.cells[cellKey]?.text ?? null;
-          if (
-            cellContent !== null &&
-            !isNaN(Number(cellContent)) &&
-            String(cellContent).trim() !== ''
-          ) {
-            newRow[c] = Number(cellContent);
-          } else {
-            newRow[c] = cellContent;
-          }
+    
+    for (let c = 0; c < newHeaders.length; c++) {
+      const cell = cellMap.get(`${r}_${c}`);
+      if (cell && cell.v) {
+        const cellValue = cell.v.v ?? cell.v.m ?? null;
+        
+        // Try to parse as number
+        if (
+          cellValue !== null &&
+          !isNaN(Number(cellValue)) &&
+          String(cellValue).trim() !== ''
+        ) {
+          newRow[c] = Number(cellValue);
+        } else {
+          newRow[c] = cellValue;
         }
       }
     }
+    
     newRows.push(newRow);
   }
 
-  // Ensure newRows has at least some default length if data is smaller than headers.len
-  while (newRows.length < initialData.rows.length) {
-    newRows.push(Array(newHeaders.length).fill(null));
+  // Extract column widths
+  const columnWidths: { [colIndex: number]: number } = {};
+  if (sheet.config && sheet.config.columnlen) {
+    Object.keys(sheet.config.columnlen).forEach((key) => {
+      columnWidths[parseInt(key)] = sheet.config.columnlen[key];
+    });
   }
+
+  // Extract cell styles
+  const cellStyles: { [cellRef: string]: any } = {};
+  sheet.celldata.forEach((cell: any) => {
+    if (cell.v && (cell.v.bg || cell.v.fc || cell.v.bl || cell.v.it)) {
+      const row = cell.r - 1; // Convert to 0-based (excluding header)
+      const col = cell.c;
+      
+      if (row >= 0) { // Only for data rows, not header
+        const cellRef = `${getColumnLetter(col)}${row + 1}`;
+        const style: any = {};
+        
+        if (cell.v.bg) style.bgcolor = cell.v.bg;
+        if (cell.v.fc) style.color = cell.v.fc;
+        if (cell.v.bl) style.font = { ...style.font, bold: true };
+        if (cell.v.it) style.font = { ...style.font, italic: true };
+        if (cell.v.ht === 1) style.align = 'center';
+        if (cell.v.ht === 2) style.align = 'right';
+        if (cell.v.vt === 1) style.valign = 'middle';
+        if (cell.v.vt === 2) style.valign = 'bottom';
+        
+        cellStyles[cellRef] = style;
+      }
+    }
+  });
 
   return {
     ...initialData,
     headers: newHeaders,
     rows: newRows,
-    // We are not currently converting formulas, styles, merges back from x-spreadsheet
-    // This is a limitation for now, as x-spreadsheet data structure is different.
-    // If needed, more complex parsing would be required here.
-    formulas: {},
-    cellStyles: {},
-    mergedCells: [],
+    columnWidths,
+    cellStyles,
+    formulas: {}, // FortuneSheet formulas would need separate extraction
+    mergedCells: [], // FortuneSheet merge info would need separate extraction
   };
 }

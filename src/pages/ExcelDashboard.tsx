@@ -3,7 +3,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useFileHistory } from '@/hooks/useFileHistory';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import ExcelUpload from '@/components/dashboard/ExcelUpload';
-import ExcelPreview from '@/components/dashboard/ExcelPreview';
+import ExcelPreview, { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 import ChatInterface, { ChatInterfaceHandle } from '@/components/dashboard/ChatInterface';
 import UndoRedoBar from '@/components/dashboard/UndoRedoBar';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
@@ -24,6 +24,7 @@ const ExcelDashboard = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const chatRef = useRef<ChatInterfaceHandle>(null);
+  const excelPreviewRef = useRef<ExcelPreviewHandle>(null);
   const [fileHistoryId, setFileHistoryId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
@@ -116,6 +117,13 @@ const ExcelDashboard = () => {
         return;
       }
 
+      // Apply action directly to FortuneSheet via imperative API
+      excelPreviewRef.current?.applyAction(action);
+
+      // Get updated data from FortuneSheet
+      const updatedSheetData = excelPreviewRef.current?.getData();
+      
+      // Also apply to React state for undo/redo
       const { data: newData, description } = applyChanges(currentData, action.changes || []);
 
       setExcelData(newData);
@@ -126,6 +134,8 @@ const ExcelDashboard = () => {
       if (lastMessage && lastMessage.action?.id === action.id) {
         handleUpdateMessageAction(lastMessage.id, { ...action, status: 'applied' });
       }
+
+      handleSetPendingChanges([]);
     },
     [excelData, messages, pushState, toast, handleUpdateMessageAction, handleSetPendingChanges]
   );
@@ -236,7 +246,11 @@ const ExcelDashboard = () => {
                 </Button>
               </div>
               <div className="flex-1 relative min-h-0">
-                <ExcelPreview data={excelData} onDataChange={handleSpreadsheetDataChange} />
+                <ExcelPreview 
+                  ref={excelPreviewRef}
+                  data={excelData} 
+                  onDataChange={handleSpreadsheetDataChange} 
+                />
               </div>
             </>
           )}
