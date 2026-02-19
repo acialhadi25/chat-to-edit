@@ -8,7 +8,7 @@ import ChatInterface, { ChatInterfaceHandle } from '@/components/dashboard/ChatI
 import UndoRedoBar from '@/components/dashboard/UndoRedoBar';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles } from 'lucide-react';
+import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles, Download } from 'lucide-react';
 import { ExcelTemplate } from '@/types/template';
 import { ExcelData, ChatMessage, AIAction, DataChange, XSpreadsheetSheet } from '@/types/excel';
 import { analyzeDataForCleansing } from '@/utils/excelOperations';
@@ -16,6 +16,7 @@ import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { convertXlsxToExcelData } from '@/utils/xlsxConverter';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
+import * as XLSX from 'xlsx';
 
 const ExcelDashboard = () => {
   const { toast } = useToast();
@@ -187,6 +188,55 @@ const ExcelDashboard = () => {
     if (record) setFileHistoryId(record.id);
   };
 
+  const handleDownload = useCallback(() => {
+    if (!excelData) return;
+
+    try {
+      // Get current data from FortuneSheet if available
+      const currentData = excelPreviewRef.current?.getData();
+      
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Create worksheet data
+      const wsData = [
+        excelData.headers, // Headers row
+        ...excelData.rows   // Data rows
+      ];
+      
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      
+      // Apply column widths if available
+      if (excelData.columnWidths) {
+        const cols = excelData.headers.map((_, idx) => ({
+          wch: (excelData.columnWidths?.[idx] || 120) / 10 // Convert pixels to character width
+        }));
+        ws['!cols'] = cols;
+      }
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, excelData.currentSheet || 'Sheet1');
+      
+      // Generate filename
+      const fileName = excelData.fileName.replace(/\.[^/.]+$/, '') + '_modified.xlsx';
+      
+      // Download file
+      XLSX.writeFile(wb, fileName);
+      
+      toast({
+        title: 'Download Successful!',
+        description: `${fileName} has been downloaded.`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Download Failed',
+        description: 'An error occurred while creating the file.',
+      });
+    }
+  }, [excelData, toast]);
+
   return (
     <div className="flex flex-1 flex-col h-full overflow-hidden">
       {excelData && (
@@ -231,6 +281,14 @@ const ExcelDashboard = () => {
                   <Sparkles className="h-3.5 w-3.5" /> Insights
                 </Button>
                 <div className="flex-grow" />
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={handleDownload} 
+                  className="h-8 gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleClearFile} className="h-8 gap-2">
                   <X className="h-3.5 w-3.5" /> Start Over
                 </Button>
