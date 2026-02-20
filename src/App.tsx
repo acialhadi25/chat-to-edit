@@ -31,6 +31,9 @@ const Contact = lazy(() => import('./pages/Contact'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const Subscription = lazy(() => import('./pages/Subscription'));
+const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
+const PaymentPending = lazy(() => import('./pages/PaymentPending'));
+const PaymentError = lazy(() => import('./pages/PaymentError'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -62,6 +65,10 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* Payment Result Pages */}
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/pending" element={<PaymentPending />} />
+              <Route path="/payment/error" element={<PaymentError />} />
               <Route
                 path="/dashboard"
                 element={
