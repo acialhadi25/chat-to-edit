@@ -302,6 +302,10 @@ const ExcelDashboard = () => {
       // Get current data from FortuneSheet if available
       excelPreviewRef.current?.getData();
       
+      console.log('Starting Excel download...');
+      console.log('ExcelData cellStyles:', excelData.cellStyles);
+      console.log('ExcelData formulas:', excelData.formulas);
+      
       // Create workbook with ExcelJS
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(excelData.currentSheet || 'Sheet1');
@@ -327,6 +331,8 @@ const ExcelDashboard = () => {
         cell.border = thinBorder;
       });
       
+      console.log('Header row added with styling');
+      
       // Add data rows
       excelData.rows.forEach((row, rowIdx) => {
         const excelRow = worksheet.addRow(row);
@@ -341,17 +347,23 @@ const ExcelDashboard = () => {
           const cellRef = createCellRef(colNumber - 1, rowIdx);
           const style = excelData.cellStyles?.[cellRef];
           
+          console.log(`Cell ${cellRef}: style =`, style);
+          
           if (style?.bgcolor) {
+            const bgColor = 'FF' + style.bgcolor.replace('#', '');
+            console.log(`Applying bgcolor to ${cellRef}: ${bgColor}`);
             cell.fill = {
               type: 'pattern',
               pattern: 'solid',
-              fgColor: { argb: 'FF' + style.bgcolor.replace('#', '') }
+              fgColor: { argb: bgColor }
             };
           }
           
           if (style?.color) {
+            const textColor = 'FF' + style.color.replace('#', '');
+            console.log(`Applying text color to ${cellRef}: ${textColor}`);
             cell.font = {
-              color: { argb: 'FF' + style.color.replace('#', '') }
+              color: { argb: textColor }
             };
           }
           
@@ -362,10 +374,14 @@ const ExcelDashboard = () => {
           // Apply formula if exists
           const formula = excelData.formulas?.[cellRef];
           if (formula) {
-            cell.value = { formula: formula.startsWith('=') ? formula.substring(1) : formula };
+            const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
+            console.log(`Applying formula to ${cellRef}: ${formulaStr}`);
+            cell.value = { formula: formulaStr };
           }
         });
       });
+      
+      console.log('All rows added with styling');
       
       // Set column widths
       if (excelData.columnWidths) {
@@ -378,6 +394,8 @@ const ExcelDashboard = () => {
       // Generate filename
       const fileName = excelData.fileName.replace(/\.[^/.]+$/, '') + '_modified.xlsx';
       
+      console.log('Writing Excel file...');
+      
       // Write to buffer and download
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -387,6 +405,8 @@ const ExcelDashboard = () => {
       link.download = fileName;
       link.click();
       window.URL.revokeObjectURL(url);
+      
+      console.log('Excel file downloaded successfully');
       
       toast({
         title: 'Download Successful!',
