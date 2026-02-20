@@ -49,15 +49,13 @@ serve(async (req) => {
   try {
     // Get environment variables
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY')!;
 
     if (!DEEPSEEK_API_KEY) {
       throw new Error('DEEPSEEK_API_KEY not configured');
     }
-
-    // Create Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
@@ -72,7 +70,14 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     console.log('Attempting to authenticate user with token');
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Create client with anon key to verify user token
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
     if (authError) {
       console.error('Auth error:', authError);
@@ -91,6 +96,9 @@ serve(async (req) => {
     }
 
     console.log(`User authenticated: ${user.id}`);
+    
+    // Create service role client for database operations
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Parse request body
     const { messages, excelContext } = await req.json();

@@ -148,30 +148,30 @@ export async function streamChat({
       throw handleStreamError(configError);
     }
 
-    // ✅ FIX: Use chat-with-credits endpoint for credit tracking
+    // Use chat-with-credits endpoint for credit tracking
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-credits`;
 
-    // ✅ FIX: Get user auth token for credit tracking
+    // Get user auth token (required for credit tracking)
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.access_token) {
-      const noSessionError: StreamError = {
+      const authError: StreamError = {
         type: 'api',
-        message: 'You must be logged in to use AI features',
-        context: 'Authentication',
+        status: 401,
+        message: 'User not authenticated. Please login to continue.',
+        context: 'Authentication check',
         recoverable: false,
       };
-      throw handleStreamError(noSessionError);
+      throw handleStreamError(authError);
     }
     
-    const authToken = session.access_token;
     console.log('Using user auth token for credit tracking');
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${authToken}`,
+        Authorization: `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ messages, excelContext }),

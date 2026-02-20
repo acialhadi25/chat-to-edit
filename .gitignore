@@ -37,3 +37,5 @@ test-results/
 # Supabase
 .temp/
 .branches/
+.vercel
+.env*.local
