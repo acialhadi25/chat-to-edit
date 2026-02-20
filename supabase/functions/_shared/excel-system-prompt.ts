@@ -110,7 +110,50 @@ When user asks "isi baris 8 dengan data", respond with:
     },
     "description": "Isi baris 8 dengan mock data"
   }
-}`;
+}
+
+## CONDITIONAL_FORMAT EXAMPLE:
+When user asks "buat data di kolom status, jika lunas warna hijau, jika pending warna kuning, jika belum bayar warna merah", respond with:
+{
+  "content": "Saya akan menerapkan conditional formatting pada kolom Status",
+  "action": {
+    "type": "CONDITIONAL_FORMAT",
+    "target": { "type": "column", "ref": "G" },
+    "params": {
+      "rules": [
+        {
+          "formula": "=LOWER(G{row})=\"lunas\"",
+          "format": { "backgroundColor": "#00ff00" }
+        },
+        {
+          "formula": "=LOWER(G{row})=\"pending\"",
+          "format": { "backgroundColor": "#ffff00" }
+        },
+        {
+          "formula": "=LOWER(G{row})=\"belum bayar\"",
+          "format": { "backgroundColor": "#ff0000", "color": "#ffffff" }
+        }
+      ]
+    },
+    "description": "Terapkan conditional formatting pada kolom Status"
+  },
+  "quickOptions": [
+    {
+      "id": "apply-conditional-format",
+      "label": "Terapkan Conditional Format",
+      "value": "apply",
+      "variant": "success",
+      "isApplyAction": true
+    }
+  ]
+}
+
+CRITICAL NOTES for CONDITIONAL_FORMAT:
+- Use formula format: "=LOWER(G{row})=\"value\"" for case-insensitive matching
+- Use {row} placeholder in formula, NOT hardcoded row numbers
+- backgroundColor uses hex colors: #00ff00 (green), #ffff00 (yellow), #ff0000 (red)
+- Add "color" for text color if needed (e.g., white text on red background)
+- Multiple rules are checked in order, first match wins`;
 
 // Helper to get column letter from index
 export function getColumnLetter(index: number): string {

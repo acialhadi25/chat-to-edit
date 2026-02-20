@@ -1137,12 +1137,38 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           for (const rule of rules) {
             console.log(`CONDITIONAL_FORMAT: Full rule object:`, JSON.stringify(rule));
             
-            const condition = rule.condition;
-            const value = String(rule.value || '').toLowerCase();
+            // Support two formats:
+            // 1. New format with formula: {"formula": "=LOWER(G{row})=\"lunas\"", "format": {...}}
+            // 2. Old format with condition/value: {"condition": "contains", "value": "lunas", "format": {...}}
+            
+            let condition = rule.condition;
+            let value = rule.value;
             const format = rule.format;
+            
+            // If formula is provided, parse it to extract condition and value
+            if (rule.formula && !condition) {
+              const formula = rule.formula as string;
+              console.log(`CONDITIONAL_FORMAT: Parsing formula: ${formula}`);
+              
+              // Parse formula like: =LOWER(G{row})="lunas" or =G{row}="Lunas"
+              // Extract the comparison value
+              const match = formula.match(/[=<>]+"([^"]+)"/);
+              if (match) {
+                value = match[1];
+                condition = 'contains'; // Default to contains for formula-based rules
+                console.log(`CONDITIONAL_FORMAT: Extracted value from formula: "${value}"`);
+              }
+            }
+            
+            if (!condition || !value) {
+              console.warn(`CONDITIONAL_FORMAT: Skipping rule - no condition or value found`);
+              continue;
+            }
+            
+            const valueStr = String(value || '').toLowerCase();
             const caseSensitive = rule.format?.caseSensitive !== false;
 
-            console.log(`CONDITIONAL_FORMAT: Checking rule - condition: ${condition}, value: "${rule.value}", caseSensitive: ${caseSensitive}`);
+            console.log(`CONDITIONAL_FORMAT: Checking rule - condition: ${condition}, value: "${value}", caseSensitive: ${caseSensitive}`);
 
             let matches = false;
 
