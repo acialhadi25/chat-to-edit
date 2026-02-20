@@ -501,6 +501,10 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           break;
         }
 
+        console.log('EDIT_ROW: Full action object:', JSON.stringify(action, null, 2));
+        console.log('EDIT_ROW: Params:', action.params);
+        console.log('EDIT_ROW: Target:', target);
+
         // If changes are already provided in action, use them directly
         if (action.changes && action.changes.length > 0) {
           console.log('EDIT_ROW: Using provided changes array');
@@ -515,8 +519,37 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
 
         // Try to extract row data from params
         const rowData = action.params?.rowData || (action as any).rowData;
-        if (rowData && typeof rowData === 'object') {
-          console.log('EDIT_ROW: Extracting from rowData:', rowData);
+        console.log('EDIT_ROW: rowData:', rowData);
+        
+        // If no rowData, try to parse from description
+        let parsedRowData = rowData;
+        if (!parsedRowData && action.description) {
+          console.log('EDIT_ROW: Attempting to parse from description:', action.description);
+          
+          // Parse description like "Isi baris 8 dengan mock data: No=8, Nama=Budi Sant... Harga=500000, Qty=2, Total=1000000, Status=Lunas"
+          const dataMatch = action.description.match(/:\s*(.+)$/);
+          if (dataMatch) {
+            const dataStr = dataMatch[1];
+            parsedRowData = {};
+            
+            // Split by comma and parse key=value pairs
+            const pairs = dataStr.split(',').map(s => s.trim());
+            for (const pair of pairs) {
+              const [key, ...valueParts] = pair.split('=');
+              if (key && valueParts.length > 0) {
+                const value = valueParts.join('=').trim();
+                // Try to parse as number if possible
+                const numValue = parseFloat(value);
+                parsedRowData[key.trim()] = isNaN(numValue) ? value : numValue;
+              }
+            }
+            
+            console.log('EDIT_ROW: Parsed rowData from description:', parsedRowData);
+          }
+        }
+        
+        if (parsedRowData && typeof parsedRowData === 'object') {
+          console.log('EDIT_ROW: Extracting from rowData:', parsedRowData);
           
           // Parse row number from target.ref (e.g., "8" or "row8")
           const rowMatch = target.ref.match(/\d+/);
@@ -526,15 +559,20 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           }
           
           const rowIndex = parseInt(rowMatch[0]) - 2; // -1 for header, -1 for 0-based
+          console.log('EDIT_ROW: rowIndex:', rowIndex, 'from target.ref:', target.ref);
           
           // Generate changes for each column in rowData
-          Object.entries(rowData).forEach(([key, value]) => {
+          Object.entries(parsedRowData).forEach(([key, value]) => {
+            console.log(`EDIT_ROW: Processing key="${key}", value="${value}"`);
+            
             // Try to find column index by header name
             const colIndex = data.headers.findIndex(h => 
               h.toLowerCase() === key.toLowerCase() ||
               h.toLowerCase().includes(key.toLowerCase()) ||
               key.toLowerCase().includes(h.toLowerCase())
             );
+            
+            console.log(`EDIT_ROW: Column "${key}" mapped to index ${colIndex}`);
             
             if (colIndex >= 0) {
               const oldValue = rowIndex < data.rows.length ? data.rows[rowIndex][colIndex] : null;
@@ -553,6 +591,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                 newValue: value,
                 type: 'CELL_UPDATE',
               });
+              
+              console.log(`EDIT_ROW: Added change for row ${rowIndex}, col ${colIndex}: ${oldValue} -> ${value}`);
             } else {
               console.warn(`EDIT_ROW: Could not find column for key: ${key}`);
             }
@@ -562,7 +602,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           break;
         }
 
-        console.log('EDIT_ROW processing:', { target });
+        console.log('EDIT_ROW processing: No rowData found in params');
         break;
       }
 

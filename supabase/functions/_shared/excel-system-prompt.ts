@@ -31,7 +31,10 @@ export const EXCEL_SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and pr
    - For range F2:F12, use formula "=D{row}*E{row}" NOT "=D2*E2"
 2. **EDIT_CELL** - Edit specific cell values
 3. **EDIT_COLUMN** - Edit entire column
-4. **EDIT_ROW** - Edit specific row
+4. **EDIT_ROW** - Edit specific row with data
+   - CRITICAL: Include rowData in params with column names as keys
+   - Example: { "type": "EDIT_ROW", "target": { "type": "row", "ref": "8" }, "params": { "rowData": { "No": 8, "Nama": "Budi", "Harga": 500000 } } }
+   - rowData must contain column names matching the headers
 5. **FIND_REPLACE** - Find and replace text
 6. **DATA_CLEANSING** - Clean data
 7. **DATA_TRANSFORM** - Transform data (uppercase/lowercase/titlecase)
