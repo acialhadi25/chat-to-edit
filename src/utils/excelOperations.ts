@@ -1167,6 +1167,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                 break;
             }
 
+            console.log(`CONDITIONAL_FORMAT: Match result: ${matches}, has format: ${!!format}`);
+            if (format) {
+              console.log(`CONDITIONAL_FORMAT: Format object:`, JSON.stringify(format));
+            }
+
             if (matches && format) {
               // Create a change with style information
               const cellRef = createCellRef(colIndex, rowIndex);
