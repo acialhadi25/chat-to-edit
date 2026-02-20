@@ -156,19 +156,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           console.log('getData: Sheet.data:', sheet.data);
           console.log('getData: Sheet.celldata:', sheet.celldata);
           
-          // FortuneSheet can store data in either 'data' or 'celldata' format
-          const cellData = sheet.celldata || sheet.data;
-          
-          if (!cellData) {
-            console.warn('getData: No celldata or data in sheet');
-            return null;
-          }
-          
-          console.log('getData: Using data format:', Array.isArray(cellData) ? 'celldata (array)' : 'data (2D array)');
-
-          console.log('getData: Using data format:', Array.isArray(cellData) ? 'celldata (array)' : 'data (2D array)');
-
-          // Extract formulas and styles from celldata
+          // Extract formulas and styles from data
           const extractedData: {
             formulas: { [key: string]: string };
             cellStyles: { [key: string]: any };
@@ -179,63 +167,33 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             values: []
           };
 
-          // Handle celldata format (array of cell objects)
-          if (Array.isArray(cellData)) {
-            console.log(`getData: Processing ${cellData.length} cells from celldata array`);
-
-            cellData.forEach((cell: any) => {
-              if (cell.r === 0) {
-                // Skip header row
+          // FortuneSheet stores data in 'data' property as 2D array
+          if (sheet.data && Array.isArray(sheet.data)) {
+            console.log(`getData: Processing 2D data array with ${sheet.data.length} rows`);
+            
+            // In 2D format, iterate through rows and columns
+            sheet.data.forEach((row: any[], rowIdx: number) => {
+              if (rowIdx === 0) {
+                console.log('getData: Skipping header row');
+                return; // Skip header
+              }
+              
+              if (!Array.isArray(row)) {
+                console.log(`getData: Row ${rowIdx} is not an array`);
                 return;
               }
-
-              const rowIdx = cell.r - 1; // Adjust for header
-              const colIdx = cell.c;
-              const cellRef = createCellRef(colIdx, rowIdx);
-
-              // Extract formula
-              if (cell.v?.f) {
-                extractedData.formulas[cellRef] = cell.v.f;
-                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
-              }
-
-              // Extract styles
-              const style: any = {};
-              
-              if (cell.v?.bg) {
-                style.bgcolor = cell.v.bg;
-              }
-              
-              if (cell.v?.fc) {
-                style.color = cell.v.fc;
-              }
-              
-              if (cell.v?.bl === 1) {
-                style.font = { bold: true };
-              }
-
-              // Only store if has styling
-              if (Object.keys(style).length > 0) {
-                extractedData.cellStyles[cellRef] = style;
-                console.log(`Found style at ${cellRef}:`, style);
-              }
-            });
-          } 
-          // Handle data format (2D array)
-          else if (Array.isArray(cellData)) {
-            console.log(`getData: Processing 2D data array with ${cellData.length} rows`);
-            
-            // In 2D format, we need to iterate through rows and columns
-            cellData.forEach((row: any[], rowIdx: number) => {
-              if (rowIdx === 0) return; // Skip header
-              
-              if (!Array.isArray(row)) return;
               
               row.forEach((cell: any, colIdx: number) => {
-                if (!cell) return;
+                if (!cell || typeof cell !== 'object') return;
                 
                 const dataRowIdx = rowIdx - 1; // Adjust for header
                 const cellRef = createCellRef(colIdx, dataRowIdx);
+                
+                // Log first few cells to understand structure
+                if (rowIdx === 1 && colIdx < 3) {
+                  console.log(`getData: Cell at row ${rowIdx}, col ${colIdx}:`, cell);
+                  console.log(`getData: Cell keys:`, Object.keys(cell));
+                }
                 
                 // Extract formula
                 if (cell.f) {
@@ -264,6 +222,48 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 }
               });
             });
+          } 
+          // Handle celldata format (array of cell objects) - fallback
+          else if (sheet.celldata && Array.isArray(sheet.celldata)) {
+            console.log(`getData: Processing ${sheet.celldata.length} cells from celldata array`);
+
+            sheet.celldata.forEach((cell: any) => {
+              if (cell.r === 0) return; // Skip header row
+
+              const rowIdx = cell.r - 1; // Adjust for header
+              const colIdx = cell.c;
+              const cellRef = createCellRef(colIdx, rowIdx);
+
+              // Extract formula
+              if (cell.v?.f) {
+                extractedData.formulas[cellRef] = cell.v.f;
+                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
+              }
+
+              // Extract styles
+              const style: any = {};
+              
+              if (cell.v?.bg) {
+                style.bgcolor = cell.v.bg;
+              }
+              
+              if (cell.v?.fc) {
+                style.color = cell.v.fc;
+              }
+              
+              if (cell.v?.bl === 1) {
+                style.font = { bold: true };
+              }
+
+              if (Object.keys(style).length > 0) {
+                extractedData.cellStyles[cellRef] = style;
+                console.log(`Found style at ${cellRef}:`, style);
+              }
+            });
+          }
+          else {
+            console.warn('getData: No data or celldata in sheet');
+            return null;
           }
 
           console.log('getData: Extraction complete', {
