@@ -1140,23 +1140,27 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             // Check condition
             switch (condition) {
               case 'contains':
+              case 'textContains':
                 matches = caseSensitive 
                   ? String(cellValue || '').includes(rule.value)
                   : cellValueStr.includes(value);
                 console.log(`CONDITIONAL_FORMAT: Contains check - "${cellValueStr}" includes "${value}": ${matches}`);
                 break;
               case 'equals':
+              case 'textEquals':
                 matches = caseSensitive
                   ? cellValue === rule.value
                   : cellValueStr === value;
                 console.log(`CONDITIONAL_FORMAT: Equals check - "${cellValueStr}" === "${value}": ${matches}`);
                 break;
               case 'startsWith':
+              case 'textStartsWith':
                 matches = caseSensitive
                   ? String(cellValue || '').startsWith(rule.value)
                   : cellValueStr.startsWith(value);
                 break;
               case 'endsWith':
+              case 'textEndsWith':
                 matches = caseSensitive
                   ? String(cellValue || '').endsWith(rule.value)
                   : cellValueStr.endsWith(value);
