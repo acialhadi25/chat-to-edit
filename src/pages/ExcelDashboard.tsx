@@ -16,6 +16,7 @@ import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 
 // Lazy load ExcelPreview to reduce initial bundle size
@@ -294,55 +295,98 @@ const ExcelDashboard = () => {
     if (record) setFileHistoryId(record.id);
   };
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!excelData) return;
 
     try {
       // Get current data from FortuneSheet if available
       excelPreviewRef.current?.getData();
       
-      // Create workbook
-      const wb = XLSX.utils.book_new();
+      // Create workbook with ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(excelData.currentSheet || 'Sheet1');
       
-      // Create worksheet data array
-      const wsData: any[][] = [];
-      
-      // Add headers
-      wsData.push(excelData.headers);
+      // Add headers with styling
+      const headerRow = worksheet.addRow(excelData.headers);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE8E8E8' }
+      };
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      headerRow.border = {
+        top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+      };
       
       // Add data rows
-      excelData.rows.forEach((row) => {
-        wsData.push(row);
+      excelData.rows.forEach((row, rowIdx) => {
+        const excelRow = worksheet.addRow(row);
+        
+        // Apply borders to all cells
+        excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+            left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+            bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+            right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+          };
+          cell.alignment = { vertical: 'middle' };
+          
+          // Apply conditional formatting colors
+          const cellRef = createCellRef(colNumber - 1, rowIdx);
+          const style = excelData.cellStyles?.[cellRef];
+          
+          if (style?.bgcolor) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FF' + style.bgcolor.replace('#', '') }
+            };
+          }
+          
+          if (style?.color) {
+            cell.font = {
+              ...cell.font,
+              color: { argb: 'FF' + style.color.replace('#', '') }
+            };
+          }
+          
+          if (style?.font?.bold) {
+            cell.font = { ...cell.font, bold: true };
+          }
+          
+          // Apply formula if exists
+          const formula = excelData.formulas?.[cellRef];
+          if (formula) {
+            cell.value = { formula: formula.startsWith('=') ? formula.substring(1) : formula };
+          }
+        });
       });
       
-      // Create worksheet from array
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      // Apply formulas to cells
-      Object.keys(excelData.formulas || {}).forEach((cellRef) => {
-        const formula = excelData.formulas?.[cellRef];
-        if (formula && ws[cellRef]) {
-          ws[cellRef].f = formula.startsWith('=') ? formula.substring(1) : formula;
-          delete ws[cellRef].v; // Remove value, let Excel calculate from formula
-        }
-      });
-      
-      // Apply column widths if available
+      // Set column widths
       if (excelData.columnWidths) {
-        const cols = excelData.headers.map((_, idx) => ({
-          wch: (excelData.columnWidths?.[idx] || 120) / 10 // Convert pixels to character width
-        }));
-        ws['!cols'] = cols;
+        excelData.headers.forEach((_, idx) => {
+          const width = (excelData.columnWidths?.[idx] || 120) / 10;
+          worksheet.getColumn(idx + 1).width = width;
+        });
       }
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, excelData.currentSheet || 'Sheet1');
       
       // Generate filename
       const fileName = excelData.fileName.replace(/\.[^/.]+$/, '') + '_modified.xlsx';
       
-      // Download file
-      XLSX.writeFile(wb, fileName);
+      // Write to buffer and download
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
       
       toast({
         title: 'Download Successful!',
