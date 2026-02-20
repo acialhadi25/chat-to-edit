@@ -15,7 +15,7 @@ import { analyzeDataForCleansing } from '@/utils/excelOperations';
 import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
-import * as XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 
 // Lazy load ExcelPreview to reduce initial bundle size
@@ -304,72 +304,82 @@ const ExcelDashboard = () => {
       // Create workbook
       const wb = XLSX.utils.book_new();
       
-      // Create worksheet data with proper cell objects
-      const wsData: any[][] = [];
+      // Create worksheet with formulas and styles
+      const ws: any = {};
       
-      // Add headers
-      const headerRow = excelData.headers.map((header, colIdx) => {
-        const cellRef = createCellRef(colIdx, -1); // Row -1 for header becomes row 0 in Excel
-        const style = excelData.cellStyles?.[`${String.fromCharCode(65 + colIdx)}1`]; // A1, B1, etc.
-        
-        return {
+      // Define border style for all cells
+      const borderStyle = {
+        top: { style: 'thin', color: { rgb: 'D0D0D0' } },
+        bottom: { style: 'thin', color: { rgb: 'D0D0D0' } },
+        left: { style: 'thin', color: { rgb: 'D0D0D0' } },
+        right: { style: 'thin', color: { rgb: 'D0D0D0' } }
+      };
+      
+      // Add headers (row 0) with styling
+      excelData.headers.forEach((header, colIdx) => {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIdx });
+        ws[cellAddress] = {
           v: header,
           t: 's',
-          s: style ? {
-            fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
-            font: {
-              bold: style.font?.bold !== false,
-              color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
-            },
+          s: {
+            font: { bold: true, color: { rgb: '000000' } },
+            fill: { fgColor: { rgb: 'E8E8E8' } },
             alignment: { horizontal: 'center', vertical: 'center' },
-          } : {
-            font: { bold: true },
-            alignment: { horizontal: 'center', vertical: 'center' },
+            border: borderStyle
           }
         };
       });
-      wsData.push(headerRow);
       
-      // Add data rows
+      // Add data rows with formulas and conditional formatting styles
       excelData.rows.forEach((row, rowIdx) => {
-        const dataRow = row.map((cellValue, colIdx) => {
+        row.forEach((cellValue, colIdx) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
           const cellRef = createCellRef(colIdx, rowIdx);
-          const style = excelData.cellStyles?.[cellRef];
           const formula = excelData.formulas?.[cellRef];
+          const style = excelData.cellStyles?.[cellRef];
+          
+          // Build cell style
+          const cellStyle: any = {
+            border: borderStyle,
+            alignment: { vertical: 'center' }
+          };
+          
+          // Apply conditional formatting colors if available
+          if (style?.bgcolor) {
+            cellStyle.fill = { fgColor: { rgb: style.bgcolor.replace('#', '') } };
+          }
+          if (style?.color) {
+            cellStyle.font = { color: { rgb: style.color.replace('#', '') } };
+          }
+          if (style?.font?.bold) {
+            cellStyle.font = { ...cellStyle.font, bold: true };
+          }
           
           // If cell has formula, use it
           if (formula) {
-            return {
+            ws[cellAddress] = {
               f: formula.startsWith('=') ? formula.substring(1) : formula,
               t: 'n',
-              s: style ? {
-                fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
-                font: {
-                  bold: style.font?.bold,
-                  color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
-                },
-              } : undefined
+              s: cellStyle
+            };
+          } else {
+            // Regular cell with value
+            const cellType = typeof cellValue === 'number' ? 'n' : 's';
+            ws[cellAddress] = {
+              v: cellValue,
+              t: cellType,
+              s: cellStyle
             };
           }
-          
-          // Regular cell with value
-          const cellType = typeof cellValue === 'number' ? 'n' : 's';
-          return {
-            v: cellValue,
-            t: cellType,
-            s: style ? {
-              fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
-              font: {
-                bold: style.font?.bold,
-                color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
-              },
-            } : undefined
-          };
         });
-        wsData.push(dataRow);
       });
       
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      // Set worksheet range
+      const range = {
+        s: { r: 0, c: 0 },
+        e: { r: excelData.rows.length, c: excelData.headers.length - 1 }
+      };
+      ws['!ref'] = XLSX.utils.encode_range(range);
       
       // Apply column widths if available
       if (excelData.columnWidths) {
