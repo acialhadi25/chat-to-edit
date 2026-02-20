@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   getSubscriptionTiers,
   getUserSubscription,
@@ -42,13 +44,50 @@ export function useUserSubscriptionInfo() {
 
 export function useUserCreditUsage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  return useQuery<UserCreditUsage>({
+  const query = useQuery<UserCreditUsage>({
     queryKey: ['user-credit-usage', user?.id],
     queryFn: () => getUserCreditUsage(user!.id),
     enabled: !!user?.id,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000, // Fallback: Refetch every 30 seconds
   });
+
+  // Setup realtime subscription for instant updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('Setting up realtime subscription for user_profiles:', user.id);
+
+    // Subscribe to changes in user_profiles table
+    const channel = supabase
+      .channel(`user-credits-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'user_profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Credit update received:', payload);
+          // Invalidate and refetch credit usage when user_profiles changes
+          queryClient.invalidateQueries({ queryKey: ['user-credit-usage', user.id] });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
+  return query;
 }
 
 /**
