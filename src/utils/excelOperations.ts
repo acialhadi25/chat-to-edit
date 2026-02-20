@@ -1155,7 +1155,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
               const match = formula.match(/[=<>]+"([^"]+)"/);
               if (match) {
                 value = match[1];
-                condition = 'contains'; // Default to contains for formula-based rules
+                condition = 'equals'; // Use equals for exact match (case-insensitive if LOWER is used)
                 console.log(`CONDITIONAL_FORMAT: Extracted value from formula: "${value}"`);
               }
             }
@@ -1166,7 +1166,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             }
             
             const valueStr = String(value || '').toLowerCase();
-            const caseSensitive = rule.format?.caseSensitive !== false;
+            // If value was extracted from LOWER() formula, it should be case-insensitive
+            const caseSensitive = rule.format?.caseSensitive === true;
 
             console.log(`CONDITIONAL_FORMAT: Checking rule - condition: ${condition}, value: "${value}", caseSensitive: ${caseSensitive}`);
 
@@ -1177,35 +1178,35 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
               case 'contains':
               case 'textContains':
                 if (caseSensitive) {
-                  matches = String(cellValue || '').includes(String(rule.value || ''));
+                  matches = String(cellValue || '').includes(String(value || ''));
                 } else {
-                  matches = cellValueStr.includes(value);
+                  matches = cellValueStr.includes(valueStr);
                 }
-                console.log(`CONDITIONAL_FORMAT: Contains check - caseSensitive=${caseSensitive}, "${cellValue}" includes "${rule.value}": ${matches}`);
+                console.log(`CONDITIONAL_FORMAT: Contains check - caseSensitive=${caseSensitive}, "${cellValue}" includes "${value}": ${matches}`);
                 break;
               case 'equals':
               case 'textEquals':
                 if (caseSensitive) {
-                  matches = cellValue === rule.value;
+                  matches = cellValue === value;
                 } else {
-                  matches = cellValueStr === value;
+                  matches = cellValueStr === valueStr;
                 }
-                console.log(`CONDITIONAL_FORMAT: Equals check - caseSensitive=${caseSensitive}, "${cellValue}" === "${rule.value}": ${matches}`);
+                console.log(`CONDITIONAL_FORMAT: Equals check - caseSensitive=${caseSensitive}, "${cellValue}" === "${value}": ${matches}`);
                 break;
               case 'startsWith':
               case 'textStartsWith':
                 if (caseSensitive) {
-                  matches = String(cellValue || '').startsWith(String(rule.value || ''));
+                  matches = String(cellValue || '').startsWith(String(value || ''));
                 } else {
-                  matches = cellValueStr.startsWith(value);
+                  matches = cellValueStr.startsWith(valueStr);
                 }
                 break;
               case 'endsWith':
               case 'textEndsWith':
                 if (caseSensitive) {
-                  matches = String(cellValue || '').endsWith(String(rule.value || ''));
+                  matches = String(cellValue || '').endsWith(String(value || ''));
                 } else {
-                  matches = cellValueStr.endsWith(value);
+                  matches = cellValueStr.endsWith(valueStr);
                 }
                 break;
             }
