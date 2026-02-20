@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, lazy, Suspense, useEffect } from 'react'
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useFileHistory } from '@/hooks/useFileHistory';
 import { useChatHistory } from '@/hooks/useChatHistory';
+import { usePersistentExcelState } from '@/hooks/usePersistentExcelState';
 import ExcelUpload from '@/components/dashboard/ExcelUpload';
 import ChatInterface, { ChatInterfaceHandle } from '@/components/dashboard/ChatInterface';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
@@ -33,12 +34,22 @@ const ExcelPreviewLoader = () => (
 const ExcelDashboard = () => {
   const { toast } = useToast();
   const { state: sidebarState } = useSidebar();
-  const [excelData, setExcelData] = useState<ExcelData | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  
+  // Use persistent state hook instead of regular useState
+  const {
+    excelData,
+    setExcelData,
+    messages,
+    setMessages,
+    fileHistoryId,
+    setFileHistoryId,
+    resetState,
+    isRestored,
+  } = usePersistentExcelState();
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const chatRef = useRef<ChatInterfaceHandle>(null);
   const excelPreviewRef = useRef<ExcelPreviewHandle>(null);
-  const [fileHistoryId, setFileHistoryId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const spreadsheetDataRef = useRef<XSpreadsheetSheet[] | null>(null);
@@ -54,6 +65,18 @@ const ExcelDashboard = () => {
     pushState,
     clearHistory,
   } = useUndoRedo(null);
+
+  // Show notification when state is restored from localStorage
+  useEffect(() => {
+    if (isRestored && excelData) {
+      toast({
+        title: "File restored",
+        description: `Your previous work on "${excelData.fileName}" has been restored.`,
+        duration: 5000,
+      });
+      setChatOpen(true); // Open chat if there's restored data
+    }
+  }, [isRestored, excelData, toast]);
 
   // Trigger FortuneSheet resize when sidebar state changes (left sidebar)
   useEffect(() => {
@@ -116,12 +139,15 @@ const ExcelDashboard = () => {
   );
 
   const handleClearFile = useCallback(() => {
-    setExcelData(null);
-    setMessages([]);
+    resetState(); // Clear persisted state from localStorage
     clearHistory();
-    setFileHistoryId(null);
     setChatOpen(false);
-  }, [clearHistory]);
+    
+    toast({
+      title: "File cleared",
+      description: "Your Excel file and chat history have been cleared.",
+    });
+  }, [resetState, clearHistory, toast]);
 
   const handleNewMessage = useCallback(
     (message: ChatMessage) => {
