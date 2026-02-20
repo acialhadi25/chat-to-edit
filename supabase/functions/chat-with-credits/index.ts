@@ -101,6 +101,13 @@ Always respond in JSON with this format:
   ]
 }
 
+## CREDIT COSTS (for your information):
+- AI Chat / Info / Clarify: 1 credit
+- Simple Operations (EDIT_CELL, SORT_DATA, FILTER_DATA, etc.): 1 credit
+- Complex Operations (INSERT_FORMULA, GENERATE_DATA, PIVOT_SUMMARY, etc.): 2 credits
+- Template Generation: 3 credits
+- File Upload: 5 credits
+
 ## FORMULA EXAMPLES:
 - Fill Total column (F) with Harga * Qty:
   { "type": "INSERT_FORMULA", "formula": "=D{row}*E{row}", "target": { "type": "range", "ref": "F2:F12" } }
@@ -177,30 +184,15 @@ serve(async (req) => {
     if (shouldTrackCredits && user) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      // Determine credit action based on request complexity
-      let creditAction: CreditAction = 'AI_CHAT';
-      const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
-      if (lastMessage.includes('pivot') || lastMessage.includes('vlookup') || 
-          lastMessage.includes('complex') || lastMessage.includes('formula')) {
-        creditAction = 'COMPLEX_OPERATION';
-      } else if (lastMessage.includes('sort') || lastMessage.includes('filter') || 
-                 lastMessage.includes('format')) {
-        creditAction = 'SIMPLE_OPERATION';
-      }
-
-      // Check if user has enough credits
-      const creditCheck = await checkCredits(supabase, user.id, creditAction);
+      // Initially check with AI_CHAT (minimum cost)
+      // We'll track the actual cost after we know what action AI performs
+      const initialCreditCheck = await checkCredits(supabase, user.id, 'AI_CHAT');
       
-      if (!creditCheck.allowed) {
-        return createInsufficientCreditsResponse(creditCheck, corsHeaders);
+      if (!initialCreditCheck.allowed) {
+        return createInsufficientCreditsResponse(initialCreditCheck, corsHeaders);
       }
-
-      // Track credits (async, don't wait)
-      trackCredits(supabase, user.id, creditAction).catch(err => {
-        console.error('Failed to track credits:', err);
-      });
       
-      console.log(`[${user.id}] Credits tracked for action: ${creditAction}`);
+      console.log(`[${user.id}] Initial credit check passed`);
     }
 
     // Build context message (same as /chat)
@@ -271,8 +263,80 @@ DATA ANALYSIS (use this for accurate responses):
       response_format: { type: 'json_object' },
     });
 
+    // Create a custom stream to parse response and track credits
+    let fullResponse = '';
+    const transformStream = new TransformStream({
+      transform(chunk, controller) {
+        // Decode and accumulate response
+        const text = new TextDecoder().decode(chunk);
+        fullResponse += text;
+        
+        // Forward the chunk
+        controller.enqueue(chunk);
+      },
+      flush() {
+        // After streaming is complete, track credits based on action type
+        if (shouldTrackCredits && user) {
+          try {
+            // Parse the accumulated response to determine action type
+            const jsonMatch = fullResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              const actionType = parsed.action?.type;
+              
+              // Determine credit cost based on action type
+              let creditAction: CreditAction = 'AI_CHAT';
+              
+              if (actionType) {
+                // Complex operations (2 credits)
+                const complexActions = [
+                  'INSERT_FORMULA', 'GENERATE_DATA', 'ADD_COLUMN_WITH_DATA',
+                  'PIVOT_SUMMARY', 'VLOOKUP', 'SPLIT_COLUMN', 'MERGE_COLUMNS',
+                  'CONDITIONAL_FORMAT', 'CREATE_CHART'
+                ];
+                
+                // Simple operations (1 credit)
+                const simpleActions = [
+                  'EDIT_CELL', 'EDIT_COLUMN', 'EDIT_ROW', 'FIND_REPLACE',
+                  'DATA_CLEANSING', 'DATA_TRANSFORM', 'ADD_COLUMN', 'DELETE_COLUMN',
+                  'DELETE_ROW', 'REMOVE_EMPTY_ROWS', 'SORT_DATA', 'FILTER_DATA',
+                  'REMOVE_DUPLICATES', 'FILL_DOWN', 'RENAME_COLUMN'
+                ];
+                
+                if (complexActions.includes(actionType)) {
+                  creditAction = 'COMPLEX_OPERATION';
+                } else if (simpleActions.includes(actionType)) {
+                  creditAction = 'SIMPLE_OPERATION';
+                } else if (actionType === 'DATA_AUDIT') {
+                  creditAction = 'AI_CHAT'; // Audit is just analysis, 1 credit
+                }
+              }
+              
+              // Track credits asynchronously
+              const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+              trackCredits(supabase, user.id, creditAction).catch(err => {
+                console.error('Failed to track credits:', err);
+              });
+              
+              console.log(`[${user.id}] Credits tracked: ${creditAction} for action: ${actionType || 'none'}`);
+            }
+          } catch (err) {
+            console.error('Failed to parse response for credit tracking:', err);
+            // Fallback: track as AI_CHAT
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            trackCredits(supabase, user.id, 'AI_CHAT').catch(e => {
+              console.error('Failed to track fallback credits:', e);
+            });
+          }
+        }
+      }
+    });
+
+    // Pipe response through transform stream
+    const transformedStream = response.body?.pipeThrough(transformStream);
+
     // Return streaming response
-    return new Response(response.body, {
+    return new Response(transformedStream, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',
