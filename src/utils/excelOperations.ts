@@ -1066,12 +1066,16 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           const cellValue = row[colIndex];
           const cellValueStr = String(cellValue || '').toLowerCase();
 
+          console.log(`CONDITIONAL_FORMAT: Row ${rowIndex}, cell value: "${cellValue}", lowercase: "${cellValueStr}"`);
+
           // Check each rule
           for (const rule of rules) {
             const condition = rule.condition;
             const value = String(rule.value || '').toLowerCase();
             const format = rule.format;
             const caseSensitive = rule.format?.caseSensitive !== false;
+
+            console.log(`CONDITIONAL_FORMAT: Checking rule - condition: ${condition}, value: "${rule.value}", caseSensitive: ${caseSensitive}`);
 
             let matches = false;
 
@@ -1081,11 +1085,13 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                 matches = caseSensitive 
                   ? String(cellValue || '').includes(rule.value)
                   : cellValueStr.includes(value);
+                console.log(`CONDITIONAL_FORMAT: Contains check - "${cellValueStr}" includes "${value}": ${matches}`);
                 break;
               case 'equals':
                 matches = caseSensitive
                   ? cellValue === rule.value
                   : cellValueStr === value;
+                console.log(`CONDITIONAL_FORMAT: Equals check - "${cellValueStr}" === "${value}": ${matches}`);
                 break;
               case 'startsWith':
                 matches = caseSensitive
