@@ -152,11 +152,21 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
 
           const sheet = sheets[0];
           console.log('getData: First sheet:', sheet);
+          console.log('getData: Sheet keys:', Object.keys(sheet));
+          console.log('getData: Sheet.data:', sheet.data);
+          console.log('getData: Sheet.celldata:', sheet.celldata);
           
-          if (!sheet.celldata || !Array.isArray(sheet.celldata)) {
-            console.warn('getData: No celldata in sheet');
+          // FortuneSheet can store data in either 'data' or 'celldata' format
+          const cellData = sheet.celldata || sheet.data;
+          
+          if (!cellData) {
+            console.warn('getData: No celldata or data in sheet');
             return null;
           }
+          
+          console.log('getData: Using data format:', Array.isArray(cellData) ? 'celldata (array)' : 'data (2D array)');
+
+          console.log('getData: Using data format:', Array.isArray(cellData) ? 'celldata (array)' : 'data (2D array)');
 
           // Extract formulas and styles from celldata
           const extractedData: {
@@ -169,46 +179,92 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             values: []
           };
 
-          console.log(`getData: Processing ${sheet.celldata.length} cells`);
+          // Handle celldata format (array of cell objects)
+          if (Array.isArray(cellData)) {
+            console.log(`getData: Processing ${cellData.length} cells from celldata array`);
 
-          // Process each cell
-          sheet.celldata.forEach((cell: any) => {
-            if (cell.r === 0) {
-              // Skip header row
-              return;
-            }
+            cellData.forEach((cell: any) => {
+              if (cell.r === 0) {
+                // Skip header row
+                return;
+              }
 
-            const rowIdx = cell.r - 1; // Adjust for header
-            const colIdx = cell.c;
-            const cellRef = createCellRef(colIdx, rowIdx);
+              const rowIdx = cell.r - 1; // Adjust for header
+              const colIdx = cell.c;
+              const cellRef = createCellRef(colIdx, rowIdx);
 
-            // Extract formula
-            if (cell.v?.f) {
-              extractedData.formulas[cellRef] = cell.v.f;
-              console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
-            }
+              // Extract formula
+              if (cell.v?.f) {
+                extractedData.formulas[cellRef] = cell.v.f;
+                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
+              }
 
-            // Extract styles
-            const style: any = {};
+              // Extract styles
+              const style: any = {};
+              
+              if (cell.v?.bg) {
+                style.bgcolor = cell.v.bg;
+              }
+              
+              if (cell.v?.fc) {
+                style.color = cell.v.fc;
+              }
+              
+              if (cell.v?.bl === 1) {
+                style.font = { bold: true };
+              }
+
+              // Only store if has styling
+              if (Object.keys(style).length > 0) {
+                extractedData.cellStyles[cellRef] = style;
+                console.log(`Found style at ${cellRef}:`, style);
+              }
+            });
+          } 
+          // Handle data format (2D array)
+          else if (Array.isArray(cellData)) {
+            console.log(`getData: Processing 2D data array with ${cellData.length} rows`);
             
-            if (cell.v?.bg) {
-              style.bgcolor = cell.v.bg;
-            }
-            
-            if (cell.v?.fc) {
-              style.color = cell.v.fc;
-            }
-            
-            if (cell.v?.bl === 1) {
-              style.font = { bold: true };
-            }
-
-            // Only store if has styling
-            if (Object.keys(style).length > 0) {
-              extractedData.cellStyles[cellRef] = style;
-              console.log(`Found style at ${cellRef}:`, style);
-            }
-          });
+            // In 2D format, we need to iterate through rows and columns
+            cellData.forEach((row: any[], rowIdx: number) => {
+              if (rowIdx === 0) return; // Skip header
+              
+              if (!Array.isArray(row)) return;
+              
+              row.forEach((cell: any, colIdx: number) => {
+                if (!cell) return;
+                
+                const dataRowIdx = rowIdx - 1; // Adjust for header
+                const cellRef = createCellRef(colIdx, dataRowIdx);
+                
+                // Extract formula
+                if (cell.f) {
+                  extractedData.formulas[cellRef] = cell.f;
+                  console.log(`Found formula at ${cellRef}: ${cell.f}`);
+                }
+                
+                // Extract styles
+                const style: any = {};
+                
+                if (cell.bg) {
+                  style.bgcolor = cell.bg;
+                }
+                
+                if (cell.fc) {
+                  style.color = cell.fc;
+                }
+                
+                if (cell.bl === 1) {
+                  style.font = { bold: true };
+                }
+                
+                if (Object.keys(style).length > 0) {
+                  extractedData.cellStyles[cellRef] = style;
+                  console.log(`Found style at ${cellRef}:`, style);
+                }
+              });
+            });
+          }
 
           console.log('getData: Extraction complete', {
             formulaCount: Object.keys(extractedData.formulas).length,
