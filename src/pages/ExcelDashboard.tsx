@@ -301,48 +301,22 @@ const ExcelDashboard = () => {
     try {
       console.log('Starting Excel download...');
       
-      // Get current data from FortuneSheet
+      // Get current data from FortuneSheet using API
       const fortuneSheetData = excelPreviewRef.current?.getData();
       console.log('FortuneSheet data:', fortuneSheetData);
       
       // Extract formulas and styles from FortuneSheet OR use excelData as fallback
-      let formulas: { [key: string]: string } = { ...excelData.formulas };
-      let cellStyles: { [key: string]: any } = { ...excelData.cellStyles };
+      let formulas: { [key: string]: string } = {};
+      let cellStyles: { [key: string]: any } = {};
       
-      if (fortuneSheetData && fortuneSheetData[0]) {
-        console.log('Using FortuneSheet data');
-        const sheet = fortuneSheetData[0];
-        if (sheet.celldata) {
-          // Clear and rebuild from FortuneSheet
-          formulas = {};
-          cellStyles = {};
-          
-          sheet.celldata.forEach((cell: any) => {
-            if (cell.r > 0) { // Skip header row
-              const rowIdx = cell.r - 1; // Adjust for header
-              const colIdx = cell.c;
-              const cellRef = createCellRef(colIdx, rowIdx);
-              
-              // Extract formula
-              if (cell.v?.f) {
-                formulas[cellRef] = cell.v.f;
-                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
-              }
-              
-              // Extract styles
-              if (cell.v?.bg || cell.v?.fc || cell.v?.bl) {
-                cellStyles[cellRef] = {
-                  bgcolor: cell.v.bg,
-                  color: cell.v.fc,
-                  font: { bold: cell.v.bl === 1 }
-                };
-                console.log(`Found style at ${cellRef}:`, cellStyles[cellRef]);
-              }
-            }
-          });
-        }
+      if (fortuneSheetData && typeof fortuneSheetData === 'object' && 'formulas' in fortuneSheetData) {
+        console.log('Using extracted FortuneSheet data');
+        formulas = fortuneSheetData.formulas || {};
+        cellStyles = fortuneSheetData.cellStyles || {};
       } else {
         console.log('FortuneSheet data not available, using excelData fallback');
+        formulas = { ...excelData.formulas };
+        cellStyles = { ...excelData.cellStyles };
       }
       
       console.log('Extracted formulas:', formulas);

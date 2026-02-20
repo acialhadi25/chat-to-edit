@@ -133,50 +133,97 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       },
 
       getData: () => {
-        // Try multiple ways to access FortuneSheet data
-        const luckysheet = (window as any).luckysheet;
-        const fortunesheet = (window as any).fortunesheet;
+        console.log('getData: Extracting data from FortuneSheet using workbookRef API');
         
-        console.log('getData: Checking global objects...');
-        console.log('window.luckysheet:', luckysheet);
-        console.log('window.fortunesheet:', fortunesheet);
-        console.log('workbookRef.current:', workbookRef.current);
-        
-        // Try luckysheet first
-        if (luckysheet) {
-          try {
-            const sheets = luckysheet.getAllSheets();
-            console.log('getData: Retrieved sheets from luckysheet:', sheets);
-            return sheets;
-          } catch (error) {
-            console.error('Error getting sheets from luckysheet:', error);
-          }
+        if (!workbookRef.current) {
+          console.warn('getData: workbookRef not available');
+          return null;
         }
-        
-        // Try fortunesheet
-        if (fortunesheet) {
-          try {
-            const sheets = fortunesheet.getAllSheets();
-            console.log('getData: Retrieved sheets from fortunesheet:', sheets);
-            return sheets;
-          } catch (error) {
-            console.error('Error getting sheets from fortunesheet:', error);
+
+        try {
+          // Extract all cell data using getCellValue API
+          const extractedData: {
+            formulas: { [key: string]: string };
+            cellStyles: { [key: string]: any };
+            values: any[][];
+          } = {
+            formulas: {},
+            cellStyles: {},
+            values: []
+          };
+
+          const headers = data.headers;
+          const rowCount = data.rows.length;
+
+          console.log(`getData: Extracting ${rowCount} rows x ${headers.length} columns`);
+
+          // Loop through all data rows (skip header row 0)
+          for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
+            const rowValues: any[] = [];
+            const fortuneSheetRow = rowIdx + 1; // +1 because row 0 is headers
+
+            for (let colIdx = 0; colIdx < headers.length; colIdx++) {
+              const cellRef = createCellRef(colIdx, rowIdx);
+              
+              // Get cell value with formula option
+              const cellData = workbookRef.current.getCellValue(fortuneSheetRow, colIdx, { type: 'v' });
+              const cellFormula = workbookRef.current.getCellValue(fortuneSheetRow, colIdx, { type: 'f' });
+              
+              // Store formula if exists
+              if (cellFormula && typeof cellFormula === 'string' && cellFormula.startsWith('=')) {
+                extractedData.formulas[cellRef] = cellFormula;
+                console.log(`Found formula at ${cellRef}: ${cellFormula}`);
+              }
+
+              // Get cell format/style
+              try {
+                // Try to get cell format - FortuneSheet might expose this differently
+                const cellFormat = workbookRef.current.getCellValue(fortuneSheetRow, colIdx);
+                
+                if (cellFormat && typeof cellFormat === 'object') {
+                  const style: any = {};
+                  
+                  // Extract background color
+                  if (cellFormat.bg) {
+                    style.bgcolor = cellFormat.bg;
+                  }
+                  
+                  // Extract text color
+                  if (cellFormat.fc) {
+                    style.color = cellFormat.fc;
+                  }
+                  
+                  // Extract font styles
+                  if (cellFormat.bl === 1) {
+                    style.font = { bold: true };
+                  }
+                  
+                  // Only store if has styling
+                  if (Object.keys(style).length > 0) {
+                    extractedData.cellStyles[cellRef] = style;
+                    console.log(`Found style at ${cellRef}:`, style);
+                  }
+                }
+              } catch (error) {
+                // Ignore errors getting format
+              }
+
+              rowValues.push(cellData);
+            }
+            
+            extractedData.values.push(rowValues);
           }
+
+          console.log('getData: Extraction complete', {
+            formulaCount: Object.keys(extractedData.formulas).length,
+            styleCount: Object.keys(extractedData.cellStyles).length
+          });
+
+          return extractedData;
+        } catch (error) {
+          console.error('getData: Error extracting data:', error);
+          return null;
         }
-        
-        // Try workbookRef
-        if (workbookRef.current) {
-          try {
-            console.log('getData: Trying workbookRef.current');
-            // FortuneSheet Workbook component might expose data differently
-            return workbookRef.current;
-          } catch (error) {
-            console.error('Error getting data from workbookRef:', error);
-          }
-        }
-        
-        console.warn('getData: No FortuneSheet data source available');
-        return null;
       },
     }));
 
