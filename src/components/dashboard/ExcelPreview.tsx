@@ -134,8 +134,19 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
 
       getData: () => {
         const luckysheet = (window as any).luckysheet;
-        if (!luckysheet) return null;
-        return luckysheet.getAllSheets();
+        if (!luckysheet) {
+          console.warn('Luckysheet not available');
+          return null;
+        }
+        
+        try {
+          const sheets = luckysheet.getAllSheets();
+          console.log('getData: Retrieved sheets from luckysheet:', sheets);
+          return sheets;
+        } catch (error) {
+          console.error('Error getting sheets from luckysheet:', error);
+          return null;
+        }
       },
     }));
 

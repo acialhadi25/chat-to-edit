@@ -305,13 +305,18 @@ const ExcelDashboard = () => {
       const fortuneSheetData = excelPreviewRef.current?.getData();
       console.log('FortuneSheet data:', fortuneSheetData);
       
-      // Extract formulas and styles from FortuneSheet
-      const formulas: { [key: string]: string } = {};
-      const cellStyles: { [key: string]: any } = {};
+      // Extract formulas and styles from FortuneSheet OR use excelData as fallback
+      let formulas: { [key: string]: string } = { ...excelData.formulas };
+      let cellStyles: { [key: string]: any } = { ...excelData.cellStyles };
       
       if (fortuneSheetData && fortuneSheetData[0]) {
+        console.log('Using FortuneSheet data');
         const sheet = fortuneSheetData[0];
         if (sheet.celldata) {
+          // Clear and rebuild from FortuneSheet
+          formulas = {};
+          cellStyles = {};
+          
           sheet.celldata.forEach((cell: any) => {
             if (cell.r > 0) { // Skip header row
               const rowIdx = cell.r - 1; // Adjust for header
@@ -336,6 +341,8 @@ const ExcelDashboard = () => {
             }
           });
         }
+      } else {
+        console.log('FortuneSheet data not available, using excelData fallback');
       }
       
       console.log('Extracted formulas:', formulas);
@@ -378,7 +385,7 @@ const ExcelDashboard = () => {
           cell.border = thinBorder;
           cell.alignment = { vertical: 'middle' };
           
-          // Apply conditional formatting colors from FortuneSheet
+          // Apply conditional formatting colors
           const cellRef = createCellRef(colNumber - 1, rowIdx);
           const style = cellStyles[cellRef];
           
@@ -404,7 +411,7 @@ const ExcelDashboard = () => {
             cell.font = { ...cell.font, bold: true };
           }
           
-          // Apply formula from FortuneSheet
+          // Apply formula
           const formula = formulas[cellRef];
           if (formula) {
             const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
