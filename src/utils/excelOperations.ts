@@ -531,19 +531,26 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         console.log(`EDIT_COLUMN: Column ${colLetter} (index ${colIndex}), ${values.length} values`);
 
         // Apply values to each row
-        values.forEach((value, index) => {
-          if (index < data.rows.length) {
-            const oldValue = data.rows[index][colIndex];
+        // Skip first value if it matches the header (AI sometimes includes header in values array)
+        const startIndex = values[0] === data.headers[colIndex] ? 1 : 0;
+        
+        values.slice(startIndex).forEach((value, index) => {
+          const rowIndex = index; // 0-based row index in data.rows
+          
+          if (rowIndex < data.rows.length) {
+            const oldValue = data.rows[rowIndex][colIndex];
             
             changes.push({
-              row: index,
+              row: rowIndex,
               col: colIndex,
               oldValue,
               newValue: value,
               type: 'CELL_UPDATE',
             });
             
-            console.log(`EDIT_COLUMN: Row ${index}: ${oldValue} -> ${value}`);
+            console.log(`EDIT_COLUMN: Row ${rowIndex}: ${oldValue} -> ${value}`);
+          } else {
+            console.warn(`EDIT_COLUMN: Skipping row ${rowIndex} (exceeds data.rows.length ${data.rows.length})`);
           }
         });
 
