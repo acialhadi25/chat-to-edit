@@ -168,6 +168,30 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             values: []
           };
 
+          // First, extract formulas from calcChain if available
+          if (sheet.calcChain && Array.isArray(sheet.calcChain)) {
+            console.log(`getData: Processing calcChain with ${sheet.calcChain.length} entries`);
+            sheet.calcChain.forEach((calc: any) => {
+              console.log('getData: calcChain entry:', calc);
+              // calcChain format: { r: row, c: col, id: sheetId }
+              // The formula is stored in the cell itself
+              if (calc.r !== undefined && calc.c !== undefined && calc.r > 0) {
+                const rowIdx = calc.r - 1; // Adjust for header
+                const colIdx = calc.c;
+                const cellRef = createCellRef(colIdx, rowIdx);
+                
+                // Get the cell to extract formula
+                if (sheet.data && sheet.data[calc.r] && sheet.data[calc.r][calc.c]) {
+                  const cell = sheet.data[calc.r][calc.c];
+                  if (cell.f) {
+                    extractedData.formulas[cellRef] = cell.f;
+                    console.log(`Found formula from calcChain at ${cellRef}: ${cell.f}`);
+                  }
+                }
+              }
+            });
+          }
+
           // FortuneSheet stores data in 'data' property as 2D array
           if (sheet.data && Array.isArray(sheet.data)) {
             console.log(`getData: Processing 2D data array with ${sheet.data.length} rows`);
@@ -194,12 +218,10 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                   console.log(`getData: Cell keys:`, Object.keys(cell));
                 }
                 
-                // Extract formula
-                if (cell.f) {
-                  if (!isHeader) {
-                    extractedData.formulas[cellRef] = cell.f;
-                    console.log(`Found formula at ${cellRef}: ${cell.f}`);
-                  }
+                // Extract formula (if not already extracted from calcChain)
+                if (cell.f && !isHeader && !extractedData.formulas[cellRef]) {
+                  extractedData.formulas[cellRef] = cell.f;
+                  console.log(`Found formula at ${cellRef}: ${cell.f}`);
                 }
                 
                 // Extract styles (including header)

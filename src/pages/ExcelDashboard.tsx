@@ -368,9 +368,9 @@ const ExcelDashboard = () => {
       excelData.rows.forEach((row, rowIdx) => {
         const excelRow = worksheet.addRow(row);
         
-        // Apply styling to each cell
-        excelRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-          // Apply border
+        // Apply styling to each cell INCLUDING EMPTY CELLS
+        excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          // Apply border to ALL cells
           cell.border = thinBorder;
           cell.alignment = { vertical: 'middle' };
           
