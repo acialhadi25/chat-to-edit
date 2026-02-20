@@ -133,20 +133,50 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       },
 
       getData: () => {
+        // Try multiple ways to access FortuneSheet data
         const luckysheet = (window as any).luckysheet;
-        if (!luckysheet) {
-          console.warn('Luckysheet not available');
-          return null;
+        const fortunesheet = (window as any).fortunesheet;
+        
+        console.log('getData: Checking global objects...');
+        console.log('window.luckysheet:', luckysheet);
+        console.log('window.fortunesheet:', fortunesheet);
+        console.log('workbookRef.current:', workbookRef.current);
+        
+        // Try luckysheet first
+        if (luckysheet) {
+          try {
+            const sheets = luckysheet.getAllSheets();
+            console.log('getData: Retrieved sheets from luckysheet:', sheets);
+            return sheets;
+          } catch (error) {
+            console.error('Error getting sheets from luckysheet:', error);
+          }
         }
         
-        try {
-          const sheets = luckysheet.getAllSheets();
-          console.log('getData: Retrieved sheets from luckysheet:', sheets);
-          return sheets;
-        } catch (error) {
-          console.error('Error getting sheets from luckysheet:', error);
-          return null;
+        // Try fortunesheet
+        if (fortunesheet) {
+          try {
+            const sheets = fortunesheet.getAllSheets();
+            console.log('getData: Retrieved sheets from fortunesheet:', sheets);
+            return sheets;
+          } catch (error) {
+            console.error('Error getting sheets from fortunesheet:', error);
+          }
         }
+        
+        // Try workbookRef
+        if (workbookRef.current) {
+          try {
+            console.log('getData: Trying workbookRef.current');
+            // FortuneSheet Workbook component might expose data differently
+            return workbookRef.current;
+          } catch (error) {
+            console.error('Error getting data from workbookRef:', error);
+          }
+        }
+        
+        console.warn('getData: No FortuneSheet data source available');
+        return null;
       },
     }));
 
