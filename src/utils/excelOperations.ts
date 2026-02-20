@@ -1,4 +1,4 @@
-import { ExcelData, DataChange, AIAction } from '@/types/excel';
+import { ExcelData, DataChange, AIAction, CellStyle, createCellRef, getColumnIndex } from '@/types/excel';
 
 /**
  * Creates a deep copy of the Excel data to ensure immutability.
@@ -1022,6 +1022,114 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         }
 
         console.log(`Generated ${changes.length} changes for FILL_DOWN`);
+        break;
+      }
+
+      case 'CONDITIONAL_FORMAT': {
+        // Apply conditional formatting based on cell values
+        const target = getTarget();
+        if (!target || !target.ref) {
+          console.warn('CONDITIONAL_FORMAT: No target.ref found');
+          break;
+        }
+
+        // Support new format with rules array
+        const rules = action.params?.rules as any[];
+        if (!rules || !Array.isArray(rules)) {
+          console.warn('CONDITIONAL_FORMAT: No rules found in params');
+          break;
+        }
+
+        console.log('CONDITIONAL_FORMAT: Processing rules:', rules);
+
+        // Parse target column
+        const colLetter = target.ref as string;
+        const colIndex = getColumnIndex(colLetter);
+        
+        if (colIndex < 0 || colIndex >= data.headers.length) {
+          console.warn(`CONDITIONAL_FORMAT: Invalid column ${colLetter}`);
+          break;
+        }
+
+        // Apply rules to each row
+        data.rows.forEach((row, rowIndex) => {
+          const cellValue = row[colIndex];
+          const cellValueStr = String(cellValue || '').toLowerCase();
+
+          // Check each rule
+          for (const rule of rules) {
+            const condition = rule.condition;
+            const value = String(rule.value || '').toLowerCase();
+            const format = rule.format;
+            const caseSensitive = rule.format?.caseSensitive !== false;
+
+            let matches = false;
+
+            // Check condition
+            switch (condition) {
+              case 'contains':
+                matches = caseSensitive 
+                  ? String(cellValue || '').includes(rule.value)
+                  : cellValueStr.includes(value);
+                break;
+              case 'equals':
+                matches = caseSensitive
+                  ? cellValue === rule.value
+                  : cellValueStr === value;
+                break;
+              case 'startsWith':
+                matches = caseSensitive
+                  ? String(cellValue || '').startsWith(rule.value)
+                  : cellValueStr.startsWith(value);
+                break;
+              case 'endsWith':
+                matches = caseSensitive
+                  ? String(cellValue || '').endsWith(rule.value)
+                  : cellValueStr.endsWith(value);
+                break;
+            }
+
+            if (matches && format) {
+              // Create a change with style information
+              const cellRef = createCellRef(colIndex, rowIndex);
+              const currentStyle = data.cellStyles?.[cellRef] || {};
+              
+              const newStyle: CellStyle = {
+                ...currentStyle,
+              };
+
+              if (format.backgroundColor) {
+                newStyle.bgcolor = format.backgroundColor;
+              }
+              if (format.color) {
+                newStyle.color = format.color;
+              }
+              if (format.bold !== undefined) {
+                newStyle.font = { ...newStyle.font, bold: format.bold };
+              }
+
+              // Store style change
+              if (!data.cellStyles) {
+                data.cellStyles = {};
+              }
+              data.cellStyles[cellRef] = newStyle;
+
+              changes.push({
+                row: rowIndex,
+                col: colIndex,
+                oldValue: cellValue,
+                newValue: cellValue, // Value doesn't change, only style
+                type: 'CELL_UPDATE',
+                params: { style: newStyle },
+              });
+
+              console.log(`CONDITIONAL_FORMAT: Applied rule to ${cellRef}: ${JSON.stringify(newStyle)}`);
+              break; // Only apply first matching rule
+            }
+          }
+        });
+
+        console.log(`Generated ${changes.length} changes for CONDITIONAL_FORMAT`);
         break;
       }
 

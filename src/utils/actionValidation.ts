@@ -152,8 +152,12 @@ export function validateExcelAction(action: unknown): ValidationResult {
       break;
 
     case "CONDITIONAL_FORMAT":
-      if (!a.target || !a.conditionType || !a.formatStyle) {
-        errors.push("CONDITIONAL_FORMAT requires 'target', 'conditionType', and 'formatStyle' fields");
+      // Support both old format (conditionType, formatStyle) and new format (params.rules)
+      const hasOldFormat = a.target && a.conditionType && a.formatStyle;
+      const hasNewFormat = a.params && (a.params as any).rules && (a.params as any).target;
+      
+      if (!hasOldFormat && !hasNewFormat) {
+        errors.push("CONDITIONAL_FORMAT requires either 'target', 'conditionType', 'formatStyle' OR 'params.rules' and 'params.target'");
       }
       break;
 

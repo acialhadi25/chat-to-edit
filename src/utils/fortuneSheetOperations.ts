@@ -171,26 +171,27 @@ export function applyActionToFortuneSheet(
       case 'CONDITIONAL_FORMAT': {
         // Apply conditional formatting
         if (!action.changes || action.changes.length === 0) return false;
-        
-        const formatStyle = action.params?.formatStyle as any;
-        if (!formatStyle) return false;
 
         action.changes.forEach((change) => {
           const row = change.row + 1;
           const col = change.col;
 
+          // Get style from change params (new format) or action params (old format)
+          const style = (change.params?.style as any) || action.params?.formatStyle;
+          if (!style) return;
+
           // Apply background color
-          if (formatStyle.backgroundColor) {
-            workbookRef.setCellFormat(row, col, 'bg', formatStyle.backgroundColor);
+          if (style.backgroundColor || style.bgcolor) {
+            workbookRef.setCellFormat(row, col, 'bg', style.backgroundColor || style.bgcolor);
           }
 
           // Apply text color
-          if (formatStyle.color) {
-            workbookRef.setCellFormat(row, col, 'fc', formatStyle.color);
+          if (style.color || style.fc) {
+            workbookRef.setCellFormat(row, col, 'fc', style.color || style.fc);
           }
 
           // Apply bold
-          if (formatStyle.fontWeight === 'bold') {
+          if (style.fontWeight === 'bold' || style.font?.bold) {
             workbookRef.setCellFormat(row, col, 'bl', 1);
           }
         });
