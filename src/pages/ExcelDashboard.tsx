@@ -10,12 +10,12 @@ import { Button } from '@/components/ui/button';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { MessageSquare, X, FileSpreadsheet, Wand2, Sparkles, Download, Loader2 } from 'lucide-react';
 import { ExcelTemplate } from '@/types/template';
-import { ExcelData, ChatMessage, AIAction, DataChange, XSpreadsheetSheet } from '@/types/excel';
+import { ExcelData, ChatMessage, AIAction, DataChange, XSpreadsheetSheet, createCellRef } from '@/types/excel';
 import { analyzeDataForCleansing } from '@/utils/excelOperations';
 import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 
 // Lazy load ExcelPreview to reduce initial bundle size
@@ -304,11 +304,70 @@ const ExcelDashboard = () => {
       // Create workbook
       const wb = XLSX.utils.book_new();
       
-      // Create worksheet data
-      const wsData = [
-        excelData.headers, // Headers row
-        ...excelData.rows   // Data rows
-      ];
+      // Create worksheet data with proper cell objects
+      const wsData: any[][] = [];
+      
+      // Add headers
+      const headerRow = excelData.headers.map((header, colIdx) => {
+        const cellRef = createCellRef(colIdx, -1); // Row -1 for header becomes row 0 in Excel
+        const style = excelData.cellStyles?.[`${String.fromCharCode(65 + colIdx)}1`]; // A1, B1, etc.
+        
+        return {
+          v: header,
+          t: 's',
+          s: style ? {
+            fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
+            font: {
+              bold: style.font?.bold !== false,
+              color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
+            },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          } : {
+            font: { bold: true },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          }
+        };
+      });
+      wsData.push(headerRow);
+      
+      // Add data rows
+      excelData.rows.forEach((row, rowIdx) => {
+        const dataRow = row.map((cellValue, colIdx) => {
+          const cellRef = createCellRef(colIdx, rowIdx);
+          const style = excelData.cellStyles?.[cellRef];
+          const formula = excelData.formulas?.[cellRef];
+          
+          // If cell has formula, use it
+          if (formula) {
+            return {
+              f: formula.startsWith('=') ? formula.substring(1) : formula,
+              t: 'n',
+              s: style ? {
+                fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
+                font: {
+                  bold: style.font?.bold,
+                  color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
+                },
+              } : undefined
+            };
+          }
+          
+          // Regular cell with value
+          const cellType = typeof cellValue === 'number' ? 'n' : 's';
+          return {
+            v: cellValue,
+            t: cellType,
+            s: style ? {
+              fill: style.bgcolor ? { fgColor: { rgb: style.bgcolor.replace('#', '') } } : undefined,
+              font: {
+                bold: style.font?.bold,
+                color: style.color ? { rgb: style.color.replace('#', '') } : undefined,
+              },
+            } : undefined
+          };
+        });
+        wsData.push(dataRow);
+      });
       
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       
