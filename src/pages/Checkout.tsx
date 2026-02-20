@@ -5,7 +5,7 @@ import { useUserSubscriptionInfo } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CreditCard, Shield, CheckCircle2 } from 'lucide-react';
+import { Loader2, CreditCard, Shield, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { PageLoader } from '@/components/ui/loading-fallback';
 
 const TIER_INFO = {
@@ -128,6 +128,18 @@ export default function Checkout() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
+          {/* Back Button */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/pricing')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Pricing
+            </Button>
+          </div>
+
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Complete Your Purchase</h1>

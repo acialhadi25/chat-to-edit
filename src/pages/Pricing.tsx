@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useUserSubscriptionInfo } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Zap, Building2, Sparkles } from 'lucide-react';
+import { Check, Zap, Building2, Sparkles, ArrowLeft } from 'lucide-react';
 import { PageLoader } from '@/components/ui/loading-fallback';
+import { useAuth } from '@/hooks/useAuth';
 
 const tiers = [
   {
@@ -69,6 +70,7 @@ const tiers = [
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: subscriptionInfo, isLoading } = useUserSubscriptionInfo();
 
   const handleSelectTier = (tierName: string) => {
@@ -76,6 +78,14 @@ export default function Pricing() {
       navigate('/register');
     } else {
       navigate('/checkout', { state: { tier: tierName } });
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
     }
   };
 
@@ -88,6 +98,18 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-16">
+        {/* Back Button */}
+        <div className="mb-8">
+          <Button
+            variant="ghost"
+            onClick={handleBackToDashboard}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {user ? 'Back to Dashboard' : 'Back to Home'}
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
