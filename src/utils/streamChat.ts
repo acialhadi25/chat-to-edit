@@ -150,6 +150,7 @@ export async function streamChat({
 
     // Use chat-with-credits endpoint for credit tracking
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-credits`;
+    const FALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
     // Get user auth token (required for credit tracking)
     const { data: { session } } = await supabase.auth.getSession();
@@ -167,7 +168,7 @@ export async function streamChat({
     
     console.log('Using user auth token for credit tracking');
 
-    const resp = await fetch(CHAT_URL, {
+    let resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -177,6 +178,21 @@ export async function streamChat({
       body: JSON.stringify({ messages, excelContext }),
       signal: timeoutController.signal,
     });
+
+    // Fallback to /chat endpoint if credit tracking fails with 401
+    if (resp.status === 401) {
+      console.warn('Credit tracking endpoint failed with 401, falling back to /chat endpoint');
+      resp = await fetch(FALLBACK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ messages, excelContext }),
+        signal: timeoutController.signal,
+      });
+    }
 
     if (!resp.ok) {
       const errorData = await resp.json().catch(() => ({}));
