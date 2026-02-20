@@ -1042,12 +1042,22 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
 
         console.log('CONDITIONAL_FORMAT: Processing rules:', rules);
 
-        // Parse target column
-        const colLetter = target.ref as string;
+        // Parse target column - support both "G" and "G2:G13" formats
+        let colLetter = target.ref as string;
+        
+        // If it's a range like "G2:G13", extract just the column letter
+        if (colLetter.includes(':')) {
+          colLetter = colLetter.split(':')[0].replace(/\d+/g, ''); // Remove row numbers
+        } else {
+          colLetter = colLetter.replace(/\d+/g, ''); // Remove row numbers if any
+        }
+        
+        console.log('CONDITIONAL_FORMAT: Parsed column letter:', colLetter);
+        
         const colIndex = getColumnIndex(colLetter);
         
         if (colIndex < 0 || colIndex >= data.headers.length) {
-          console.warn(`CONDITIONAL_FORMAT: Invalid column ${colLetter}`);
+          console.warn(`CONDITIONAL_FORMAT: Invalid column ${colLetter} (index: ${colIndex}, headers: ${data.headers.length})`);
           break;
         }
 
