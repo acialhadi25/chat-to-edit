@@ -305,14 +305,16 @@ const ExcelDashboard = () => {
       const fortuneSheetData = excelPreviewRef.current?.getData();
       console.log('FortuneSheet data:', fortuneSheetData);
       
-      // Extract formulas and styles from FortuneSheet OR use excelData as fallback
+      // Extract formulas, styles, and column widths from FortuneSheet OR use excelData as fallback
       let formulas: { [key: string]: string } = {};
       let cellStyles: { [key: string]: any } = {};
+      let columnWidths: { [key: number]: number } = {};
       
       if (fortuneSheetData && typeof fortuneSheetData === 'object' && 'formulas' in fortuneSheetData) {
         console.log('Using extracted FortuneSheet data');
         formulas = fortuneSheetData.formulas || {};
         cellStyles = fortuneSheetData.cellStyles || {};
+        columnWidths = fortuneSheetData.columnWidths || {};
       } else {
         console.log('FortuneSheet data not available, using excelData fallback');
         formulas = { ...excelData.formulas };
@@ -321,17 +323,18 @@ const ExcelDashboard = () => {
       
       console.log('Extracted formulas:', formulas);
       console.log('Extracted cellStyles:', cellStyles);
+      console.log('Extracted columnWidths:', columnWidths);
       
       // Create workbook with ExcelJS
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(excelData.currentSheet || 'Sheet1');
       
-      // Define border style
+      // Define border style - BLACK for visibility
       const thinBorder = {
-        top: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
-        left: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
-        bottom: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
-        right: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } }
+        top: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        left: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        right: { style: 'thin' as const, color: { argb: 'FF000000' } }
       };
       
       // Add headers with styling
@@ -412,13 +415,20 @@ const ExcelDashboard = () => {
       
       console.log('All rows added with styling');
       
-      // Set column widths
-      if (excelData.columnWidths) {
-        excelData.headers.forEach((_, idx) => {
-          const width = (excelData.columnWidths?.[idx] || 120) / 10;
-          worksheet.getColumn(idx + 1).width = width;
-        });
-      }
+      // Set column widths from FortuneSheet or use defaults
+      excelData.headers.forEach((_, idx) => {
+        let width = 15; // Default width in Excel units
+        
+        // Use FortuneSheet column width if available
+        if (columnWidths[idx]) {
+          width = columnWidths[idx] / 8; // Convert from pixels to Excel units (approx)
+          console.log(`Setting column ${idx} width to ${width} (from ${columnWidths[idx]}px)`);
+        } else if (excelData.columnWidths?.[idx]) {
+          width = excelData.columnWidths[idx] / 8;
+        }
+        
+        worksheet.getColumn(idx + 1).width = width;
+      });
       
       // Generate filename
       const fileName = excelData.fileName.replace(/\.[^/.]+$/, '') + '_modified.xlsx';

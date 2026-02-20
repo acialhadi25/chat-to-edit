@@ -162,11 +162,19 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             formulas: { [key: string]: string };
             cellStyles: { [key: string]: any };
             values: any[][];
+            columnWidths: { [key: number]: number };
           } = {
             formulas: {},
             cellStyles: {},
-            values: []
+            values: [],
+            columnWidths: {}
           };
+
+          // Extract column widths from config
+          if (sheet.config?.columnlen) {
+            console.log('getData: Extracting column widths:', sheet.config.columnlen);
+            extractedData.columnWidths = sheet.config.columnlen;
+          }
 
           // First, extract formulas from calcChain if available
           if (sheet.calcChain && Array.isArray(sheet.calcChain)) {
@@ -222,6 +230,8 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 if (cell.f && !isHeader && !extractedData.formulas[cellRef]) {
                   extractedData.formulas[cellRef] = cell.f;
                   console.log(`Found formula at ${cellRef}: ${cell.f}`);
+                } else if (cell.f && !isHeader) {
+                  console.log(`Formula at ${cellRef} already extracted from calcChain`);
                 }
                 
                 // Extract styles (including header)
