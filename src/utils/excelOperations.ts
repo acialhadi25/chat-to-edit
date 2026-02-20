@@ -1135,6 +1135,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
 
           // Check each rule
           for (const rule of rules) {
+            console.log(`CONDITIONAL_FORMAT: Full rule object:`, JSON.stringify(rule));
+            
             const condition = rule.condition;
             const value = String(rule.value || '').toLowerCase();
             const format = rule.format;
