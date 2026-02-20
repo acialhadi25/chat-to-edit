@@ -519,14 +519,16 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
 
         // Try to extract row data from params
         const rowData = action.params?.rowData || (action as any).rowData;
-        console.log('EDIT_ROW: rowData:', rowData);
+        console.log('EDIT_ROW: rowData from params:', rowData);
         
-        // If no rowData, try to parse from description
+        // If no rowData in params, try to parse from description (fallback only)
         let parsedRowData = rowData;
         if (!parsedRowData && action.description) {
-          console.log('EDIT_ROW: Attempting to parse from description:', action.description);
+          console.log('EDIT_ROW: No rowData in params, attempting to parse from description:', action.description);
+          console.warn('EDIT_ROW: Parsing from description is unreliable for formulas. AI should send data in params.rowData');
           
           // Parse description like "Isi baris 8 dengan mock data: No=8, Nama=Budi Sant... Harga=500000, Qty=2, Total=1000000, Status=Lunas"
+          // NOTE: This will NOT work correctly for formulas!
           const dataMatch = action.description.match(/:\s*(.+)$/);
           if (dataMatch) {
             const dataStr = dataMatch[1];
@@ -535,12 +537,19 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             // Split by comma and parse key=value pairs
             const pairs = dataStr.split(',').map(s => s.trim());
             for (const pair of pairs) {
-              const [key, ...valueParts] = pair.split('=');
-              if (key && valueParts.length > 0) {
-                const value = valueParts.join('=').trim();
-                // Try to parse as number if possible
-                const numValue = parseFloat(value);
-                parsedRowData[key.trim()] = isNaN(numValue) ? value : numValue;
+              // Don't try to parse formulas from description
+              if (pair.includes('=') && !pair.startsWith('=')) {
+                const [key, ...valueParts] = pair.split('=');
+                if (key && valueParts.length > 0) {
+                  const value = valueParts.join('=').trim();
+                  // Only parse as number if it doesn't look like a formula
+                  if (!value.startsWith('=')) {
+                    const numValue = parseFloat(value);
+                    parsedRowData[key.trim()] = isNaN(numValue) ? value : numValue;
+                  } else {
+                    parsedRowData[key.trim()] = value;
+                  }
+                }
               }
             }
             

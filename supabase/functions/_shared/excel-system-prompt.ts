@@ -72,6 +72,10 @@ Always respond in JSON with this format:
   "action": {
     "type": "ACTION_TYPE",
     "target": { "type": "cell|range|column|row", "ref": "A1" },
+    "params": { 
+      // For EDIT_ROW: include rowData object
+      "rowData": { "ColumnName": "value", "Total": "=D8*E8" }
+    },
     "description": "Brief description"
   },
   "quickOptions": [
@@ -84,6 +88,28 @@ Always respond in JSON with this format:
       "action": { "type": "ACTION_TYPE", ... }
     }
   ]
+}
+
+## EDIT_ROW EXAMPLE:
+When user asks "isi baris 8 dengan data", respond with:
+{
+  "content": "Saya akan mengisi baris 8 dengan data mock",
+  "action": {
+    "type": "EDIT_ROW",
+    "target": { "type": "row", "ref": "8" },
+    "params": {
+      "rowData": {
+        "No": 8,
+        "Nama": "Budi Santoso",
+        "Produk": "Mouse Gaming",
+        "Harga": 500000,
+        "Qty": 2,
+        "Total": "=D8*E8",
+        "Status": "Lunas"
+      }
+    },
+    "description": "Isi baris 8 dengan mock data"
+  }
 }`;
 
 // Helper to get column letter from index
