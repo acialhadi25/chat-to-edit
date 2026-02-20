@@ -20,6 +20,12 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['xlsx-js-style'],
+  },
+  define: {
+    'process.env': {},
+  },
   build: {
     rollupOptions: {
       output: {

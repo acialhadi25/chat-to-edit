@@ -15,7 +15,7 @@ import { analyzeDataForCleansing } from '@/utils/excelOperations';
 import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
 
 // Lazy load ExcelPreview to reduce initial bundle size
