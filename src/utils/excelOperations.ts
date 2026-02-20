@@ -577,13 +577,13 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             if (colIndex >= 0) {
               const oldValue = rowIndex < data.rows.length ? data.rows[rowIndex][colIndex] : null;
               
-              // Skip if value is a formula placeholder
+              // Allow formulas - only skip if it has {row} placeholder (should use INSERT_FORMULA instead)
               if (typeof value === 'string' && value.startsWith('=') && value.includes('{row}')) {
-                // This should be handled by INSERT_FORMULA instead
-                console.log(`EDIT_ROW: Skipping formula for column ${colIndex}: ${value}`);
+                console.log(`EDIT_ROW: Skipping formula with placeholder for column ${colIndex}: ${value}`);
                 return;
               }
               
+              // Accept concrete formulas like "=D8*E8" or regular values
               changes.push({
                 row: rowIndex,
                 col: colIndex,
