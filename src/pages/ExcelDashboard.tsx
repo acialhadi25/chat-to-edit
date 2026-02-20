@@ -306,34 +306,35 @@ const ExcelDashboard = () => {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(excelData.currentSheet || 'Sheet1');
       
+      // Define border style
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        left: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } },
+        right: { style: 'thin' as const, color: { argb: 'FFD0D0D0' } }
+      };
+      
       // Add headers with styling
       const headerRow = worksheet.addRow(excelData.headers);
-      headerRow.font = { bold: true };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE8E8E8' }
-      };
-      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-      headerRow.border = {
-        top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-        left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-        bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-        right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
-      };
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE8E8E8' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = thinBorder;
+      });
       
       // Add data rows
       excelData.rows.forEach((row, rowIdx) => {
         const excelRow = worksheet.addRow(row);
         
-        // Apply borders to all cells
-        excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-            left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-            bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
-            right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
-          };
+        // Apply styling to each cell
+        excelRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          // Apply border
+          cell.border = thinBorder;
           cell.alignment = { vertical: 'middle' };
           
           // Apply conditional formatting colors
@@ -350,7 +351,6 @@ const ExcelDashboard = () => {
           
           if (style?.color) {
             cell.font = {
-              ...cell.font,
               color: { argb: 'FF' + style.color.replace('#', '') }
             };
           }
