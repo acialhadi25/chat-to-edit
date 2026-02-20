@@ -46,7 +46,44 @@ function applyDeleteRows(data: ExcelData, rows: number[]): ExcelData {
 
   const newRows = data.rows.filter((_, index) => !indicesToDelete.has(index));
 
-  return { ...data, rows: newRows };
+  // Update formulas to adjust row references after deletion
+  const sortedDeletedRows = Array.from(indicesToDelete).sort((a, b) => a - b);
+  const updatedRows = newRows.map((row, rowIndex) => {
+    return row.map((cell) => {
+      // Check if cell contains a formula
+      if (typeof cell === 'string' && cell.startsWith('=')) {
+        let updatedFormula = cell;
+        
+        // For each deleted row, adjust formula references
+        sortedDeletedRows.forEach((deletedRowIndex) => {
+          const deletedExcelRow = deletedRowIndex + 2; // +1 for header, +1 for Excel 1-based
+          const currentExcelRow = rowIndex + 2; // Current row in Excel notation
+          
+          // If this row is after the deleted row, we need to adjust references
+          if (rowIndex >= deletedRowIndex) {
+            // Replace row references in formula
+            // Match patterns like D6, E6, etc. (column letter + row number)
+            updatedFormula = updatedFormula.replace(
+              /([A-Z]+)(\d+)/g,
+              (match, col, rowNum) => {
+                const refRow = parseInt(rowNum);
+                // If formula references a row after the deleted row, decrement it
+                if (refRow > deletedExcelRow) {
+                  return `${col}${refRow - 1}`;
+                }
+                return match;
+              }
+            );
+          }
+        });
+        
+        return updatedFormula;
+      }
+      return cell;
+    });
+  });
+
+  return { ...data, rows: updatedRows };
 }
 
 // --- Main applyChanges Function (Modified to use new immutable handlers) ---
