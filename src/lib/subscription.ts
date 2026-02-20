@@ -5,6 +5,8 @@ import type {
   UserSubscriptionInfo,
   UsageTracking,
 } from '@/types/subscription';
+import type { UserCreditUsage, CreditAction } from '@/types/credits';
+import { CREDIT_COSTS } from '@/types/credits';
 
 /**
  * Get all available subscription tiers
@@ -76,69 +78,72 @@ export async function getUserSubscriptionInfo(userId: string): Promise<UserSubsc
 }
 
 /**
- * Check if user can perform an action based on usage limits
+ * Check if user can perform an action based on credit limits
  */
 export async function checkUsageLimit(
   userId: string,
-  resourceType: 'excel_operation' | 'file_upload' | 'ai_message'
+  action: CreditAction
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc('check_usage_limit', {
-    p_user_id: userId,
-    p_resource_type: resourceType,
-  });
-
-  if (error) {
-    console.error('Failed to check usage limit:', error);
-    return false;
-  }
-
-  return data === true;
+  const creditCost = CREDIT_COSTS[action];
+  const usage = await getUserCreditUsage(userId);
+  
+  return usage.credits_remaining >= creditCost;
 }
 
 /**
- * Track usage for a resource
+ * Track credit usage for an action
  */
 export async function trackUsage(
   userId: string,
-  resourceType: 'excel_operation' | 'file_upload' | 'ai_message',
+  action: CreditAction,
   count: number = 1
 ): Promise<void> {
+  const creditCost = CREDIT_COSTS[action] * count;
+  
   const { error } = await supabase.rpc('track_usage', {
     p_user_id: userId,
-    p_resource_type: resourceType,
-    p_count: count,
+    p_resource_type: 'credits',
+    p_count: creditCost,
   });
 
   if (error) {
     console.error('Failed to track usage:', error);
+    throw error;
   }
 }
 
 /**
- * Get user's current usage for the current period
+ * Get user's current credit usage for the current period
  */
-export async function getUserUsage(userId: string): Promise<Record<string, number>> {
-  const periodStart = new Date();
-  periodStart.setDate(1);
-  periodStart.setHours(0, 0, 0, 0);
-
-  const { data, error } = await supabase
-    .from('usage_tracking')
-    .select('resource_type, count')
-    .eq('user_id', userId)
-    .gte('period_start', periodStart.toISOString());
+export async function getUserCreditUsage(userId: string): Promise<UserCreditUsage> {
+  const { data, error } = await supabase.rpc('get_user_usage', {
+    p_user_id: userId,
+  });
 
   if (error) {
     console.error('Failed to fetch user usage:', error);
-    return {};
+    // Return default values on error
+    return {
+      credits_used: 0,
+      credits_limit: 100, // Free tier default
+      credits_remaining: 100,
+      period_start: new Date().toISOString(),
+      period_end: new Date().toISOString(),
+    };
   }
 
-  const usage: Record<string, number> = {};
-  data?.forEach((item: UsageTracking) => {
-    usage[item.resource_type] = item.count;
-  });
+  return data[0];
+}
 
-  return usage;
+/**
+ * @deprecated Use getUserCreditUsage instead
+ * Get user's current usage for the current period (legacy)
+ */
+export async function getUserUsage(userId: string): Promise<Record<string, number>> {
+  const usage = await getUserCreditUsage(userId);
+  return {
+    credits: usage.credits_used,
+  };
 }
 
 /**

@@ -4,13 +4,14 @@ import {
   getSubscriptionTiers,
   getUserSubscription,
   getUserSubscriptionInfo,
-  getUserUsage,
+  getUserCreditUsage,
   checkUsageLimit,
   trackUsage,
   cancelSubscription,
   reactivateSubscription,
 } from '@/lib/subscription';
 import type { SubscriptionTier, UserSubscriptionInfo } from '@/types/subscription';
+import type { UserCreditUsage, CreditAction } from '@/types/credits';
 
 export function useSubscriptionTiers() {
   return useQuery<SubscriptionTier[]>({
@@ -39,25 +40,35 @@ export function useUserSubscriptionInfo() {
   });
 }
 
-export function useUserUsage() {
+export function useUserCreditUsage() {
   const { user } = useAuth();
 
-  return useQuery<Record<string, number>>({
-    queryKey: ['user-usage', user?.id],
-    queryFn: () => (user?.id ? getUserUsage(user.id) : {}),
+  return useQuery<UserCreditUsage>({
+    queryKey: ['user-credit-usage', user?.id],
+    queryFn: () => getUserCreditUsage(user!.id),
     enabled: !!user?.id,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
+}
+
+/**
+ * @deprecated Use useUserCreditUsage instead
+ */
+export function useUserUsage() {
+  const { data: creditUsage } = useUserCreditUsage();
+  
+  return {
+    data: creditUsage ? { credits: creditUsage.credits_used } : undefined,
+    isLoading: !creditUsage,
+  };
 }
 
 export function useCheckUsageLimit() {
   const { user } = useAuth();
 
-  return async (
-    resourceType: 'excel_operation' | 'file_upload' | 'ai_message'
-  ): Promise<boolean> => {
+  return async (action: CreditAction): Promise<boolean> => {
     if (!user?.id) return false;
-    return checkUsageLimit(user.id, resourceType);
+    return checkUsageLimit(user.id, action);
   };
 }
 
@@ -67,18 +78,18 @@ export function useTrackUsage() {
 
   return useMutation({
     mutationFn: async ({
-      resourceType,
+      action,
       count = 1,
     }: {
-      resourceType: 'excel_operation' | 'file_upload' | 'ai_message';
+      action: CreditAction;
       count?: number;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
-      await trackUsage(user.id, resourceType, count);
+      await trackUsage(user.id, action, count);
     },
     onSuccess: () => {
-      // Invalidate usage query to refetch
-      queryClient.invalidateQueries({ queryKey: ['user-usage', user?.id] });
+      // Invalidate credit usage query to refetch
+      queryClient.invalidateQueries({ queryKey: ['user-credit-usage', user?.id] });
     },
   });
 }

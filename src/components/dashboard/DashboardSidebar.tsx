@@ -26,9 +26,12 @@ import {
   Crown,
   LayoutGrid,
   Sparkles,
+  CreditCard,
+  Zap,
+  User as UserIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 interface DashboardSidebarProps {
   user: User | null;
@@ -36,14 +39,15 @@ interface DashboardSidebarProps {
 
 const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
   const { signOut } = useAuth();
-  const { profile } = useProfile();
+  const { subscription, isLoading } = useSubscriptionStatus();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const maxFiles = profile?.subscription_tier === "pro" ? 50 : profile?.subscription_tier === "enterprise" ? 100 : 5;
-  const creditsRemaining = profile?.credits_remaining ?? 100;
-  const usagePercent = Math.max(0, Math.min(((100 - creditsRemaining) / 100) * 100, 100));
-  const planLabel = profile?.subscription_tier === "pro" ? "Pro Plan" : profile?.subscription_tier === "enterprise" ? "Enterprise Plan" : "Free Plan";
+  const creditsRemaining = subscription?.creditsRemaining ?? 50;
+  const creditsLimit = subscription?.creditsLimit ?? 50;
+  const usagePercent = creditsLimit > 0 ? Math.max(0, Math.min(((creditsLimit - creditsRemaining) / creditsLimit) * 100, 100)) : 0;
+  const planLabel = subscription?.tierDisplayName ?? "Free Plan";
+  const tierName = subscription?.tierName ?? "free";
 
   const handleSignOut = async () => {
     await signOut();
@@ -64,36 +68,11 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Usage Tracker */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Monthly Usage</SidebarGroupLabel>
-          <SidebarGroupContent className="px-2">
-            <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-sidebar-foreground">{creditsRemaining} credits left</span>
-                <span className="text-sidebar-foreground/60">{Math.round(usagePercent)}% used</span>
-              </div>
-              <Progress value={usagePercent} className="h-2" />
-              {creditsRemaining <= 10 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                >
-                  <Crown className="h-4 w-4" />
-                  Upgrade to Pro
-                </Button>
-              )}
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Tools */}
+        {/* Tools Section */}
         <SidebarGroup>
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/dashboard/excel")}>
                   <Link to="/dashboard/excel">
@@ -130,21 +109,59 @@ const DashboardSidebar = ({ user }: DashboardSidebarProps) => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Menu */}
+        {/* Account Section */}
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Account</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/subscription")}>
+                  <Link to="/dashboard/subscription">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Subscription & Billing</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/dashboard/settings")}>
                   <Link to="/dashboard/settings">
-                    <Settings className="h-4 w-4" />
-                    <span>Settings</span>
+                    <UserIcon className="h-4 w-4" />
+                    <span>Profile</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Credit Status Badge */}
+        <SidebarGroup>
+          <SidebarGroupContent className="px-2">
+            <div className="rounded-lg border border-sidebar-border bg-gradient-to-br from-primary/10 to-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-sidebar-foreground">{planLabel}</span>
+              </div>
+              <div className="mb-1 flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-sidebar-foreground">{creditsRemaining}</span>
+                <span className="text-sm text-sidebar-foreground/60">/ {creditsLimit} credits</span>
+              </div>
+              <Progress value={usagePercent} className="mb-2 h-1.5" />
+              <p className="text-xs text-sidebar-foreground/60">
+                {creditsRemaining > creditsLimit * 0.5 ? "You're doing great!" : creditsRemaining > creditsLimit * 0.1 ? "Running low on credits" : "Almost out of credits"}
+              </p>
+              {creditsRemaining <= creditsLimit * 0.2 && tierName === "free" && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="mt-3 w-full gap-2"
+                  onClick={() => navigate('/pricing')}
+                >
+                  <Crown className="h-3.5 w-3.5" />
+                  Upgrade Plan
+                </Button>
+              )}
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

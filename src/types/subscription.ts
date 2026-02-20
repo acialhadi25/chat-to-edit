@@ -26,9 +26,7 @@ export interface SubscriptionFeatures {
 }
 
 export interface SubscriptionLimits {
-  excel_operations_per_month: number; // -1 for unlimited
-  file_uploads_per_month: number; // -1 for unlimited
-  ai_messages_per_month: number; // -1 for unlimited
+  credits_per_month: number; // -1 for unlimited
   max_file_size_mb: number;
 }
 
@@ -66,7 +64,7 @@ export interface Transaction {
 export interface UsageTracking {
   id: string;
   user_id: string;
-  resource_type: 'excel_operation' | 'file_upload' | 'ai_message';
+  resource_type: 'credits';
   count: number;
   period_start: string;
   period_end: string;

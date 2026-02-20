@@ -9,6 +9,8 @@ const corsHeaders = {
 interface TransactionRequest {
   orderId: string;
   amount: number;
+  userId: string;
+  tier: 'pro' | 'enterprise';
   customerDetails: {
     firstName: string;
     lastName?: string;
@@ -42,8 +44,27 @@ serve(async (req) => {
     const body: TransactionRequest = await req.json();
 
     // Validate required fields
-    if (!body.orderId || !body.amount || !body.customerDetails || !body.itemDetails) {
+    if (!body.orderId || !body.amount || !body.userId || !body.tier || !body.customerDetails || !body.itemDetails) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get subscription tier ID
+    const { data: tierData, error: tierError } = await supabase
+      .from('subscription_tiers')
+      .select('id')
+      .eq('name', body.tier)
+      .single();
+
+    if (tierError || !tierData) {
+      return new Response(JSON.stringify({ error: 'Invalid subscription tier' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -93,12 +114,10 @@ serve(async (req) => {
     const snapData = await response.json();
 
     // Store transaction in database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     const { error: dbError } = await supabase.from('transactions').insert({
       order_id: body.orderId,
+      user_id: body.userId,
+      subscription_tier_id: tierData.id,
       snap_token: snapData.token,
       amount: body.amount,
       status: 'pending',

@@ -32,6 +32,13 @@ export const useAuth = (): UseAuthReturn => {
           setError(sessionError.message);
         }
 
+        console.log('Session loaded:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          hasAccessToken: !!session?.access_token,
+          userId: session?.user?.id,
+        });
+
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
@@ -49,6 +56,14 @@ export const useAuth = (): UseAuthReturn => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
+      
+      console.log('Auth state changed:', {
+        event: _event,
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        hasAccessToken: !!session?.access_token,
+      });
+      
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);

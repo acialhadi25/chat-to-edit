@@ -1,13 +1,16 @@
 import { useCallback } from 'react';
-import { useUserSubscriptionInfo, useCheckUsageLimit } from './useSubscription';
+import { useUserSubscriptionInfo, useCheckUsageLimit, useUserCreditUsage } from './useSubscription';
 import { useToast } from './use-toast';
 import type { SubscriptionFeatures } from '@/types/subscription';
+import type { CreditAction } from '@/types/credits';
+import { CREDIT_COSTS } from '@/types/credits';
 
 /**
  * Hook to guard features and actions based on subscription tier
  */
 export function useSubscriptionGuard() {
   const { data: subscriptionInfo, isLoading } = useUserSubscriptionInfo();
+  const { data: creditUsage } = useUserCreditUsage();
   const checkLimit = useCheckUsageLimit();
   const { toast } = useToast();
 
@@ -23,26 +26,26 @@ export function useSubscriptionGuard() {
   );
 
   /**
-   * Check if user can perform an action based on usage limits
+   * Check if user can perform an action based on credit limits
    */
   const canPerformAction = useCallback(
-    async (resourceType: 'excel_operation' | 'file_upload' | 'ai_message'): Promise<boolean> => {
-      const canPerform = await checkLimit(resourceType);
+    async (action: CreditAction): Promise<boolean> => {
+      const canPerform = await checkLimit(action);
+      const creditCost = CREDIT_COSTS[action];
 
       if (!canPerform) {
-        const limitKey = `${resourceType}s_per_month`;
-        const limit = subscriptionInfo?.limits[limitKey as keyof typeof subscriptionInfo.limits];
-
+        const remaining = creditUsage?.credits_remaining || 0;
+        
         toast({
-          title: 'Usage Limit Reached',
-          description: `You've reached your monthly limit of ${limit} ${resourceType.replace('_', ' ')}s. Upgrade your plan to continue.`,
+          title: 'Insufficient Credits',
+          description: `This action requires ${creditCost} credit${creditCost > 1 ? 's' : ''}, but you only have ${remaining} remaining. Upgrade your plan to get more credits.`,
           variant: 'destructive',
         });
       }
 
       return canPerform;
     },
-    [checkLimit, subscriptionInfo, toast]
+    [checkLimit, creditUsage, toast]
   );
 
   /**
@@ -94,6 +97,7 @@ export function useSubscriptionGuard() {
     guardFeature,
     checkFileSize,
     subscriptionInfo,
+    creditUsage,
     isLoading,
   };
 }

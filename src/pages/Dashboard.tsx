@@ -12,14 +12,16 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="flex min-h-svh w-full bg-background">
         <DashboardSidebar user={user} />
-        <SidebarInset className="flex flex-1 flex-col h-svh overflow-hidden min-w-0 !m-0 !ml-0 !p-0">
+        <SidebarInset className="flex flex-1 flex-col h-svh min-w-0 !m-0 !ml-0 !p-0">
           {/* Mobile Header with Sidebar Trigger */}
           <div className="flex h-14 items-center gap-2 border-b border-border bg-background px-4 lg:hidden flex-shrink-0">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-4" />
             <span className="text-sm font-medium text-foreground">Dashboard</span>
           </div>
-          <Outlet />
+          <div className="flex-1 overflow-y-auto">
+            <Outlet />
+          </div>
         </SidebarInset>
       </div>
     </SidebarProvider>

@@ -82,36 +82,52 @@ export function openMidtransPayment(
 /**
  * Create transaction and get Snap token
  */
-export async function createMidtransTransaction(data: {
-  orderId: string;
-  amount: number;
-  customerDetails: {
-    firstName: string;
-    lastName?: string;
-    email: string;
-    phone?: string;
-  };
-  itemDetails: {
-    id: string;
-    price: number;
-    quantity: number;
-    name: string;
-  }[];
-}): Promise<{ token: string; redirectUrl: string }> {
+export async function createMidtransTransaction(
+  data: {
+    orderId: string;
+    amount: number;
+    userId: string;
+    tier: 'pro' | 'enterprise';
+    customerDetails: {
+      firstName: string;
+      lastName?: string;
+      email: string;
+      phone?: string;
+    };
+    itemDetails: {
+      id: string;
+      price: number;
+      quantity: number;
+      name: string;
+    }[];
+  },
+  accessToken: string
+): Promise<{ token: string; redirectUrl: string }> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  console.log('Creating transaction with:', {
+    url: `${supabaseUrl}/functions/v1/midtrans-create-transaction`,
+    hasAnonKey: !!supabaseAnonKey,
+    hasAccessToken: !!accessToken,
+    accessTokenLength: accessToken?.length,
+  });
 
   const response = await fetch(`${supabaseUrl}/functions/v1/midtrans-create-transaction`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${supabaseKey}`,
+      'apikey': supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(data),
   });
 
+  console.log('Response status:', response.status);
+
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('Transaction creation failed:', error);
     throw new Error(error.error || 'Failed to create transaction');
   }
 
