@@ -299,12 +299,47 @@ const ExcelDashboard = () => {
     if (!excelData) return;
 
     try {
-      // Get current data from FortuneSheet if available
-      excelPreviewRef.current?.getData();
-      
       console.log('Starting Excel download...');
-      console.log('ExcelData cellStyles:', excelData.cellStyles);
-      console.log('ExcelData formulas:', excelData.formulas);
+      
+      // Get current data from FortuneSheet
+      const fortuneSheetData = excelPreviewRef.current?.getData();
+      console.log('FortuneSheet data:', fortuneSheetData);
+      
+      // Extract formulas and styles from FortuneSheet
+      const formulas: { [key: string]: string } = {};
+      const cellStyles: { [key: string]: any } = {};
+      
+      if (fortuneSheetData && fortuneSheetData[0]) {
+        const sheet = fortuneSheetData[0];
+        if (sheet.celldata) {
+          sheet.celldata.forEach((cell: any) => {
+            if (cell.r > 0) { // Skip header row
+              const rowIdx = cell.r - 1; // Adjust for header
+              const colIdx = cell.c;
+              const cellRef = createCellRef(colIdx, rowIdx);
+              
+              // Extract formula
+              if (cell.v?.f) {
+                formulas[cellRef] = cell.v.f;
+                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
+              }
+              
+              // Extract styles
+              if (cell.v?.bg || cell.v?.fc || cell.v?.bl) {
+                cellStyles[cellRef] = {
+                  bgcolor: cell.v.bg,
+                  color: cell.v.fc,
+                  font: { bold: cell.v.bl === 1 }
+                };
+                console.log(`Found style at ${cellRef}:`, cellStyles[cellRef]);
+              }
+            }
+          });
+        }
+      }
+      
+      console.log('Extracted formulas:', formulas);
+      console.log('Extracted cellStyles:', cellStyles);
       
       // Create workbook with ExcelJS
       const workbook = new ExcelJS.Workbook();
@@ -343,11 +378,9 @@ const ExcelDashboard = () => {
           cell.border = thinBorder;
           cell.alignment = { vertical: 'middle' };
           
-          // Apply conditional formatting colors
+          // Apply conditional formatting colors from FortuneSheet
           const cellRef = createCellRef(colNumber - 1, rowIdx);
-          const style = excelData.cellStyles?.[cellRef];
-          
-          console.log(`Cell ${cellRef}: style =`, style);
+          const style = cellStyles[cellRef];
           
           if (style?.bgcolor) {
             const bgColor = 'FF' + style.bgcolor.replace('#', '');
@@ -371,8 +404,8 @@ const ExcelDashboard = () => {
             cell.font = { ...cell.font, bold: true };
           }
           
-          // Apply formula if exists
-          const formula = excelData.formulas?.[cellRef];
+          // Apply formula from FortuneSheet
+          const formula = formulas[cellRef];
           if (formula) {
             const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
             console.log(`Applying formula to ${cellRef}: ${formulaStr}`);
