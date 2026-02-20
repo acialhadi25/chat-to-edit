@@ -493,6 +493,64 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         break;
       }
 
+      case 'EDIT_COLUMN': {
+        // Handle column editing - fill entire column with values
+        const target = getTarget();
+        if (!target || !target.ref) {
+          console.warn('EDIT_COLUMN: No target.ref found');
+          break;
+        }
+
+        console.log('EDIT_COLUMN: Target:', target);
+        console.log('EDIT_COLUMN: Params:', action.params);
+
+        // Get values array from params
+        const values = action.params?.values as any[];
+        if (!values || !Array.isArray(values)) {
+          console.warn('EDIT_COLUMN: No values array found in params');
+          break;
+        }
+
+        // Parse column reference
+        let colLetter = target.ref as string;
+        
+        // If it's a range like "G2:G13", extract just the column letter
+        if (colLetter.includes(':')) {
+          colLetter = colLetter.split(':')[0].replace(/\d+/g, '');
+        } else {
+          colLetter = colLetter.replace(/\d+/g, '');
+        }
+        
+        const colIndex = getColumnIndex(colLetter);
+        
+        if (colIndex < 0 || colIndex >= data.headers.length) {
+          console.warn(`EDIT_COLUMN: Invalid column ${colLetter} (index: ${colIndex})`);
+          break;
+        }
+
+        console.log(`EDIT_COLUMN: Column ${colLetter} (index ${colIndex}), ${values.length} values`);
+
+        // Apply values to each row
+        values.forEach((value, index) => {
+          if (index < data.rows.length) {
+            const oldValue = data.rows[index][colIndex];
+            
+            changes.push({
+              row: index,
+              col: colIndex,
+              oldValue,
+              newValue: value,
+              type: 'CELL_UPDATE',
+            });
+            
+            console.log(`EDIT_COLUMN: Row ${index}: ${oldValue} -> ${value}`);
+          }
+        });
+
+        console.log(`Generated ${changes.length} changes for EDIT_COLUMN`);
+        break;
+      }
+
       case 'EDIT_ROW': {
         // Handle row editing - can be single row or range
         const target = getTarget();
