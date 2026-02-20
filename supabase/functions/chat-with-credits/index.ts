@@ -75,7 +75,13 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 25. **CREATE_CHART** - Create charts
 26. **CONDITIONAL_FORMAT** - Apply formatting
 27. **DATA_AUDIT** - Audit data quality
-29. **GENERATE_DATA** - Generate data patterns
+   - ALWAYS provide quickOptions with actionable fixes
+   - Each quickOption must have complete action with all required fields
+29. **GENERATE_DATA** - Generate data patterns (AVOID THIS - use specific actions instead)
+   - For filling empty cells: Use EDIT_CELL or EDIT_COLUMN with specific values
+   - For adding formulas: Use INSERT_FORMULA
+   - For transforming data: Use DATA_TRANSFORM
+   - ONLY use GENERATE_DATA if explicitly requested by user
 30. **ADD_COLUMN_WITH_DATA** - Add columns with data
 31. **CLARIFY** - Ask for clarification
 32. **INFO** - Information only
