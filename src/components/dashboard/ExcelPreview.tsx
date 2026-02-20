@@ -155,6 +155,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           console.log('getData: Sheet keys:', Object.keys(sheet));
           console.log('getData: Sheet.data:', sheet.data);
           console.log('getData: Sheet.celldata:', sheet.celldata);
+          console.log('getData: Sheet.calcChain:', sheet.calcChain);
           
           // Extract formulas and styles from data
           const extractedData: {
@@ -173,11 +174,6 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             
             // In 2D format, iterate through rows and columns
             sheet.data.forEach((row: any[], rowIdx: number) => {
-              if (rowIdx === 0) {
-                console.log('getData: Skipping header row');
-                return; // Skip header
-              }
-              
               if (!Array.isArray(row)) {
                 console.log(`getData: Row ${rowIdx} is not an array`);
                 return;
@@ -186,22 +182,27 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
               row.forEach((cell: any, colIdx: number) => {
                 if (!cell || typeof cell !== 'object') return;
                 
-                const dataRowIdx = rowIdx - 1; // Adjust for header
-                const cellRef = createCellRef(colIdx, dataRowIdx);
+                // For header row (rowIdx === 0), don't adjust index
+                // For data rows (rowIdx > 0), adjust by -1
+                const isHeader = rowIdx === 0;
+                const dataRowIdx = isHeader ? -1 : rowIdx - 1; // -1 means header
+                const cellRef = isHeader ? `HEADER_${colIdx}` : createCellRef(colIdx, dataRowIdx);
                 
                 // Log first few cells to understand structure
-                if (rowIdx === 1 && colIdx < 3) {
+                if (rowIdx <= 1 && colIdx < 3) {
                   console.log(`getData: Cell at row ${rowIdx}, col ${colIdx}:`, cell);
                   console.log(`getData: Cell keys:`, Object.keys(cell));
                 }
                 
                 // Extract formula
                 if (cell.f) {
-                  extractedData.formulas[cellRef] = cell.f;
-                  console.log(`Found formula at ${cellRef}: ${cell.f}`);
+                  if (!isHeader) {
+                    extractedData.formulas[cellRef] = cell.f;
+                    console.log(`Found formula at ${cellRef}: ${cell.f}`);
+                  }
                 }
                 
-                // Extract styles
+                // Extract styles (including header)
                 const style: any = {};
                 
                 if (cell.bg) {
@@ -218,7 +219,9 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 
                 if (Object.keys(style).length > 0) {
                   extractedData.cellStyles[cellRef] = style;
-                  console.log(`Found style at ${cellRef}:`, style);
+                  if (rowIdx <= 1 || (rowIdx > 0 && cell.f)) {
+                    console.log(`Found style at ${cellRef}:`, style);
+                  }
                 }
               });
             });

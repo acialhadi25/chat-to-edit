@@ -336,13 +336,28 @@ const ExcelDashboard = () => {
       
       // Add headers with styling
       const headerRow = worksheet.addRow(excelData.headers);
-      headerRow.eachCell((cell) => {
+      headerRow.eachCell((cell, colNumber) => {
+        // Check if header has custom style from FortuneSheet
+        const headerStyleRef = `HEADER_${colNumber - 1}`;
+        const headerStyle = cellStyles[headerStyleRef];
+        
+        if (headerStyle?.bgcolor) {
+          const bgColor = 'FF' + headerStyle.bgcolor.replace('#', '');
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: bgColor }
+          };
+        } else {
+          // Default header style
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE8E8E8' }
+          };
+        }
+        
         cell.font = { bold: true };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFE8E8E8' }
-        };
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = thinBorder;
       });
