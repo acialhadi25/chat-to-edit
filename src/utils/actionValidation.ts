@@ -80,7 +80,9 @@ export function validateExcelAction(action: unknown): ValidationResult {
 
   switch (type) {
     case "INSERT_FORMULA":
-      if (!a.formula || typeof a.formula !== "string") {
+      // Check in both root level and params
+      const formula = a.formula || (a.params && (a.params as any).formula);
+      if (!formula || typeof formula !== "string") {
         errors.push("INSERT_FORMULA requires 'formula' field");
       }
       break;

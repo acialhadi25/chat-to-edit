@@ -929,6 +929,93 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         break;
       }
 
+      case 'FILL_DOWN': {
+        // Fill down values or formulas from first non-empty cell
+        const target = getTarget();
+        if (!target || !target.ref) {
+          console.warn('FILL_DOWN: No target.ref found');
+          break;
+        }
+
+        const fillType = action.params?.fillType || 'value'; // 'value' or 'formula'
+        const ref = target.ref as string;
+        
+        console.log('FILL_DOWN processing:', { target, fillType, ref });
+
+        // Parse column reference
+        let col = 0;
+        if (ref.match(/^[A-Z]+$/)) {
+          // Column format: "F"
+          col = ref.charCodeAt(0) - 65;
+        } else if (ref.match(/^[A-Z]+\d+$/)) {
+          // Cell format: "F2" - extract column
+          const match = ref.match(/([A-Z]+)\d+/);
+          if (match) {
+            col = match[1].charCodeAt(0) - 65;
+          }
+        }
+
+        console.log('FILL_DOWN: Column index:', col);
+
+        // Find first non-empty cell in column
+        let sourceRow = -1;
+        let sourceValue: any = null;
+        
+        for (let row = 0; row < data.rows.length; row++) {
+          const value = data.rows[row][col];
+          if (value !== null && value !== '' && value !== undefined) {
+            sourceRow = row;
+            sourceValue = value;
+            console.log(`FILL_DOWN: Found source at row ${row}, value:`, sourceValue);
+            break;
+          }
+        }
+
+        if (sourceRow === -1 || sourceValue === null) {
+          console.warn('FILL_DOWN: No source value found in column');
+          break;
+        }
+
+        // Check if source is a formula
+        const isFormula = typeof sourceValue === 'string' && sourceValue.startsWith('=');
+        console.log('FILL_DOWN: Is formula?', isFormula);
+
+        // Fill down to all rows below source
+        for (let row = sourceRow + 1; row < data.rows.length; row++) {
+          const oldValue = data.rows[row][col];
+          let newValue = sourceValue;
+
+          // If it's a formula, update row references
+          if (isFormula && fillType === 'formula') {
+            const actualSourceRow = sourceRow + 2; // +1 for header, +1 for 1-based
+            const actualTargetRow = row + 2;
+            
+            // Replace row numbers in formula
+            newValue = sourceValue.replace(/(\d+)/g, (match: string) => {
+              const num = parseInt(match);
+              // Only replace if it matches the source row number
+              if (num === actualSourceRow) {
+                return String(actualTargetRow);
+              }
+              return match;
+            });
+            
+            console.log(`FILL_DOWN: Row ${row}, formula: ${sourceValue} -> ${newValue}`);
+          }
+
+          changes.push({
+            row,
+            col,
+            oldValue,
+            newValue,
+            type: 'CELL_UPDATE',
+          });
+        }
+
+        console.log(`Generated ${changes.length} changes for FILL_DOWN`);
+        break;
+      }
+
       // Add more cases as needed
       default:
         console.warn(`generateChangesFromAction: ${action.type} not implemented`);
