@@ -1148,29 +1148,37 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             switch (condition) {
               case 'contains':
               case 'textContains':
-                matches = caseSensitive 
-                  ? String(cellValue || '').includes(rule.value)
-                  : cellValueStr.includes(value);
-                console.log(`CONDITIONAL_FORMAT: Contains check - "${cellValueStr}" includes "${value}": ${matches}`);
+                if (caseSensitive) {
+                  matches = String(cellValue || '').includes(String(rule.value || ''));
+                } else {
+                  matches = cellValueStr.includes(value);
+                }
+                console.log(`CONDITIONAL_FORMAT: Contains check - caseSensitive=${caseSensitive}, "${cellValue}" includes "${rule.value}": ${matches}`);
                 break;
               case 'equals':
               case 'textEquals':
-                matches = caseSensitive
-                  ? cellValue === rule.value
-                  : cellValueStr === value;
-                console.log(`CONDITIONAL_FORMAT: Equals check - "${cellValueStr}" === "${value}": ${matches}`);
+                if (caseSensitive) {
+                  matches = cellValue === rule.value;
+                } else {
+                  matches = cellValueStr === value;
+                }
+                console.log(`CONDITIONAL_FORMAT: Equals check - caseSensitive=${caseSensitive}, "${cellValue}" === "${rule.value}": ${matches}`);
                 break;
               case 'startsWith':
               case 'textStartsWith':
-                matches = caseSensitive
-                  ? String(cellValue || '').startsWith(rule.value)
-                  : cellValueStr.startsWith(value);
+                if (caseSensitive) {
+                  matches = String(cellValue || '').startsWith(String(rule.value || ''));
+                } else {
+                  matches = cellValueStr.startsWith(value);
+                }
                 break;
               case 'endsWith':
               case 'textEndsWith':
-                matches = caseSensitive
-                  ? String(cellValue || '').endsWith(rule.value)
-                  : cellValueStr.endsWith(value);
+                if (caseSensitive) {
+                  matches = String(cellValue || '').endsWith(String(rule.value || ''));
+                } else {
+                  matches = cellValueStr.endsWith(value);
+                }
                 break;
             }
 
