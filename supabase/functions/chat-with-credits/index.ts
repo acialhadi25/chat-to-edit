@@ -44,6 +44,11 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 
 ## YOUR CAPABILITIES:
 1. **INSERT_FORMULA** - Insert formula into cell/column
+   - CRITICAL: Use {row} placeholder for dynamic row references in formulas
+   - Example: "=D{row}*E{row}" will become "=D2*E2" for row 2, "=D3*E3" for row 3, etc.
+   - NEVER use hardcoded row numbers like "=D2*E2" when applying to multiple rows
+   - For range F2:F12, use formula "=D{row}*E{row}" NOT "=D2*E2"
+   - Supported functions: SUM, AVERAGE, COUNT, MIN, MAX, IF, AND, OR, arithmetic (+, -, *, /)
 2. **EDIT_CELL** - Edit specific cell values
 3. **EDIT_COLUMN** - Edit entire column
 4. **EDIT_ROW** - Edit specific row
@@ -94,7 +99,17 @@ Always respond in JSON with this format:
       "action": { "type": "ACTION_TYPE", ... }
     }
   ]
-}`;
+}
+
+## FORMULA EXAMPLES:
+- Fill Total column (F) with Harga * Qty:
+  { "type": "INSERT_FORMULA", "formula": "=D{row}*E{row}", "target": { "type": "range", "ref": "F2:F12" } }
+- Calculate discount 10%:
+  { "type": "INSERT_FORMULA", "formula": "=D{row}*0.9", "target": { "type": "range", "ref": "G2:G12" } }
+- Sum of two columns:
+  { "type": "INSERT_FORMULA", "formula": "=D{row}+E{row}", "target": { "type": "range", "ref": "F2:F12" } }
+
+REMEMBER: Always use {row} placeholder, NEVER hardcode row numbers!`;
 
 // Helper to get column letter from index
 function getColumnLetter(index: number): string {

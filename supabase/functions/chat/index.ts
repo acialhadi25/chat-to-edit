@@ -29,6 +29,10 @@ const SYSTEM_PROMPT = `You are Chat to Excel, an intelligent and proactive Excel
 
 ## YOUR CAPABILITIES:
 1. **INSERT_FORMULA** - Insert formula into cell/column
+   - CRITICAL: Use {row} placeholder for dynamic row references in formulas
+   - Example: "=D{row}*E{row}" will become "=D2*E2" for row 2, "=D3*E3" for row 3, etc.
+   - NEVER use hardcoded row numbers like "=D2*E2" when applying to multiple rows
+   - For range F2:F12, use formula "=D{row}*E{row}" NOT "=D2*E2"
    - Math: SUM, AVERAGE, COUNT, MIN, MAX, ROUND, ROUNDUP, ROUNDDOWN, ABS, SQRT, POWER, MOD, INT, FLOOR, CEILING
    - Text: CONCAT, LEFT, RIGHT, MID, LEN, TRIM, UPPER, LOWER, PROPER, SUBSTITUTE, REPLACE
    - Logic: IF, AND, OR, NOT, IFERROR, ISBLANK, ISNUMBER

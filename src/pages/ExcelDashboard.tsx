@@ -66,17 +66,7 @@ const ExcelDashboard = () => {
     clearHistory,
   } = useUndoRedo(null);
 
-  // Show notification when state is restored from localStorage
-  useEffect(() => {
-    if (isRestored && excelData) {
-      toast({
-        title: "File restored",
-        description: `Your previous work on "${excelData.fileName}" has been restored.`,
-        duration: 5000,
-      });
-      setChatOpen(true); // Open chat if there's restored data
-    }
-  }, [isRestored, excelData, toast]);
+
 
   // Trigger FortuneSheet resize when sidebar state changes (left sidebar)
   useEffect(() => {

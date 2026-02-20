@@ -700,6 +700,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           const actualRow = row + 2; // +1 for header, +1 for 1-based
           const formulaWithRow = formula.replace(/\{row\}/g, String(actualRow));
           
+          console.log(`Row ${row}: Formula before replace: "${formula}", after replace: "${formulaWithRow}"`);
+          
           // Get old value - if row doesn't exist yet, it's null
           const oldValue = row < data.rows.length ? data.rows[row][col] : null;
           

@@ -53,8 +53,14 @@ const convertToFortuneSheetFormat = (excelData: ExcelData) => {
     row.forEach((cellValue, colIndex) => {
       const cellRef = createCellRef(colIndex, rowIndex);
       const isPending = pendingChangeMap.has(cellRef);
-      const displayValue = isPending ? pendingChangeMap.get(cellRef) : cellValue;
+      let displayValue = isPending ? pendingChangeMap.get(cellRef) : cellValue;
       const originalStyle = excelData.cellStyles?.[cellRef];
+
+      // Check if the cell value is a formula
+      let isFormula = false;
+      if (typeof displayValue === 'string' && displayValue.startsWith('=')) {
+        isFormula = true;
+      }
 
       const cellConfig: any = {
         r: rowIndex + 1, // +1 because row 0 is headers
@@ -65,6 +71,12 @@ const convertToFortuneSheetFormat = (excelData: ExcelData) => {
           ct: { fa: 'General', t: 'g' },
         },
       };
+
+      // If it's a formula, set the f property for FortuneSheet to evaluate
+      if (isFormula) {
+        cellConfig.v.f = displayValue; // Store formula
+        // FortuneSheet will automatically evaluate and display the result
+      }
 
       // Apply pending change highlight
       if (isPending) {

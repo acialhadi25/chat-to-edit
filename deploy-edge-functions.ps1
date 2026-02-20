@@ -24,7 +24,7 @@ Write-Host ""
 Write-Host "📤 Deploying edge functions..." -ForegroundColor Cyan
 
 $functions = @(
-    "chat",
+    "chat-with-credits",
     "process-excel",
     "midtrans-webhook",
     "midtrans-create-transaction"
