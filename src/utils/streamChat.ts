@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 // Default timeout for streaming requests (30 seconds)
 const DEFAULT_STREAM_TIMEOUT = 30000;
 
@@ -146,19 +148,25 @@ export async function streamChat({
       throw handleStreamError(configError);
     }
 
-    // Construct URL after validation
-    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+    // ✅ FIX: Use chat-with-credits endpoint for credit tracking
+    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-credits`;
 
-    // Use anon key for edge function calls (edge function doesn't require user auth)
-    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    console.log('Using correct anon key for edge function');
+    // ✅ FIX: Get user auth token for credit tracking
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!session?.access_token) {
+      console.warn('No user session found, using anon key (credit tracking may not work)');
+    } else {
+      console.log('Using user auth token for credit tracking');
+    }
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authToken}`,
-        'apikey': authToken,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({ messages, excelContext }),
       signal: timeoutController.signal,
@@ -166,6 +174,26 @@ export async function streamChat({
 
     if (!resp.ok) {
       const errorData = await resp.json().catch(() => ({}));
+      
+      // ✅ FIX: Handle insufficient credits (402 Payment Required)
+      if (resp.status === 402) {
+        const apiError: StreamError = {
+          type: 'api',
+          status: 402,
+          message: errorData.message || 'Insufficient credits. Please upgrade your plan to continue.',
+          context: 'Credit check',
+          recoverable: false, // User needs to upgrade
+        };
+        
+        console.error('Insufficient credits:', {
+          credits_remaining: errorData.credits_remaining,
+          credits_limit: errorData.credits_limit,
+          credits_used: errorData.credits_used,
+        });
+        onError(handleStreamError(apiError), 402);
+        return;
+      }
+      
       const errorMsg = errorData.error || `Request failed with status ${resp.status}`;
 
       const apiError: StreamError = {
