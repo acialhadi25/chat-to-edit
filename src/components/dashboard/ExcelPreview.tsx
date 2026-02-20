@@ -133,7 +133,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       },
 
       getData: () => {
-        console.log('getData: Extracting data from FortuneSheet using workbookRef API');
+        console.log('getData: Extracting data from FortuneSheet using getAllSheets API');
         
         if (!workbookRef.current) {
           console.warn('getData: workbookRef not available');
@@ -141,7 +141,24 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
         }
 
         try {
-          // Extract all cell data using getCellValue API
+          // Use getAllSheets() to get raw sheet data
+          const sheets = workbookRef.current.getAllSheets();
+          console.log('getData: getAllSheets() returned:', sheets);
+          
+          if (!sheets || sheets.length === 0) {
+            console.warn('getData: No sheets data available');
+            return null;
+          }
+
+          const sheet = sheets[0];
+          console.log('getData: First sheet:', sheet);
+          
+          if (!sheet.celldata || !Array.isArray(sheet.celldata)) {
+            console.warn('getData: No celldata in sheet');
+            return null;
+          }
+
+          // Extract formulas and styles from celldata
           const extractedData: {
             formulas: { [key: string]: string };
             cellStyles: { [key: string]: any };
@@ -152,67 +169,46 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             values: []
           };
 
-          const headers = data.headers;
-          const rowCount = data.rows.length;
+          console.log(`getData: Processing ${sheet.celldata.length} cells`);
 
-          console.log(`getData: Extracting ${rowCount} rows x ${headers.length} columns`);
+          // Process each cell
+          sheet.celldata.forEach((cell: any) => {
+            if (cell.r === 0) {
+              // Skip header row
+              return;
+            }
 
-          // Loop through all data rows (skip header row 0)
-          for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
-            const rowValues: any[] = [];
-            const fortuneSheetRow = rowIdx + 1; // +1 because row 0 is headers
+            const rowIdx = cell.r - 1; // Adjust for header
+            const colIdx = cell.c;
+            const cellRef = createCellRef(colIdx, rowIdx);
 
-            for (let colIdx = 0; colIdx < headers.length; colIdx++) {
-              const cellRef = createCellRef(colIdx, rowIdx);
-              
-              // Get cell value with formula option
-              const cellData = workbookRef.current.getCellValue(fortuneSheetRow, colIdx, { type: 'v' });
-              const cellFormula = workbookRef.current.getCellValue(fortuneSheetRow, colIdx, { type: 'f' });
-              
-              // Store formula if exists
-              if (cellFormula && typeof cellFormula === 'string' && cellFormula.startsWith('=')) {
-                extractedData.formulas[cellRef] = cellFormula;
-                console.log(`Found formula at ${cellRef}: ${cellFormula}`);
-              }
+            // Extract formula
+            if (cell.v?.f) {
+              extractedData.formulas[cellRef] = cell.v.f;
+              console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
+            }
 
-              // Get cell format/style
-              try {
-                // Try to get cell format - FortuneSheet might expose this differently
-                const cellFormat = workbookRef.current.getCellValue(fortuneSheetRow, colIdx);
-                
-                if (cellFormat && typeof cellFormat === 'object') {
-                  const style: any = {};
-                  
-                  // Extract background color
-                  if (cellFormat.bg) {
-                    style.bgcolor = cellFormat.bg;
-                  }
-                  
-                  // Extract text color
-                  if (cellFormat.fc) {
-                    style.color = cellFormat.fc;
-                  }
-                  
-                  // Extract font styles
-                  if (cellFormat.bl === 1) {
-                    style.font = { bold: true };
-                  }
-                  
-                  // Only store if has styling
-                  if (Object.keys(style).length > 0) {
-                    extractedData.cellStyles[cellRef] = style;
-                    console.log(`Found style at ${cellRef}:`, style);
-                  }
-                }
-              } catch (error) {
-                // Ignore errors getting format
-              }
-
-              rowValues.push(cellData);
+            // Extract styles
+            const style: any = {};
+            
+            if (cell.v?.bg) {
+              style.bgcolor = cell.v.bg;
             }
             
-            extractedData.values.push(rowValues);
-          }
+            if (cell.v?.fc) {
+              style.color = cell.v.fc;
+            }
+            
+            if (cell.v?.bl === 1) {
+              style.font = { bold: true };
+            }
+
+            // Only store if has styling
+            if (Object.keys(style).length > 0) {
+              extractedData.cellStyles[cellRef] = style;
+              console.log(`Found style at ${cellRef}:`, style);
+            }
+          });
 
           console.log('getData: Extraction complete', {
             formulaCount: Object.keys(extractedData.formulas).length,
