@@ -153,13 +153,19 @@ export async function streamChat({
 
     // ✅ FIX: Get user auth token for credit tracking
     const { data: { session } } = await supabase.auth.getSession();
-    const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
     
     if (!session?.access_token) {
-      console.warn('No user session found, using anon key (credit tracking may not work)');
-    } else {
-      console.log('Using user auth token for credit tracking');
+      const noSessionError: StreamError = {
+        type: 'api',
+        message: 'You must be logged in to use AI features',
+        context: 'Authentication',
+        recoverable: false,
+      };
+      throw handleStreamError(noSessionError);
     }
+    
+    const authToken = session.access_token;
+    console.log('Using user auth token for credit tracking');
 
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
