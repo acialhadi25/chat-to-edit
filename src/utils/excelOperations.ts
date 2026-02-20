@@ -513,6 +513,55 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           }));
         }
 
+        // Try to extract row data from params
+        const rowData = action.params?.rowData || (action as any).rowData;
+        if (rowData && typeof rowData === 'object') {
+          console.log('EDIT_ROW: Extracting from rowData:', rowData);
+          
+          // Parse row number from target.ref (e.g., "8" or "row8")
+          const rowMatch = target.ref.match(/\d+/);
+          if (!rowMatch) {
+            console.warn('EDIT_ROW: Could not parse row number from target.ref:', target.ref);
+            break;
+          }
+          
+          const rowIndex = parseInt(rowMatch[0]) - 2; // -1 for header, -1 for 0-based
+          
+          // Generate changes for each column in rowData
+          Object.entries(rowData).forEach(([key, value]) => {
+            // Try to find column index by header name
+            const colIndex = data.headers.findIndex(h => 
+              h.toLowerCase() === key.toLowerCase() ||
+              h.toLowerCase().includes(key.toLowerCase()) ||
+              key.toLowerCase().includes(h.toLowerCase())
+            );
+            
+            if (colIndex >= 0) {
+              const oldValue = rowIndex < data.rows.length ? data.rows[rowIndex][colIndex] : null;
+              
+              // Skip if value is a formula placeholder
+              if (typeof value === 'string' && value.startsWith('=') && value.includes('{row}')) {
+                // This should be handled by INSERT_FORMULA instead
+                console.log(`EDIT_ROW: Skipping formula for column ${colIndex}: ${value}`);
+                return;
+              }
+              
+              changes.push({
+                row: rowIndex,
+                col: colIndex,
+                oldValue,
+                newValue: value,
+                type: 'CELL_UPDATE',
+              });
+            } else {
+              console.warn(`EDIT_ROW: Could not find column for key: ${key}`);
+            }
+          });
+          
+          console.log(`Generated ${changes.length} changes for EDIT_ROW`);
+          break;
+        }
+
         console.log('EDIT_ROW processing:', { target });
         break;
       }
