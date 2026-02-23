@@ -34,6 +34,7 @@ const Subscription = lazy(() => import('./pages/Subscription'));
 const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const PaymentPending = lazy(() => import('./pages/PaymentPending'));
 const PaymentError = lazy(() => import('./pages/PaymentError'));
+const UniverTest = lazy(() => import('./pages/UniverTest'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -86,6 +87,15 @@ const App = () => (
                 <Route path="settings" element={<Settings />} />
                 <Route path="subscription" element={<Subscription />} />
               </Route>
+              {/* Test Routes */}
+              <Route
+                path="/test/univer"
+                element={
+                  <ProtectedRoute>
+                    <UniverTest />
+                  </ProtectedRoute>
+                }
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

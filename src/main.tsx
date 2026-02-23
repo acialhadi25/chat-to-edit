@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "@univerjs/preset-sheets-core/lib/index.css";
 import { validateEnvironment, logEnvValidation, displayEnvValidationError } from "./utils/envValidator";
 import { initSentry, trackWebVitals } from "./lib/sentry";
 

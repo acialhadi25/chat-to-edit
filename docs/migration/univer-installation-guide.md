@@ -406,7 +406,83 @@ import '@univerjs/preset-sheets-core/lib/index.css'
 
 **Solution**: Don't import plugins that are already in preset
 
-## Next Steps
+## Installation Complete ✅
+
+Packages installed:
+- `@univerjs/presets`
+- `@univerjs/preset-sheets-core`
+
+CSS imported in `src/main.tsx`:
+```typescript
+import "@univerjs/preset-sheets-core/lib/index.css";
+```
+
+## Testing Univer Sheet
+
+### Test Page Created
+
+A test page has been created at `/test/univer` route to verify Univer Sheet renders correctly.
+
+**Access the test page:**
+1. Login to the application
+2. Navigate to: `http://localhost:5173/test/univer`
+3. You should see an empty Univer spreadsheet
+
+**Test Features:**
+- Click "Load Sample Data" to populate with test data
+- Click "Get Data" to log workbook data to console
+- Try editing cells, adding rows/columns
+- Verify all basic spreadsheet operations work
+
+### Manual Testing Steps
+
+1. **Start dev server:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Open browser and navigate to test page:**
+   ```
+   http://localhost:5173/test/univer
+   ```
+
+3. **Verify rendering:**
+   - Spreadsheet should render without errors
+   - Grid should be visible
+   - Toolbar should be present
+   - No console errors
+
+4. **Test basic operations:**
+   - Click cells to select
+   - Type to edit cell values
+   - Use toolbar buttons
+   - Add/delete rows and columns
+
+5. **Test API methods:**
+   - Click "Load Sample Data" button
+   - Verify data appears in spreadsheet
+   - Click "Get Data" button
+   - Check console for workbook data structure
+
+### Expected Console Output
+
+When clicking "Get Data", you should see:
+```javascript
+Workbook data: {
+  sheets: {
+    sheet1: {
+      name: 'Sheet1',
+      cellData: {
+        0: { 0: { v: 'Name' }, 1: { v: 'Age' }, ... },
+        1: { 0: { v: 'John' }, 1: { v: 25 }, ... },
+        ...
+      }
+    }
+  }
+}
+```
+
+## Next Steps After Testing
 
 After installation:
 
