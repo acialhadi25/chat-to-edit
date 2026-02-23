@@ -191,13 +191,20 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 // Get the cell to extract formula
                 if (sheet.data && sheet.data[calc.r] && sheet.data[calc.r][calc.c]) {
                   const cell = sheet.data[calc.r][calc.c];
+                  console.log(`getData: Cell at [${calc.r}][${calc.c}]:`, cell);
                   if (cell.f) {
                     extractedData.formulas[cellRef] = cell.f;
-                    console.log(`Found formula from calcChain at ${cellRef}: ${cell.f}`);
+                    console.log(`✅ Found formula from calcChain at ${cellRef}: ${cell.f}`);
+                  } else {
+                    console.warn(`⚠️ calcChain points to ${cellRef} but cell.f is missing`);
                   }
+                } else {
+                  console.warn(`⚠️ calcChain points to [${calc.r}][${calc.c}] but cell not found in sheet.data`);
                 }
               }
             });
+          } else {
+            console.warn('getData: No calcChain available');
           }
 
           // FortuneSheet stores data in 'data' property as 2D array
@@ -220,18 +227,21 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 const dataRowIdx = isHeader ? -1 : rowIdx - 1; // -1 means header
                 const cellRef = isHeader ? `HEADER_${colIdx}` : createCellRef(colIdx, dataRowIdx);
                 
-                // Log first few cells to understand structure
-                if (rowIdx <= 1 && colIdx < 3) {
-                  console.log(`getData: Cell at row ${rowIdx}, col ${colIdx}:`, cell);
+                // Log first few cells AND cells with formulas to understand structure
+                if ((rowIdx <= 1 && colIdx < 3) || cell.f) {
+                  console.log(`getData: Cell at row ${rowIdx}, col ${colIdx} (${cellRef}):`, cell);
                   console.log(`getData: Cell keys:`, Object.keys(cell));
+                  if (cell.f) {
+                    console.log(`getData: ✅ Cell has formula: ${cell.f}`);
+                  }
                 }
                 
                 // Extract formula (if not already extracted from calcChain)
                 if (cell.f && !isHeader && !extractedData.formulas[cellRef]) {
                   extractedData.formulas[cellRef] = cell.f;
-                  console.log(`Found formula at ${cellRef}: ${cell.f}`);
+                  console.log(`✅ Found NEW formula at ${cellRef}: ${cell.f}`);
                 } else if (cell.f && !isHeader) {
-                  console.log(`Formula at ${cellRef} already extracted from calcChain`);
+                  console.log(`ℹ️ Formula at ${cellRef} already extracted from calcChain`);
                 }
                 
                 // Extract styles (including header)
@@ -252,7 +262,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 if (Object.keys(style).length > 0) {
                   extractedData.cellStyles[cellRef] = style;
                   if (rowIdx <= 1 || (rowIdx > 0 && cell.f)) {
-                    console.log(`Found style at ${cellRef}:`, style);
+                    console.log(`✅ Found style at ${cellRef}:`, style);
                   }
                 }
               });
@@ -301,10 +311,25 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             return null;
           }
 
-          console.log('getData: Extraction complete', {
-            formulaCount: Object.keys(extractedData.formulas).length,
-            styleCount: Object.keys(extractedData.cellStyles).length
-          });
+          console.log('getData: Extraction complete');
+          console.log('📊 Summary:');
+          console.log(`  - Formulas extracted: ${Object.keys(extractedData.formulas).length}`);
+          console.log(`  - Cell styles extracted: ${Object.keys(extractedData.cellStyles).length}`);
+          console.log(`  - Column widths extracted: ${Object.keys(extractedData.columnWidths).length}`);
+          
+          if (Object.keys(extractedData.formulas).length > 0) {
+            console.log('📝 Formulas:', extractedData.formulas);
+          } else {
+            console.warn('⚠️ NO FORMULAS EXTRACTED! This might be the issue.');
+          }
+          
+          if (Object.keys(extractedData.cellStyles).length > 0) {
+            console.log('🎨 Cell Styles (first 5):', Object.fromEntries(
+              Object.entries(extractedData.cellStyles).slice(0, 5)
+            ));
+          } else {
+            console.warn('⚠️ NO CELL STYLES EXTRACTED!');
+          }
 
           return extractedData;
         } catch (error) {

@@ -325,6 +325,24 @@ const ExcelDashboard = () => {
       console.log('Extracted cellStyles:', cellStyles);
       console.log('Extracted columnWidths:', columnWidths);
       
+      // Validate extraction
+      const formulaCount = Object.keys(formulas).length;
+      const styleCount = Object.keys(cellStyles).length;
+      
+      console.log('📊 Download Summary:');
+      console.log(`  - Total formulas to apply: ${formulaCount}`);
+      console.log(`  - Total cell styles to apply: ${styleCount}`);
+      console.log(`  - Total rows: ${excelData.rows.length}`);
+      console.log(`  - Total columns: ${excelData.headers.length}`);
+      
+      if (formulaCount === 0) {
+        console.warn('⚠️ WARNING: No formulas to apply! Check if FortuneSheet has formulas.');
+      }
+      
+      if (styleCount === 0) {
+        console.warn('⚠️ WARNING: No cell styles to apply! Check if FortuneSheet has styles.');
+      }
+      
       // Create workbook with ExcelJS
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(excelData.currentSheet || 'Sheet1');
@@ -368,6 +386,10 @@ const ExcelDashboard = () => {
       console.log('Header row added with styling');
       
       // Add data rows
+      let formulasApplied = 0;
+      let bordersApplied = 0;
+      let stylesApplied = 0;
+      
       excelData.rows.forEach((row, rowIdx) => {
         const excelRow = worksheet.addRow(row);
         
@@ -375,6 +397,7 @@ const ExcelDashboard = () => {
         excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
           // Apply border to ALL cells
           cell.border = thinBorder;
+          bordersApplied++;
           cell.alignment = { vertical: 'middle' };
           
           // Apply conditional formatting colors
@@ -389,6 +412,7 @@ const ExcelDashboard = () => {
               pattern: 'solid',
               fgColor: { argb: bgColor }
             };
+            stylesApplied++;
           }
           
           if (style?.color) {
@@ -407,13 +431,18 @@ const ExcelDashboard = () => {
           const formula = formulas[cellRef];
           if (formula) {
             const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
-            console.log(`Applying formula to ${cellRef}: ${formulaStr}`);
+            console.log(`✅ Applying formula to ${cellRef}: ${formulaStr}`);
             cell.value = { formula: formulaStr };
+            formulasApplied++;
           }
         });
       });
       
       console.log('All rows added with styling');
+      console.log('📊 Application Summary:');
+      console.log(`  - Formulas applied: ${formulasApplied}`);
+      console.log(`  - Borders applied: ${bordersApplied}`);
+      console.log(`  - Cell styles applied: ${stylesApplied}`);
       
       // Set column widths from FortuneSheet or use defaults
       excelData.headers.forEach((_, idx) => {

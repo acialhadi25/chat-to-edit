@@ -253,30 +253,118 @@ Examples:
 - `createCellRef(5, 0)` → `F1`
 - `createCellRef(5, 1)` → `F2`
 
-## Troubleshooting
+## Debugging Workflow
 
-### Border Tidak Terlihat
+### Step 1: Check FortuneSheet Data
 
-**Problem**: Border terlalu terang atau tidak terlihat
+Saat download, buka browser console dan cari log berikut:
 
-**Solution**: Gunakan warna hitam (`FF000000`) untuk border:
-
-```typescript
-const thinBorder = {
-  top: { style: 'thin' as const, color: { argb: 'FF000000' } },
-  // ...
-};
+```
+getData: getAllSheets() returned: [...]
+getData: Sheet keys: [...]
+getData: Sheet.data: [...]
+getData: Sheet.calcChain: [...]
 ```
 
-### Formula Tidak Bekerja
+Ini menunjukkan struktur data dari FortuneSheet.
 
-**Problem**: Formula muncul sebagai text, bukan calculated value
+### Step 2: Check Formula Extraction
 
-**Solution**: Pastikan formula tidak include `=` prefix saat set ke ExcelJS:
+Cari log dengan emoji ✅:
+
+```
+✅ Found formula from calcChain at F1: =D2*E2
+✅ Found NEW formula at F2: =D3*E3
+```
+
+Jika tidak ada log ini, formula tidak ter-extract.
+
+### Step 3: Check Extraction Summary
+
+Cari log summary:
+
+```
+📊 Summary:
+  - Formulas extracted: 12
+  - Cell styles extracted: 24
+  - Column widths extracted: 8
+```
+
+Jika `Formulas extracted: 0`, ada masalah di extraction.
+
+### Step 4: Check Application Summary
+
+Cari log di akhir:
+
+```
+📊 Application Summary:
+  - Formulas applied: 12
+  - Borders applied: 240
+  - Cell styles applied: 24
+```
+
+Jika `Formulas applied: 0` tapi `Formulas extracted: 12`, ada masalah di application logic.
+
+### Step 5: Verify Excel File
+
+Buka file Excel yang di-download:
+1. Click cell dengan formula (contoh: F2)
+2. Check formula bar - harus menampilkan `=D2*E2`
+3. Check cell value - harus menampilkan hasil kalkulasi
+4. Check border - harus terlihat grid hitam
+5. Check background color - harus sesuai dengan preview
+
+## Common Issues and Solutions
+
+### Formula Tidak Muncul di Excel
+
+**Problem**: Formula tidak ter-export ke file Excel
+
+**Diagnosis Steps**:
+1. Buka browser console saat download
+2. Cari log `getData: Extraction complete`
+3. Check `Formulas extracted: X` - jika 0, formula tidak ter-extract dari FortuneSheet
+4. Cari log dengan emoji ✅ yang menunjukkan formula ditemukan
+5. Check `Formulas applied: X` - jika 0, formula tidak di-apply ke ExcelJS
+
+**Possible Causes**:
+1. **FortuneSheet tidak menyimpan formula** - Formula hanya ada di React state, tidak di FortuneSheet
+2. **calcChain kosong** - FortuneSheet tidak populate calcChain
+3. **cell.f property tidak ada** - Formula disimpan di format lain
+
+**Solution**:
+```typescript
+// Check if formula exists in FortuneSheet
+const sheets = workbookRef.current.getAllSheets();
+const sheet = sheets[0];
+console.log('Sheet data:', sheet.data);
+console.log('calcChain:', sheet.calcChain);
+
+// If calcChain is empty, scan all cells
+sheet.data.forEach((row, rowIdx) => {
+  row.forEach((cell, colIdx) => {
+    if (cell && cell.f) {
+      console.log(`Formula at [${rowIdx}][${colIdx}]: ${cell.f}`);
+    }
+  });
+});
+```
+
+### Grid/Border Tidak Muncul
+
+**Problem**: Border tidak terlihat di Excel
+
+**Diagnosis Steps**:
+1. Check log `Borders applied: X` - harus > 0
+2. Verify `includeEmpty: true` digunakan di `eachCell()`
+3. Check border color - harus `FF000000` (hitam)
+
+**Solution**: Pastikan border di-apply dengan `includeEmpty: true`:
 
 ```typescript
-const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
-cell.value = { formula: formulaStr };
+excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+  cell.border = thinBorder; // Apply to ALL cells including empty
+});
 ```
 
 ### Cell Background Tidak Muncul
