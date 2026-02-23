@@ -21,6 +21,7 @@ import { cashFlowTemplate } from './cash-flow';
 import { quotationTemplate } from './quotation';
 import { meetingMinutesTemplate } from './meeting-minutes';
 import { assetRegisterTemplate } from './asset-register';
+import { testComplexDataTemplate } from './test-complex-data';
 
 export const ALL_TEMPLATES: ExcelTemplate[] = [
   invoiceTemplate,
@@ -45,6 +46,7 @@ export const ALL_TEMPLATES: ExcelTemplate[] = [
   quotationTemplate,
   meetingMinutesTemplate,
   assetRegisterTemplate,
+  testComplexDataTemplate,
 ];
 
 export function getTemplateById(id: string): ExcelTemplate | undefined {
