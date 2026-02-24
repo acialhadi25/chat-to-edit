@@ -52,10 +52,16 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
         const univerData = convertExcelDataToUniver(data);
         console.log('📊 Converted data to Univer format:', univerData);
 
-        // Create workbook immediately (don't wait for lifecycle event)
-        console.log('Creating workbook...');
-        const workbook = univerAPI.createWorkbook(univerData);
-        console.log('✅ Workbook created:', workbook);
+        // Use setTimeout to ensure Univer is fully initialized
+        setTimeout(() => {
+          console.log('Creating workbook after delay...');
+          try {
+            const workbook = univerAPI.createWorkbook(univerData);
+            console.log('✅ Workbook created:', workbook);
+          } catch (err) {
+            console.error('❌ Error creating workbook:', err);
+          }
+        }, 100);
 
         // Listen for changes
         if (onDataChange) {
