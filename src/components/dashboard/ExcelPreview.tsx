@@ -212,19 +212,90 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           return null;
         }
 
-        // Get workbook data
+        const sheet = workbook.getActiveSheet();
+        if (!sheet) {
+          console.warn('getData: No active sheet');
+          return null;
+        }
+
+        // Get workbook data in Univer format
         const workbookData = workbook.save();
         console.log('getData: Workbook data:', workbookData);
 
-        // Extract formulas, styles, etc.
-        const extractedData = {
+        // Extract formulas, styles, and values from Univer
+        const extractedData: {
+          formulas: { [key: string]: string };
+          cellStyles: { [key: string]: any };
+          columnWidths: { [key: number]: number };
+          workbookData: any;
+        } = {
           formulas: {},
           cellStyles: {},
           columnWidths: {},
-          workbookData, // Include full workbook data for download
+          workbookData,
         };
 
+        // Get sheet data
+        const sheetData = workbookData.sheets?.[sheet.getSheetId()];
+        if (!sheetData) {
+          console.warn('getData: No sheet data');
+          return extractedData;
+        }
+
+        const cellData = sheetData.cellData || {};
+        console.log('getData: Processing cell data...');
+
+        // Extract formulas and styles from cellData
+        Object.keys(cellData).forEach((rowKey) => {
+          const rowIdx = parseInt(rowKey);
+          if (rowIdx === 0) return; // Skip header row for data extraction
+          
+          const row = cellData[rowKey];
+          Object.keys(row).forEach((colKey) => {
+            const colIdx = parseInt(colKey);
+            const cell = row[colKey];
+            
+            if (!cell) return;
+            
+            const cellRef = `${String.fromCharCode(65 + colIdx)}${rowIdx}`;
+            
+            // Extract formula
+            if (cell.f) {
+              extractedData.formulas[cellRef] = cell.f;
+              console.log(`Found formula at ${cellRef}: ${cell.f}`);
+            }
+            
+            // Extract styles
+            if (cell.s) {
+              const style: any = {};
+              
+              if (cell.s.bg?.rgb) {
+                style.bgcolor = '#' + cell.s.bg.rgb;
+              }
+              
+              if (cell.s.cl?.rgb) {
+                style.color = '#' + cell.s.cl.rgb;
+              }
+              
+              if (cell.s.bl === 1) {
+                style.font = { bold: true };
+              }
+              
+              if (Object.keys(style).length > 0) {
+                extractedData.cellStyles[cellRef] = style;
+              }
+            }
+          });
+        });
+
+        // Extract column widths (if available)
+        // TODO: Get column widths from Univer API
+
         console.log('getData: Extraction complete');
+        console.log('📊 Summary:');
+        console.log(`  - Formulas extracted: ${Object.keys(extractedData.formulas).length}`);
+        console.log(`  - Cell styles extracted: ${Object.keys(extractedData.cellStyles).length}`);
+
         return extractedData;
       },
     }));

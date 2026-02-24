@@ -301,22 +301,22 @@ const ExcelDashboard = () => {
     try {
       console.log('Starting Excel download...');
       
-      // Get current data from FortuneSheet using API
-      const fortuneSheetData = excelPreviewRef.current?.getData();
-      console.log('FortuneSheet data:', fortuneSheetData);
+      // Get current data from Univer using API
+      const univerData = excelPreviewRef.current?.getData();
+      console.log('Univer data:', univerData);
       
-      // Extract formulas, styles, and column widths from FortuneSheet OR use excelData as fallback
+      // Extract formulas, styles, and column widths from Univer OR use excelData as fallback
       let formulas: { [key: string]: string } = {};
       let cellStyles: { [key: string]: any } = {};
       let columnWidths: { [key: number]: number } = {};
       
-      if (fortuneSheetData && typeof fortuneSheetData === 'object' && 'formulas' in fortuneSheetData) {
-        console.log('Using extracted FortuneSheet data');
-        formulas = fortuneSheetData.formulas || {};
-        cellStyles = fortuneSheetData.cellStyles || {};
-        columnWidths = fortuneSheetData.columnWidths || {};
+      if (univerData && typeof univerData === 'object' && 'formulas' in univerData) {
+        console.log('Using extracted Univer data');
+        formulas = univerData.formulas || {};
+        cellStyles = univerData.cellStyles || {};
+        columnWidths = univerData.columnWidths || {};
       } else {
-        console.log('FortuneSheet data not available, using excelData fallback');
+        console.log('Univer data not available, using excelData fallback');
         formulas = { ...excelData.formulas };
         cellStyles = { ...excelData.cellStyles };
       }
@@ -336,11 +336,11 @@ const ExcelDashboard = () => {
       console.log(`  - Total columns: ${excelData.headers.length}`);
       
       if (formulaCount === 0) {
-        console.warn('⚠️ WARNING: No formulas to apply! Check if FortuneSheet has formulas.');
+        console.warn('⚠️ WARNING: No formulas to apply! Check if Univer has formulas.');
       }
       
       if (styleCount === 0) {
-        console.warn('⚠️ WARNING: No cell styles to apply! Check if FortuneSheet has styles.');
+        console.warn('⚠️ WARNING: No cell styles to apply! Check if Univer has styles.');
       }
       
       // Create workbook with ExcelJS
