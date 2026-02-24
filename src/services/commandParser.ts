@@ -301,6 +301,32 @@ export class CommandParser {
       /replace (.+) with (.+) in ([a-z]+\d+:[a-z]+\d+)/i,
     ]);
 
+    // Comment patterns
+    patterns.set('add_comment', [
+      /(?:add|create) (?:a )?comment (?:to|on|at) ([a-z]+\d+) (?:saying|with|:) (.+)/i,
+      /comment (?:on|at) ([a-z]+\d+): (.+)/i,
+    ]);
+
+    patterns.set('reply_comment', [
+      /reply to comment ([a-z0-9-]+) (?:with|saying|:) (.+)/i,
+      /add reply to ([a-z0-9-]+): (.+)/i,
+    ]);
+
+    patterns.set('resolve_comment', [
+      /resolve comment ([a-z0-9-]+)/i,
+      /mark comment ([a-z0-9-]+) as resolved/i,
+    ]);
+
+    patterns.set('delete_comment', [
+      /delete comment ([a-z0-9-]+)/i,
+      /remove comment ([a-z0-9-]+)/i,
+    ]);
+
+    patterns.set('get_comments', [
+      /(?:get|show|list) (?:all )?comments/i,
+      /what comments (?:are there|exist)/i,
+    ]);
+
     return patterns;
   }
 
@@ -413,6 +439,25 @@ export class CommandParser {
         params.find = match[1];
         params.replace = match[2];
         params.range = this.normalizeRangeReference(match[3]);
+        break;
+
+      case 'add_comment':
+        params.cell = this.normalizeCellReference(match[1]);
+        params.content = match[2];
+        break;
+
+      case 'reply_comment':
+        params.commentId = match[1];
+        params.content = match[2];
+        break;
+
+      case 'resolve_comment':
+      case 'delete_comment':
+        params.commentId = match[1];
+        break;
+
+      case 'get_comments':
+        // No parameters needed
         break;
     }
 

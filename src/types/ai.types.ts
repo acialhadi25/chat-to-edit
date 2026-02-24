@@ -67,6 +67,11 @@ export type CommandIntent =
   | 'insert_column'
   | 'delete_column'
   | 'analyze_data'
+  | 'add_comment'
+  | 'reply_comment'
+  | 'resolve_comment'
+  | 'delete_comment'
+  | 'get_comments'
   | 'unknown';
 
 export interface ParsedCommand {

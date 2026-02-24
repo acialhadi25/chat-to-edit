@@ -23,6 +23,7 @@ import type {
 import type { FUniver } from '@univerjs/facade';
 import { MCPService } from './mcpService';
 import { CommandParser } from './commandParser';
+import { CollaborationService } from './collaborationService';
 
 /**
  * AI Service for Univer Sheet integration
@@ -40,6 +41,7 @@ export class AIService {
   private mcpService: MCPService | null = null;
   private commandParser: CommandParser;
   private univerAPI: FUniver | null = null;
+  private collaborationService: CollaborationService;
 
   constructor(config: AIConfig) {
     this.config = config;
@@ -51,6 +53,7 @@ export class AIService {
       conversationHistory: [],
     };
     this.commandParser = new CommandParser();
+    this.collaborationService = new CollaborationService();
   }
 
   /**
@@ -59,6 +62,7 @@ export class AIService {
    */
   async initialize(univerAPI: FUniver): Promise<void> {
     this.univerAPI = univerAPI;
+    this.collaborationService.initialize(univerAPI);
 
     if (this.config.mcpEnabled && this.config.mcpConfig) {
       this.mcpService = new MCPService(this.config.mcpConfig);
@@ -151,6 +155,16 @@ export class AIService {
         return await this.handleAnalyzeData(parameters);
       case 'find_replace':
         return await this.handleFindReplace(parameters);
+      case 'add_comment':
+        return await this.handleAddComment(parameters);
+      case 'reply_comment':
+        return await this.handleReplyComment(parameters);
+      case 'resolve_comment':
+        return await this.handleResolveComment(parameters);
+      case 'delete_comment':
+        return await this.handleDeleteComment(parameters);
+      case 'get_comments':
+        return await this.handleGetComments(parameters);
       default:
         return {
           success: false,
@@ -948,6 +962,149 @@ export class AIService {
         timestamp: new Date(),
       })),
       requiresConfirmation: true,
+    };
+  }
+
+  // ============================================================================
+  // Comment Handlers (Requirements 4.3.2)
+  // ============================================================================
+
+  private async handleAddComment(params: any): Promise<AIResponse> {
+    const commentId = await this.collaborationService.addComment(
+      params.cell,
+      params.content
+    );
+
+    if (commentId) {
+      return {
+        success: true,
+        message: `Added comment to ${params.cell}`,
+        operations: [{
+          type: 'set_value',
+          target: params.cell,
+          value: `Comment: ${params.content}`,
+          timestamp: new Date(),
+        }],
+        requiresConfirmation: false,
+      };
+    }
+
+    return {
+      success: false,
+      message: `Failed to add comment to ${params.cell}`,
+      operations: [],
+      requiresConfirmation: false,
+      error: 'COMMENT_ADD_FAILED',
+    };
+  }
+
+  private async handleReplyComment(params: any): Promise<AIResponse> {
+    const success = await this.collaborationService.replyToComment(
+      params.commentId,
+      params.content
+    );
+
+    if (success) {
+      return {
+        success: true,
+        message: `Added reply to comment ${params.commentId}`,
+        operations: [{
+          type: 'set_value',
+          target: 'comment',
+          value: `Reply: ${params.content}`,
+          timestamp: new Date(),
+        }],
+        requiresConfirmation: false,
+      };
+    }
+
+    return {
+      success: false,
+      message: `Failed to reply to comment ${params.commentId}`,
+      operations: [],
+      requiresConfirmation: false,
+      error: 'COMMENT_REPLY_FAILED',
+    };
+  }
+
+  private async handleResolveComment(params: any): Promise<AIResponse> {
+    const success = await this.collaborationService.resolveComment(params.commentId);
+
+    if (success) {
+      return {
+        success: true,
+        message: `Resolved comment ${params.commentId}`,
+        operations: [{
+          type: 'set_value',
+          target: 'comment',
+          value: 'resolved',
+          timestamp: new Date(),
+        }],
+        requiresConfirmation: false,
+      };
+    }
+
+    return {
+      success: false,
+      message: `Failed to resolve comment ${params.commentId}`,
+      operations: [],
+      requiresConfirmation: false,
+      error: 'COMMENT_RESOLVE_FAILED',
+    };
+  }
+
+  private async handleDeleteComment(params: any): Promise<AIResponse> {
+    const success = await this.collaborationService.deleteComment(params.commentId);
+
+    if (success) {
+      return {
+        success: true,
+        message: `Deleted comment ${params.commentId}`,
+        operations: [{
+          type: 'set_value',
+          target: 'comment',
+          value: 'deleted',
+          timestamp: new Date(),
+        }],
+        requiresConfirmation: true,
+      };
+    }
+
+    return {
+      success: false,
+      message: `Failed to delete comment ${params.commentId}`,
+      operations: [],
+      requiresConfirmation: false,
+      error: 'COMMENT_DELETE_FAILED',
+    };
+  }
+
+  private async handleGetComments(_params: any): Promise<AIResponse> {
+    const comments = this.collaborationService.getComments();
+
+    let message = `Found ${comments.length} comment(s):`;
+    
+    if (comments.length > 0) {
+      comments.slice(0, 10).forEach(comment => {
+        message += `\n- ${comment.cellNotation}: ${comment.content}`;
+        if (comment.replyCount > 0) {
+          message += ` (${comment.replyCount} replies)`;
+        }
+        if (comment.resolved) {
+          message += ` [Resolved]`;
+        }
+      });
+
+      if (comments.length > 10) {
+        message += `\n... and ${comments.length - 10} more`;
+      }
+    }
+
+    return {
+      success: true,
+      message,
+      operations: [],
+      requiresConfirmation: false,
     };
   }
 
