@@ -10,7 +10,7 @@
  * @see https://docs.univer.ai/guides/sheets/features/sort
  */
 
-import type { FUniver, FWorksheet, FRange } from '../types/univer.types';
+import type { FUniver, FWorksheet } from '../types/univer.types';
 
 // ============================================================================
 // Type Definitions

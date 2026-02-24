@@ -381,11 +381,21 @@ export interface FRange {
   // Number format
   setNumberFormat(format: string): Promise<boolean>;
   
+  // Sort operations
+  sort(config: SortConfig | SortConfig[]): void;
+  sort(columnIndex: number, ascending?: boolean): void;
+  
   // Range info
   getRow(): number;
   getColumn(): number;
   getNumRows(): number;
   getNumColumns(): number;
+}
+
+// Sort configuration for FRange.sort()
+export interface SortConfig {
+  column: number;
+  ascending: boolean;
 }
 
 export interface IDisposable {
