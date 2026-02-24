@@ -224,8 +224,11 @@ function convertExcelDataToUniver(data: ExcelData) {
     cellData[0][colIdx] = {
       v: header,
       s: {
-        bg: { rgb: 'E8E8E8' },
+        bg: { rgb: 'E8E8E8' }, // Light gray background
+        fc: { rgb: '000000' }, // Black text
         bl: 1, // bold
+        ht: 1, // horizontal align center
+        vt: 1, // vertical align middle
       },
     };
   });
@@ -254,7 +257,7 @@ function convertExcelDataToUniver(data: ExcelData) {
         }
         
         if (style.color) {
-          cell.s.cl = { rgb: style.color.replace('#', '') };
+          cell.s.fc = { rgb: style.color.replace('#', '') }; // fc = font color
         }
         
         if (style.font?.bold) {
