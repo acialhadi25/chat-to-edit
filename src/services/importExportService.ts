@@ -184,7 +184,7 @@ function convertCellToUniver(
       formula = cell.formula;
     } else if (typeof cell.formula === 'object' && cell.formula !== null) {
       // ExcelJS formula can be an object with result property
-      const formulaObj = cell.formula as any;
+      const formulaObj = cell.formula as { result?: any };
       formula = formulaObj.result ? String(formulaObj.result) : '';
     }
     univerCell.f = formula.startsWith('=') ? formula : `=${formula}`;
@@ -258,7 +258,7 @@ function convertCellStyle(style: Partial<ExcelJS.Style>): ICellStyle {
     if (style.font.strike) univerStyle.st = { s: 1 };
     if (style.font.size) univerStyle.fs = style.font.size;
     if (style.font.name) univerStyle.ff = style.font.name;
-    if (style.font.color && 'argb' in style.font.color && style.font.color.argb) {
+    if (style.font.color && 'argb' in style.font.color && typeof style.font.color.argb === 'string') {
       univerStyle.fc = { rgb: argbToRgb(style.font.color.argb) };
     }
   }
@@ -266,7 +266,7 @@ function convertCellStyle(style: Partial<ExcelJS.Style>): ICellStyle {
   // Fill (background color)
   if (style.fill && style.fill.type === 'pattern' && 'fgColor' in style.fill) {
     const fgColor = style.fill.fgColor;
-    if (fgColor && 'argb' in fgColor && fgColor.argb) {
+    if (fgColor && 'argb' in fgColor && typeof fgColor.argb === 'string') {
       univerStyle.bg = { rgb: argbToRgb(fgColor.argb) };
     }
   }
@@ -340,25 +340,25 @@ function convertBorders(border: Partial<ExcelJS.Borders>): IBorderData {
   if (border.top) {
     univerBorder.t = {
       s: convertBorderStyle(border.top.style),
-      cl: { rgb: border.top.color && 'argb' in border.top.color && border.top.color.argb ? argbToRgb(border.top.color.argb) : '000000' },
+      cl: { rgb: border.top.color && 'argb' in border.top.color && typeof border.top.color.argb === 'string' ? argbToRgb(border.top.color.argb) : '000000' },
     };
   }
   if (border.bottom) {
     univerBorder.b = {
       s: convertBorderStyle(border.bottom.style),
-      cl: { rgb: border.bottom.color && 'argb' in border.bottom.color && border.bottom.color.argb ? argbToRgb(border.bottom.color.argb) : '000000' },
+      cl: { rgb: border.bottom.color && 'argb' in border.bottom.color && typeof border.bottom.color.argb === 'string' ? argbToRgb(border.bottom.color.argb) : '000000' },
     };
   }
   if (border.left) {
     univerBorder.l = {
       s: convertBorderStyle(border.left.style),
-      cl: { rgb: border.left.color && 'argb' in border.left.color && border.left.color.argb ? argbToRgb(border.left.color.argb) : '000000' },
+      cl: { rgb: border.left.color && 'argb' in border.left.color && typeof border.left.color.argb === 'string' ? argbToRgb(border.left.color.argb) : '000000' },
     };
   }
   if (border.right) {
     univerBorder.r = {
       s: convertBorderStyle(border.right.style),
-      cl: { rgb: border.right.color && 'argb' in border.right.color && border.right.color.argb ? argbToRgb(border.right.color.argb) : '000000' },
+      cl: { rgb: border.right.color && 'argb' in border.right.color && typeof border.right.color.argb === 'string' ? argbToRgb(border.right.color.argb) : '000000' },
     };
   }
 
@@ -456,7 +456,7 @@ export async function exportToExcel(
     workbook.created = new Date();
 
     // Process each sheet
-    Object.entries(workbookData.sheets).forEach(([, sheetData]) => {
+    Object.entries(workbookData.sheets).forEach(([_sheetId, sheetData]) => {
       // Skip if specific sheet requested and this isn't it
       if (sheetName && sheetData.name !== sheetName) {
         return;
@@ -708,6 +708,381 @@ export function downloadExcelFile(buffer: ArrayBuffer, filename: string): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// CSV Import/Export Functions
+// ============================================================================
+
+export interface CSVOptions {
+  delimiter?: string;
+  sheetName?: string;
+}
+
+/**
+ * Import workbook from CSV data
+ * CSV is 2D format, so it creates a single sheet
+ */
+export function importFromCSV(
+  csvData: string | File,
+  options: CSVOptions = {}
+): Promise<IWorkbookData> {
+  const {
+    delimiter = ',',
+    sheetName = 'Sheet1',
+  } = options;
+
+  return new Promise((resolve, reject) => {
+    try {
+      const processCSV = (csvText: string) => {
+        // Parse CSV manually (simple parser for quoted strings)
+        const rows = parseCSV(csvText, delimiter);
+        
+        if (rows.length === 0) {
+          throw new Error('CSV file is empty');
+        }
+
+        // Create workbook
+        const workbook: IWorkbookData = {
+          id: generateId(),
+          name: csvData instanceof File ? csvData.name.replace('.csv', '') : 'CSV Import',
+          sheets: {},
+        };
+
+        // Create sheet
+        const sheetId = 'sheet-1';
+        const sheet: IWorksheetData = {
+          id: sheetId,
+          name: sheetName,
+          cellData: {},
+          rowCount: rows.length,
+          columnCount: rows[0]?.length || 0,
+          defaultRowHeight: 20,
+          defaultColumnWidth: 100,
+        };
+
+        // Convert rows to cell data
+        rows.forEach((row, rowIndex) => {
+          sheet.cellData[rowIndex] = {};
+          row.forEach((cellValue, colIndex) => {
+            // Infer cell type and convert value
+            const { value, type } = inferCellType(cellValue);
+            sheet.cellData[rowIndex][colIndex] = {
+              v: value,
+              t: type,
+            };
+          });
+        });
+
+        workbook.sheets[sheetId] = sheet;
+        resolve(workbook);
+      };
+
+      if (csvData instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          processCSV(text);
+        };
+        reader.onerror = () => reject(new Error('Failed to read CSV file'));
+        reader.readAsText(csvData);
+      } else {
+        processCSV(csvData);
+      }
+    } catch (error) {
+      reject(new Error(
+        `Failed to import CSV: ${error instanceof Error ? error.message : 'Unknown error'}`
+      ));
+    }
+  });
+}
+
+/**
+ * Export workbook to CSV format
+ * Exports only the first sheet or specified sheet
+ */
+export function exportToCSV(
+  workbookData: IWorkbookData,
+  options: CSVOptions = {}
+): string {
+  const {
+    delimiter = ',',
+    sheetName,
+  } = options;
+
+  try {
+    // Get the sheet to export
+    let sheet: IWorksheetData | undefined;
+    
+    if (sheetName) {
+      // Find sheet by name
+      sheet = Object.values(workbookData.sheets).find(s => s.name === sheetName);
+      if (!sheet) {
+        throw new Error(`Sheet "${sheetName}" not found`);
+      }
+    } else {
+      // Use first sheet
+      sheet = Object.values(workbookData.sheets)[0];
+      if (!sheet) {
+        throw new Error('No sheets found in workbook');
+      }
+    }
+
+    // Find the bounds of the data
+    const bounds = getSheetBounds(sheet);
+    if (bounds.maxRow === -1 || bounds.maxCol === -1) {
+      return ''; // Empty sheet
+    }
+
+    // Build CSV rows
+    const csvRows: string[] = [];
+    
+    for (let row = 0; row <= bounds.maxRow; row++) {
+      const csvCells: string[] = [];
+      
+      for (let col = 0; col <= bounds.maxCol; col++) {
+        const cell = sheet.cellData[row]?.[col];
+        const value = cell?.v ?? '';
+        
+        // Format cell value for CSV
+        csvCells.push(formatCSVCell(String(value), delimiter));
+      }
+      
+      csvRows.push(csvCells.join(delimiter));
+    }
+
+    return csvRows.join('\n');
+  } catch (error) {
+    throw new Error(
+      `Failed to export to CSV: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Parse CSV text into 2D array
+ * Handles quoted strings with commas
+ */
+function parseCSV(csvText: string, delimiter: string): string[][] {
+  const rows: string[][] = [];
+  const lines = csvText.split(/\r?\n/);
+  
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    
+    const row: string[] = [];
+    let currentCell = '';
+    let insideQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+      
+      if (char === '"') {
+        if (insideQuotes && nextChar === '"') {
+          // Escaped quote
+          currentCell += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          insideQuotes = !insideQuotes;
+        }
+      } else if (char === delimiter && !insideQuotes) {
+        // End of cell
+        row.push(currentCell.trim());
+        currentCell = '';
+      } else {
+        currentCell += char;
+      }
+    }
+    
+    // Add last cell
+    row.push(currentCell.trim());
+    rows.push(row);
+  }
+  
+  return rows;
+}
+
+/**
+ * Format cell value for CSV output
+ * Quotes strings that contain delimiter, quotes, or newlines
+ */
+function formatCSVCell(value: string, delimiter: string): string {
+  // Check if value needs quoting
+  if (
+    value.includes(delimiter) ||
+    value.includes('"') ||
+    value.includes('\n') ||
+    value.includes('\r')
+  ) {
+    // Escape quotes by doubling them
+    const escaped = value.replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+  
+  return value;
+}
+
+/**
+ * Infer cell type from string value
+ */
+function inferCellType(value: string): { value: any; type: CellValueType } {
+  const trimmed = value.trim();
+  
+  // Empty cell
+  if (trimmed === '') {
+    return { value: null, type: CellValueType.STRING };
+  }
+  
+  // Boolean
+  if (trimmed.toLowerCase() === 'true') {
+    return { value: true, type: CellValueType.BOOLEAN };
+  }
+  if (trimmed.toLowerCase() === 'false') {
+    return { value: false, type: CellValueType.BOOLEAN };
+  }
+  
+  // Number
+  const num = Number(trimmed);
+  if (!isNaN(num) && trimmed !== '') {
+    return { value: num, type: CellValueType.NUMBER };
+  }
+  
+  // String (default)
+  return { value: trimmed, type: CellValueType.STRING };
+}
+
+/**
+ * Get the bounds of data in a sheet
+ */
+function getSheetBounds(sheet: IWorksheetData): {
+  maxRow: number;
+  maxCol: number;
+} {
+  let maxRow = -1;
+  let maxCol = -1;
+  
+  Object.keys(sheet.cellData).forEach(rowStr => {
+    const row = parseInt(rowStr, 10);
+    if (row > maxRow) maxRow = row;
+    
+    Object.keys(sheet.cellData[row]).forEach(colStr => {
+      const col = parseInt(colStr, 10);
+      if (col > maxCol) maxCol = col;
+    });
+  });
+  
+  return { maxRow, maxCol };
+}
+
+/**
+ * Download CSV file in browser
+ */
+export function downloadCSVFile(csvData: string, filename: string): void {
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// JSON Import/Export Functions
+// ============================================================================
+
+export interface JSONOptions {
+  pretty?: boolean;
+  indent?: number;
+}
+
+/**
+ * Import workbook from JSON
+ * JSON format is direct serialization of IWorkbookData
+ */
+export function importFromJSON(
+  jsonData: string | File | IWorkbookData
+): Promise<IWorkbookData> {
+  return new Promise((resolve, reject) => {
+    try {
+      const processJSON = (jsonText: string) => {
+        const data = JSON.parse(jsonText) as IWorkbookData;
+        
+        // Validate structure
+        if (!data.id || !data.name || !data.sheets) {
+          throw new Error('Invalid workbook JSON structure');
+        }
+        
+        // Validate sheets
+        if (Object.keys(data.sheets).length === 0) {
+          throw new Error('Workbook must have at least one sheet');
+        }
+        
+        resolve(data);
+      };
+
+      if (jsonData instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          processJSON(text);
+        };
+        reader.onerror = () => reject(new Error('Failed to read JSON file'));
+        reader.readAsText(jsonData);
+      } else if (typeof jsonData === 'string') {
+        processJSON(jsonData);
+      } else {
+        // Already parsed object
+        resolve(jsonData);
+      }
+    } catch (error) {
+      reject(new Error(
+        `Failed to import JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+      ));
+    }
+  });
+}
+
+/**
+ * Export workbook to JSON format
+ * Direct serialization of IWorkbookData with all metadata
+ */
+export function exportToJSON(
+  workbookData: IWorkbookData,
+  options: JSONOptions = {}
+): string {
+  const { pretty = true, indent = 2 } = options;
+  
+  try {
+    if (pretty) {
+      return JSON.stringify(workbookData, null, indent);
+    } else {
+      return JSON.stringify(workbookData);
+    }
+  } catch (error) {
+    throw new Error(
+      `Failed to export to JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Download JSON file in browser
+ */
+export function downloadJSONFile(jsonData: string, filename: string): void {
+  const blob = new Blob([jsonData], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename.endsWith('.json') ? filename : `${filename}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
