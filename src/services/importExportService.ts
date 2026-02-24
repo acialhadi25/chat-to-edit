@@ -179,7 +179,14 @@ function convertCellToUniver(
 
   // Handle formula
   if (preserveFormulas && cell.formula) {
-    const formula = typeof cell.formula === 'string' ? cell.formula : cell.formula.result;
+    let formula = '';
+    if (typeof cell.formula === 'string') {
+      formula = cell.formula;
+    } else if (typeof cell.formula === 'object' && cell.formula !== null) {
+      // ExcelJS formula can be an object with result property
+      const formulaObj = cell.formula as any;
+      formula = formulaObj.result ? String(formulaObj.result) : '';
+    }
     univerCell.f = formula.startsWith('=') ? formula : `=${formula}`;
     univerCell.v = convertCellValue(cell.value); // Convert calculated value
   } else {
@@ -207,13 +214,13 @@ function convertCellValue(value: any): any {
   }
 
   // Handle formula result object
-  if (typeof value === 'object' && 'result' in value) {
-    return value.result;
+  if (typeof value === 'object' && value !== null && 'result' in value) {
+    return (value as { result: any }).result;
   }
 
   // Handle rich text
-  if (typeof value === 'object' && 'richText' in value) {
-    return value.richText.map((rt: any) => rt.text).join('');
+  if (typeof value === 'object' && value !== null && 'richText' in value) {
+    return (value as { richText: Array<{ text: string }> }).richText.map((rt) => rt.text).join('');
   }
 
   // Handle date
@@ -251,7 +258,7 @@ function convertCellStyle(style: Partial<ExcelJS.Style>): ICellStyle {
     if (style.font.strike) univerStyle.st = { s: 1 };
     if (style.font.size) univerStyle.fs = style.font.size;
     if (style.font.name) univerStyle.ff = style.font.name;
-    if (style.font.color && 'argb' in style.font.color) {
+    if (style.font.color && 'argb' in style.font.color && style.font.color.argb) {
       univerStyle.fc = { rgb: argbToRgb(style.font.color.argb) };
     }
   }
@@ -259,7 +266,7 @@ function convertCellStyle(style: Partial<ExcelJS.Style>): ICellStyle {
   // Fill (background color)
   if (style.fill && style.fill.type === 'pattern' && 'fgColor' in style.fill) {
     const fgColor = style.fill.fgColor;
-    if (fgColor && 'argb' in fgColor) {
+    if (fgColor && 'argb' in fgColor && fgColor.argb) {
       univerStyle.bg = { rgb: argbToRgb(fgColor.argb) };
     }
   }
@@ -333,25 +340,25 @@ function convertBorders(border: Partial<ExcelJS.Borders>): IBorderData {
   if (border.top) {
     univerBorder.t = {
       s: convertBorderStyle(border.top.style),
-      cl: { rgb: border.top.color && 'argb' in border.top.color ? argbToRgb(border.top.color.argb) : '000000' },
+      cl: { rgb: border.top.color && 'argb' in border.top.color && border.top.color.argb ? argbToRgb(border.top.color.argb) : '000000' },
     };
   }
   if (border.bottom) {
     univerBorder.b = {
       s: convertBorderStyle(border.bottom.style),
-      cl: { rgb: border.bottom.color && 'argb' in border.bottom.color ? argbToRgb(border.bottom.color.argb) : '000000' },
+      cl: { rgb: border.bottom.color && 'argb' in border.bottom.color && border.bottom.color.argb ? argbToRgb(border.bottom.color.argb) : '000000' },
     };
   }
   if (border.left) {
     univerBorder.l = {
       s: convertBorderStyle(border.left.style),
-      cl: { rgb: border.left.color && 'argb' in border.left.color ? argbToRgb(border.left.color.argb) : '000000' },
+      cl: { rgb: border.left.color && 'argb' in border.left.color && border.left.color.argb ? argbToRgb(border.left.color.argb) : '000000' },
     };
   }
   if (border.right) {
     univerBorder.r = {
       s: convertBorderStyle(border.right.style),
-      cl: { rgb: border.right.color && 'argb' in border.right.color ? argbToRgb(border.right.color.argb) : '000000' },
+      cl: { rgb: border.right.color && 'argb' in border.right.color && border.right.color.argb ? argbToRgb(border.right.color.argb) : '000000' },
     };
   }
 
@@ -449,7 +456,7 @@ export async function exportToExcel(
     workbook.created = new Date();
 
     // Process each sheet
-    Object.entries(workbookData.sheets).forEach(([sheetId, sheetData]) => {
+    Object.entries(workbookData.sheets).forEach(([, sheetData]) => {
       // Skip if specific sheet requested and this isn't it
       if (sheetName && sheetData.name !== sheetName) {
         return;
