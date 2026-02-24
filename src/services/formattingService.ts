@@ -11,8 +11,8 @@
  * @see https://docs.univer.ai/guides/sheets/getting-started/cell-data
  */
 
-import type { FUniver, FWorksheet, ICellStyle, IBorderData, IBorderStyle } from '../types/univer.types';
-import { BorderStyleType, HorizontalAlign, VerticalAlign } from '../types/univer.types';
+import type { FUniver, FWorksheet, ICellStyle } from '../types/univer.types';
+import { BorderStyleType } from '../types/univer.types';
 
 // ============================================================================
 // Type Definitions
@@ -216,109 +216,6 @@ export class FormattingService {
 
     if (options.strikethrough !== undefined) {
       style.st = { s: options.strikethrough ? 1 : 0 };
-    }
-
-    return style;
-  }
-
-  /**
-   * Convert border style options to Univer IBorderData
-   * Note: This method is prepared for future use when Univer Facade API supports borders
-   * @private
-   */
-  private _convertBorderStyle(options: BorderStyleOptions): Partial<IBorderData> {
-    const borders: Partial<IBorderData> = {};
-
-    const createBorderStyle = (border: BorderStyle): IBorderStyle => {
-      this.validateColor(border.color);
-      return {
-        s: border.style,
-        cl: { rgb: border.color },
-      };
-    };
-
-    // Handle 'all' option - applies to all sides
-    if (options.all) {
-      const borderStyle = createBorderStyle(options.all);
-      borders.t = borderStyle;
-      borders.b = borderStyle;
-      borders.l = borderStyle;
-      borders.r = borderStyle;
-      return borders;
-    }
-
-    // Handle 'outline' option - applies to outer edges only
-    if (options.outline) {
-      const borderStyle = createBorderStyle(options.outline);
-      borders.t = borderStyle;
-      borders.b = borderStyle;
-      borders.l = borderStyle;
-      borders.r = borderStyle;
-      // Note: For multi-cell ranges, this will be applied to outer edges
-      // Inner borders are not affected
-    }
-
-    // Handle individual sides
-    if (options.top) {
-      borders.t = createBorderStyle(options.top);
-    }
-
-    if (options.bottom) {
-      borders.b = createBorderStyle(options.bottom);
-    }
-
-    if (options.left) {
-      borders.l = createBorderStyle(options.left);
-    }
-
-    if (options.right) {
-      borders.r = createBorderStyle(options.right);
-    }
-
-    // Note: 'inside' option requires special handling for multi-cell ranges
-    // This is handled in the applyBorderStyle method
-
-    return borders;
-  }
-
-  /**
-   * Convert alignment options to Univer style properties
-   * Note: This method is prepared for future use when more alignment options are available
-   * @private
-   */
-  private _convertAlignment(options: AlignmentOptions): Partial<ICellStyle> {
-    const style: Partial<ICellStyle> = {};
-
-    if (options.horizontal) {
-      switch (options.horizontal) {
-        case 'left':
-          style.ht = HorizontalAlign.LEFT;
-          break;
-        case 'center':
-          style.ht = HorizontalAlign.CENTER;
-          break;
-        case 'right':
-          style.ht = HorizontalAlign.RIGHT;
-          break;
-      }
-    }
-
-    if (options.vertical) {
-      switch (options.vertical) {
-        case 'top':
-          style.vt = VerticalAlign.TOP;
-          break;
-        case 'middle':
-          style.vt = VerticalAlign.MIDDLE;
-          break;
-        case 'bottom':
-          style.vt = VerticalAlign.BOTTOM;
-          break;
-      }
-    }
-
-    if (options.wrapText !== undefined) {
-      style.tb = options.wrapText ? 1 : 0;
     }
 
     return style;
