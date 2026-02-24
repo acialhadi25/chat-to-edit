@@ -145,7 +145,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             const target = (action as any).target || action.params?.target;
             const formula = action.params?.formula;
             
-            if (target && formula) {
+            if (target && formula && typeof formula === 'string') {
               // Remove leading = if present
               const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
               sheet.getRange(target.row + 1, target.col).setValue(`=${formulaStr}`);
@@ -159,7 +159,7 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             const rowData = action.params?.rowData;
             const rowIndex = action.params?.row;
             
-            if (rowData && rowIndex !== undefined) {
+            if (Array.isArray(rowData) && typeof rowIndex === 'number') {
               rowData.forEach((value: any, colIdx: number) => {
                 sheet.getRange(rowIndex + 1, colIdx).setValue(value);
               });
