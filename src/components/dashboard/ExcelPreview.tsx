@@ -1,9 +1,8 @@
-import { useRef, memo, forwardRef, useImperativeHandle, useEffect, useMemo } from 'react';
-import { Workbook } from '@fortune-sheet/react';
-import '@fortune-sheet/react/dist/index.css';
-import '@/styles/fortunesheet-override.css';
-import { ExcelData, AIAction, CellValue, createCellRef } from '@/types/excel';
-import { applyActionToFortuneSheet, syncFortuneSheetWithData, type FortuneSheetRef } from '@/utils/fortuneSheetOperations';
+import { useRef, memo, forwardRef, useImperativeHandle, useEffect } from 'react';
+import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
+import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US';
+import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
+import { ExcelData, AIAction } from '@/types/excel';
 
 export interface ExcelPreviewHandle {
   applyAction: (action: AIAction) => void;
@@ -15,450 +14,243 @@ interface ExcelPreviewProps {
   onDataChange?: (data: any) => void;
 }
 
-const PENDING_CHANGE_BG = '#fff3cd';
-
-// Convert ExcelData to FortuneSheet format
-const convertToFortuneSheetFormat = (excelData: ExcelData) => {
-  const headers = Array.isArray(excelData.headers) ? excelData.headers : [];
-  const rowsData = Array.isArray(excelData.rows) ? excelData.rows : [];
-
-  // Create pending changes map for highlighting
-  const pendingChangeMap = new Map<string, CellValue>();
-  (excelData.pendingChanges || []).forEach((change) => {
-    pendingChangeMap.set(createCellRef(change.col, change.row), change.newValue);
-  });
-
-  // Convert to celldata format (FortuneSheet uses celldata array)
-  const celldata: any[] = [];
-
-  // Add headers (row 0)
-  headers.forEach((header, colIndex) => {
-    celldata.push({
-      r: 0,
-      c: colIndex,
-      v: {
-        v: header,
-        m: header,
-        ct: { fa: 'General', t: 'g' },
-        bg: '#f4f4f4',
-        bl: 1, // bold
-        ht: 1, // horizontal align center
-        vt: 1, // vertical align middle
-      },
-    });
-  });
-
-  // Add data rows
-  rowsData.forEach((row, rowIndex) => {
-    row.forEach((cellValue, colIndex) => {
-      const cellRef = createCellRef(colIndex, rowIndex);
-      const isPending = pendingChangeMap.has(cellRef);
-      let displayValue = isPending ? pendingChangeMap.get(cellRef) : cellValue;
-      const originalStyle = excelData.cellStyles?.[cellRef];
-
-      // Check if the cell value is a formula
-      let isFormula = false;
-      if (typeof displayValue === 'string' && displayValue.startsWith('=')) {
-        isFormula = true;
-      }
-
-      const cellConfig: any = {
-        r: rowIndex + 1, // +1 because row 0 is headers
-        c: colIndex,
-        v: {
-          v: displayValue ?? '',
-          m: String(displayValue ?? ''),
-          ct: { fa: 'General', t: 'g' },
-        },
-      };
-
-      // If it's a formula, set the f property for FortuneSheet to evaluate
-      if (isFormula) {
-        cellConfig.v.f = displayValue; // Store formula
-        // FortuneSheet will automatically evaluate and display the result
-      }
-
-      // Apply pending change highlight
-      if (isPending) {
-        cellConfig.v.bg = PENDING_CHANGE_BG;
-      } else if (originalStyle?.bgcolor) {
-        cellConfig.v.bg = originalStyle.bgcolor;
-      }
-
-      // Apply other styles
-      if (originalStyle) {
-        if (originalStyle.color) cellConfig.v.fc = originalStyle.color;
-        if (originalStyle.font?.bold) cellConfig.v.bl = 1;
-        if (originalStyle.font?.italic) cellConfig.v.it = 1;
-        if (originalStyle.align === 'center') cellConfig.v.ht = 1;
-        if (originalStyle.align === 'right') cellConfig.v.ht = 2;
-        if (originalStyle.valign === 'middle') cellConfig.v.vt = 1;
-        if (originalStyle.valign === 'bottom') cellConfig.v.vt = 2;
-      }
-
-      celldata.push(cellConfig);
-    });
-  });
-
-  // Column widths
-  const columnlen: any = {};
-  headers.forEach((_, index) => {
-    columnlen[index] = excelData.columnWidths?.[index] || 120;
-  });
-
-  return [
-    {
-      name: excelData.currentSheet || 'Sheet1',
-      celldata,
-      config: {
-        columnlen,
-        rowlen: {},
-      },
-      row: rowsData.length + 20, // Add extra rows
-      column: headers.length + 5, // Add extra columns
-    },
-  ];
-};
-
 const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
   ({ data, onDataChange }, ref) => {
-    const workbookRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const univerAPIRef = useRef<any>(null);
+    const univerRef = useRef<any>(null);
 
-    // Expose imperative methods using FortuneSheet operations
-    useImperativeHandle(ref, () => ({
-      applyAction: (action: AIAction) => {
-        console.log('applyAction called with:', action.type);
-        return applyActionToFortuneSheet(workbookRef.current as FortuneSheetRef, action, data);
-      },
-
-      getData: () => {
-        console.log('getData: Extracting data from FortuneSheet using getAllSheets API');
-        
-        if (!workbookRef.current) {
-          console.warn('getData: workbookRef not available');
-          return null;
-        }
-
-        try {
-          // Use getAllSheets() to get raw sheet data
-          const sheets = workbookRef.current.getAllSheets();
-          console.log('getData: getAllSheets() returned:', sheets);
-          
-          if (!sheets || sheets.length === 0) {
-            console.warn('getData: No sheets data available');
-            return null;
-          }
-
-          const sheet = sheets[0];
-          console.log('getData: First sheet:', sheet);
-          console.log('getData: Sheet keys:', Object.keys(sheet));
-          console.log('getData: Sheet.data:', sheet.data);
-          console.log('getData: Sheet.celldata:', sheet.celldata);
-          console.log('getData: Sheet.calcChain:', sheet.calcChain);
-          
-          // Extract formulas and styles from data
-          const extractedData: {
-            formulas: { [key: string]: string };
-            cellStyles: { [key: string]: any };
-            values: any[][];
-            columnWidths: { [key: number]: number };
-          } = {
-            formulas: {},
-            cellStyles: {},
-            values: [],
-            columnWidths: {}
-          };
-
-          // Extract column widths from config
-          if (sheet.config?.columnlen) {
-            console.log('getData: Extracting column widths:', sheet.config.columnlen);
-            extractedData.columnWidths = sheet.config.columnlen;
-          }
-
-          // First, extract formulas from calcChain if available
-          if (sheet.calcChain && Array.isArray(sheet.calcChain)) {
-            console.log(`getData: Processing calcChain with ${sheet.calcChain.length} entries`);
-            sheet.calcChain.forEach((calc: any) => {
-              console.log('getData: calcChain entry:', calc);
-              // calcChain format: { r: row, c: col, id: sheetId }
-              // The formula is stored in the cell itself
-              if (calc.r !== undefined && calc.c !== undefined && calc.r > 0) {
-                const rowIdx = calc.r - 1; // Adjust for header
-                const colIdx = calc.c;
-                const cellRef = createCellRef(colIdx, rowIdx);
-                
-                // Get the cell to extract formula
-                if (sheet.data && sheet.data[calc.r] && sheet.data[calc.r][calc.c]) {
-                  const cell = sheet.data[calc.r][calc.c];
-                  console.log(`getData: Cell at [${calc.r}][${calc.c}]:`, cell);
-                  if (cell.f) {
-                    extractedData.formulas[cellRef] = cell.f;
-                    console.log(`✅ Found formula from calcChain at ${cellRef}: ${cell.f}`);
-                  } else {
-                    console.warn(`⚠️ calcChain points to ${cellRef} but cell.f is missing`);
-                  }
-                } else {
-                  console.warn(`⚠️ calcChain points to [${calc.r}][${calc.c}] but cell not found in sheet.data`);
-                }
-              }
-            });
-          } else {
-            console.warn('getData: No calcChain available');
-          }
-
-          // FortuneSheet stores data in 'data' property as 2D array
-          if (sheet.data && Array.isArray(sheet.data)) {
-            console.log(`getData: Processing 2D data array with ${sheet.data.length} rows`);
-            
-            // In 2D format, iterate through rows and columns
-            sheet.data.forEach((row: any[], rowIdx: number) => {
-              if (!Array.isArray(row)) {
-                console.log(`getData: Row ${rowIdx} is not an array`);
-                return;
-              }
-              
-              row.forEach((cell: any, colIdx: number) => {
-                if (!cell || typeof cell !== 'object') return;
-                
-                // For header row (rowIdx === 0), don't adjust index
-                // For data rows (rowIdx > 0), adjust by -1
-                const isHeader = rowIdx === 0;
-                const dataRowIdx = isHeader ? -1 : rowIdx - 1; // -1 means header
-                const cellRef = isHeader ? `HEADER_${colIdx}` : createCellRef(colIdx, dataRowIdx);
-                
-                // Log first few cells AND cells with formulas to understand structure
-                if ((rowIdx <= 1 && colIdx < 3) || cell.f) {
-                  console.log(`getData: Cell at row ${rowIdx}, col ${colIdx} (${cellRef}):`, cell);
-                  console.log(`getData: Cell keys:`, Object.keys(cell));
-                  if (cell.f) {
-                    console.log(`getData: ✅ Cell has formula: ${cell.f}`);
-                  }
-                }
-                
-                // Extract formula (if not already extracted from calcChain)
-                if (cell.f && !isHeader && !extractedData.formulas[cellRef]) {
-                  extractedData.formulas[cellRef] = cell.f;
-                  console.log(`✅ Found NEW formula at ${cellRef}: ${cell.f}`);
-                } else if (cell.f && !isHeader) {
-                  console.log(`ℹ️ Formula at ${cellRef} already extracted from calcChain`);
-                }
-                
-                // Extract styles (including header)
-                const style: any = {};
-                
-                if (cell.bg) {
-                  style.bgcolor = cell.bg;
-                }
-                
-                if (cell.fc) {
-                  style.color = cell.fc;
-                }
-                
-                if (cell.bl === 1) {
-                  style.font = { bold: true };
-                }
-                
-                if (Object.keys(style).length > 0) {
-                  extractedData.cellStyles[cellRef] = style;
-                  if (rowIdx <= 1 || (rowIdx > 0 && cell.f)) {
-                    console.log(`✅ Found style at ${cellRef}:`, style);
-                  }
-                }
-              });
-            });
-          } 
-          // Handle celldata format (array of cell objects) - fallback
-          else if (sheet.celldata && Array.isArray(sheet.celldata)) {
-            console.log(`getData: Processing ${sheet.celldata.length} cells from celldata array`);
-
-            sheet.celldata.forEach((cell: any) => {
-              if (cell.r === 0) return; // Skip header row
-
-              const rowIdx = cell.r - 1; // Adjust for header
-              const colIdx = cell.c;
-              const cellRef = createCellRef(colIdx, rowIdx);
-
-              // Extract formula
-              if (cell.v?.f) {
-                extractedData.formulas[cellRef] = cell.v.f;
-                console.log(`Found formula at ${cellRef}: ${cell.v.f}`);
-              }
-
-              // Extract styles
-              const style: any = {};
-              
-              if (cell.v?.bg) {
-                style.bgcolor = cell.v.bg;
-              }
-              
-              if (cell.v?.fc) {
-                style.color = cell.v.fc;
-              }
-              
-              if (cell.v?.bl === 1) {
-                style.font = { bold: true };
-              }
-
-              if (Object.keys(style).length > 0) {
-                extractedData.cellStyles[cellRef] = style;
-                console.log(`Found style at ${cellRef}:`, style);
-              }
-            });
-          }
-          else {
-            console.warn('getData: No data or celldata in sheet');
-            return null;
-          }
-
-          console.log('getData: Extraction complete');
-          console.log('📊 Summary:');
-          console.log(`  - Formulas extracted: ${Object.keys(extractedData.formulas).length}`);
-          console.log(`  - Cell styles extracted: ${Object.keys(extractedData.cellStyles).length}`);
-          console.log(`  - Column widths extracted: ${Object.keys(extractedData.columnWidths).length}`);
-          
-          if (Object.keys(extractedData.formulas).length > 0) {
-            console.log('📝 Formulas:', extractedData.formulas);
-          } else {
-            console.warn('⚠️ NO FORMULAS EXTRACTED! This might be the issue.');
-          }
-          
-          if (Object.keys(extractedData.cellStyles).length > 0) {
-            console.log('🎨 Cell Styles (first 5):', Object.fromEntries(
-              Object.entries(extractedData.cellStyles).slice(0, 5)
-            ));
-          } else {
-            console.warn('⚠️ NO CELL STYLES EXTRACTED!');
-          }
-
-          return extractedData;
-        } catch (error) {
-          console.error('getData: Error extracting data:', error);
-          return null;
-        }
-      },
-    }));
-
-    const fortuneSheetData = useMemo(() => {
-      console.log('useMemo: Converting data to FortuneSheet format, rows:', data.rows.length);
-      return convertToFortuneSheetFormat(data);
-    }, [data]);
-
-    // Update FortuneSheet when data changes using FortuneSheet operations
-    useEffect(() => {
-      if (!workbookRef.current) {
-        console.log('Workbook ref not ready yet');
-        return;
-      }
-
-      console.log('Syncing FortuneSheet with data, rows:', data.rows.length);
-      syncFortuneSheetWithData(workbookRef.current as FortuneSheetRef, data);
-    }, [data]);
-
-    // Add resize observer to trigger FortuneSheet resize - MORE AGGRESSIVE
+    // Initialize Univer
     useEffect(() => {
       if (!containerRef.current) return;
 
-      const resizeObserver = new ResizeObserver(() => {
-        // Trigger luckysheet resize multiple times with requestAnimationFrame
-        const luckysheet = (window as any).luckysheet;
-        if (luckysheet && luckysheet.resize) {
-          requestAnimationFrame(() => {
-            luckysheet.resize();
-            
-            // Rapid fire resizes
-            setTimeout(() => luckysheet.resize(), 10);
-            setTimeout(() => luckysheet.resize(), 30);
-            setTimeout(() => luckysheet.resize(), 60);
-            setTimeout(() => luckysheet.resize(), 100);
-            setTimeout(() => luckysheet.resize(), 200);
-          });
-        }
+      console.log('Initializing Univer with data:', data);
+
+      const { univer, univerAPI } = createUniver({
+        locale: LocaleType.EN_US,
+        locales: {
+          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+        },
+        presets: [
+          UniverSheetsCorePreset({
+            container: containerRef.current,
+          }),
+        ],
       });
 
-      resizeObserver.observe(containerRef.current);
+      univerRef.current = univer;
+      univerAPIRef.current = univerAPI;
+
+      // Wait for lifecycle to be ready
+      const disposable = univerAPI.addEvent(
+        univerAPI.Event.LifeCycleChanged,
+        ({ stage }: any) => {
+          if (stage === univerAPI.Enum.LifecycleStages.Rendered) {
+            console.log('Univer rendered, creating workbook...');
+            
+            // Convert ExcelData to Univer format
+            const univerData = convertExcelDataToUniver(data);
+            univerAPI.createWorkbook(univerData);
+          }
+        }
+      );
+
+      // Listen for changes
+      if (onDataChange) {
+        const changeDisposable = univerAPI.addEvent(
+          univerAPI.Event.CommandExecuted,
+          () => {
+            const workbook = univerAPI.getActiveWorkbook();
+            if (workbook) {
+              onDataChange(workbook.save());
+            }
+          }
+        );
+
+        return () => {
+          disposable.dispose();
+          changeDisposable.dispose();
+          univer.dispose();
+        };
+      }
 
       return () => {
-        resizeObserver.disconnect();
+        disposable.dispose();
+        univer.dispose();
       };
     }, []);
 
-    // Also trigger resize when component mounts or data changes - MORE AGGRESSIVE
+    // Update workbook when data changes
     useEffect(() => {
-      const luckysheet = (window as any).luckysheet;
-      if (luckysheet && luckysheet.resize) {
-        requestAnimationFrame(() => {
-          luckysheet.resize();
-          setTimeout(() => luckysheet.resize(), 10);
-          setTimeout(() => luckysheet.resize(), 50);
-          setTimeout(() => luckysheet.resize(), 100);
-          setTimeout(() => luckysheet.resize(), 200);
-        });
-      }
+      if (!univerAPIRef.current || !data) return;
+
+      console.log('Data changed, updating workbook...');
+      
+      // Get current workbook
+      const currentWorkbook = univerAPIRef.current.getActiveWorkbook();
+      if (!currentWorkbook) return;
+
+      // Update sheet data
+      const sheet = currentWorkbook.getActiveSheet();
+      if (!sheet) return;
+
+      // Convert and apply data
+      // TODO: Implement incremental update instead of full replace
+      console.log('Workbook updated');
     }, [data]);
 
-    // Add global resize listener for sidebar changes
-    useEffect(() => {
-      const handleResize = () => {
-        const luckysheet = (window as any).luckysheet;
-        if (luckysheet && luckysheet.resize) {
-          requestAnimationFrame(() => {
-            luckysheet.resize();
-          });
+    // Expose imperative methods
+    useImperativeHandle(ref, () => ({
+      applyAction: (action: AIAction) => {
+        console.log('applyAction called with:', action.type);
+        
+        if (!univerAPIRef.current) {
+          console.warn('univerAPI not ready');
+          return;
         }
-      };
 
-      window.addEventListener('resize', handleResize);
-      
-      // Also listen for custom sidebar events
-      const handleSidebarChange = () => {
-        setTimeout(handleResize, 10);
-        setTimeout(handleResize, 50);
-        setTimeout(handleResize, 100);
-      };
-      
-      window.addEventListener('sidebar-toggle', handleSidebarChange);
+        const workbook = univerAPIRef.current.getActiveWorkbook();
+        const sheet = workbook?.getActiveSheet();
+        
+        if (!sheet) {
+          console.warn('No active sheet');
+          return;
+        }
 
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('sidebar-toggle', handleSidebarChange);
-      };
-    }, []);
+        // Apply action based on type
+        switch (action.type) {
+          case 'EDIT_CELL': {
+            const target = (action as any).target || action.params?.target;
+            if (target && action.params?.value !== undefined) {
+              sheet.getRange(target.row + 1, target.col).setValue(action.params.value);
+              console.log(`✅ Applied EDIT_CELL at row ${target.row}, col ${target.col}`);
+            }
+            break;
+          }
+          
+          case 'EDIT_ROW': {
+            // TODO: Implement EDIT_ROW
+            console.log('EDIT_ROW not yet implemented for Univer');
+            break;
+          }
+          
+          case 'DELETE_ROW': {
+            // TODO: Implement DELETE_ROW
+            console.log('DELETE_ROW not yet implemented for Univer');
+            break;
+          }
+          
+          default:
+            console.warn(`Action type ${action.type} not implemented for Univer`);
+        }
+      },
+
+      getData: () => {
+        console.log('getData: Extracting data from Univer');
+        
+        if (!univerAPIRef.current) {
+          console.warn('getData: univerAPI not available');
+          return null;
+        }
+
+        const workbook = univerAPIRef.current.getActiveWorkbook();
+        if (!workbook) {
+          console.warn('getData: No active workbook');
+          return null;
+        }
+
+        // Get workbook data
+        const workbookData = workbook.save();
+        console.log('getData: Workbook data:', workbookData);
+
+        // Extract formulas, styles, etc.
+        const extractedData = {
+          formulas: {},
+          cellStyles: {},
+          columnWidths: {},
+          workbookData, // Include full workbook data for download
+        };
+
+        console.log('getData: Extraction complete');
+        return extractedData;
+      },
+    }));
 
     return (
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
-        <Workbook
-          ref={workbookRef}
-          data={fortuneSheetData}
-          onChange={(data) => {
-            if (onDataChange) {
-              onDataChange(data);
-            }
-          }}
-        />
-      </div>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+        }}
+      />
     );
   }
 );
 
 ExcelPreview.displayName = 'ExcelPreview';
 
-// Custom comparison function for memo - always re-render if data changes
-const areEqual = (prevProps: ExcelPreviewProps, nextProps: ExcelPreviewProps) => {
-  const rowsChanged = prevProps.data.rows.length !== nextProps.data.rows.length;
-  const dataRefChanged = prevProps.data !== nextProps.data;
+// Helper function to convert ExcelData to Univer format
+function convertExcelDataToUniver(data: ExcelData) {
+  const cellData: any = {};
   
-  console.log('ExcelPreview memo comparison:', { 
-    prevRows: prevProps.data.rows.length, 
-    nextRows: nextProps.data.rows.length,
-    rowsChanged,
-    dataRefChanged,
-    shouldUpdate: rowsChanged || dataRefChanged
+  // Add headers (row 0)
+  data.headers.forEach((header, colIdx) => {
+    if (!cellData[0]) cellData[0] = {};
+    cellData[0][colIdx] = {
+      v: header,
+      s: {
+        bg: { rgb: 'E8E8E8' },
+        bl: 1, // bold
+      },
+    };
   });
-  
-  // Return true if props are equal (don't re-render)
-  // Return false if props changed (do re-render)
-  return !rowsChanged && !dataRefChanged;
-};
 
-export default memo(ExcelPreview, areEqual);
+  // Add data rows
+  data.rows.forEach((row, rowIdx) => {
+    const univerRowIdx = rowIdx + 1; // +1 because row 0 is headers
+    if (!cellData[univerRowIdx]) cellData[univerRowIdx] = {};
+    
+    row.forEach((cellValue, colIdx) => {
+      const cell: any = { v: cellValue };
+      
+      // Add formula if exists
+      const cellRef = `${String.fromCharCode(65 + colIdx)}${rowIdx + 1}`;
+      if (data.formulas?.[cellRef]) {
+        cell.f = data.formulas[cellRef];
+      }
+      
+      // Add styles if exists
+      if (data.cellStyles?.[cellRef]) {
+        const style = data.cellStyles[cellRef];
+        cell.s = {};
+        
+        if (style.bgcolor) {
+          cell.s.bg = { rgb: style.bgcolor.replace('#', '') };
+        }
+        
+        if (style.color) {
+          cell.s.cl = { rgb: style.color.replace('#', '') };
+        }
+        
+        if (style.font?.bold) {
+          cell.s.bl = 1;
+        }
+      }
+      
+      cellData[univerRowIdx][colIdx] = cell;
+    });
+  });
+
+  return {
+    sheets: {
+      [data.currentSheet || 'Sheet1']: {
+        name: data.currentSheet || 'Sheet1',
+        cellData,
+      },
+    },
+  };
+}
+
+export default memo(ExcelPreview);
