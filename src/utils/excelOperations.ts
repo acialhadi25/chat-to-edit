@@ -1261,6 +1261,31 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
       }
 
       // Add more cases as needed
+      case 'EDIT_CELL': {
+        // EDIT_CELL: Single cell edit with value or formula
+        const target = getTarget(action);
+        if (!target) {
+          console.error('EDIT_CELL: No target specified');
+          break;
+        }
+
+        const value = action.params?.value;
+        if (value === undefined) {
+          console.error('EDIT_CELL: No value in params');
+          break;
+        }
+
+        changes.push({
+          row: target.row,
+          col: target.col,
+          oldValue: data.rows[target.row]?.[target.col] ?? '',
+          newValue: value,
+        });
+
+        console.log(`Generated 1 change for EDIT_CELL at row ${target.row}, col ${target.col}`);
+        break;
+      }
+
       default:
         console.warn(`generateChangesFromAction: ${action.type} not implemented`);
     }
