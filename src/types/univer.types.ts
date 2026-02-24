@@ -390,6 +390,9 @@ export interface FRange {
   getColumn(): number;
   getNumRows(): number;
   getNumColumns(): number;
+  getHeight(): number;
+  getWidth(): number;
+  getA1Notation(): string;
 }
 
 // Sort configuration for FRange.sort()
@@ -445,4 +448,56 @@ export interface UniverSheetHandle {
   setFormula: (row: number, col: number, formula: string) => Promise<void>;
   univerAPI: FUniver | null;
   univer: any;
+}
+
+// ============================================================================
+// Data Validation Types
+// ============================================================================
+
+export interface FDataValidation {
+  getCriteriaType(): string;
+  getCriteriaValues(): any[];
+  getHelpText(): string;
+  getRanges(): IRange[];
+  setCriteria(type: string, values: any[]): FDataValidation;
+  setOptions(options: any): FDataValidation;
+  setRanges(ranges: IRange[]): FDataValidation;
+  delete(): Promise<void>;
+}
+
+export interface FDataValidationBuilder {
+  requireCheckbox(): FDataValidationBuilder;
+  requireDateAfter(date: Date | string): FDataValidationBuilder;
+  requireDateBefore(date: Date | string): FDataValidationBuilder;
+  requireDateBetween(start: Date | string, end: Date | string): FDataValidationBuilder;
+  requireDateEqualTo(date: Date | string): FDataValidationBuilder;
+  requireDateNotBetween(start: Date | string, end: Date | string): FDataValidationBuilder;
+  requireDateOnOrAfter(date: Date | string): FDataValidationBuilder;
+  requireDateOnOrBefore(date: Date | string): FDataValidationBuilder;
+  requireFormulaSatisfied(formula: string): FDataValidationBuilder;
+  requireNumberBetween(start: number, end: number): FDataValidationBuilder;
+  requireNumberEqualTo(value: number): FDataValidationBuilder;
+  requireNumberGreaterThan(value: number): FDataValidationBuilder;
+  requireNumberGreaterThanOrEqualTo(value: number): FDataValidationBuilder;
+  requireNumberLessThan(value: number): FDataValidationBuilder;
+  requireNumberLessThanOrEqualTo(value: number): FDataValidationBuilder;
+  requireNumberNotBetween(start: number, end: number): FDataValidationBuilder;
+  requireNumberNotEqualTo(value: number): FDataValidationBuilder;
+  requireValueInList(values: string[]): FDataValidationBuilder;
+  requireValueInRange(range: string): FDataValidationBuilder;
+  setOptions(options: any): FDataValidationBuilder;
+  build(): FDataValidation;
+}
+
+// Extend FUniver to include data validation
+export interface FUniverWithDataValidation extends FUniver {
+  newDataValidation(): FDataValidationBuilder;
+}
+
+// Extend FRange to include data validation methods
+export interface FRangeWithDataValidation extends FRange {
+  setDataValidation(rule: FDataValidation | null): void;
+  getDataValidation(): FDataValidation | null;
+  getDataValidations(): FDataValidation[];
+  getValidatorStatus(): Promise<any>;
 }

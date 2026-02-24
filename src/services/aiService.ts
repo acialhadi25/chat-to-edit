@@ -149,6 +149,8 @@ export class AIService {
         return await this.handleCreateChart(parameters);
       case 'analyze_data':
         return await this.handleAnalyzeData(parameters);
+      case 'find_replace':
+        return await this.handleFindReplace(parameters);
       default:
         return {
           success: false,
@@ -559,6 +561,127 @@ export class AIService {
     // TODO: Implement chart creation
     throw new Error('Chart creation not yet implemented');
   }
+  /**
+   * Find text in sheet or range
+   * Validates: Requirements 4.2.3
+   */
+  async findText(
+    searchText: string,
+    range?: string,
+    options?: { matchCase?: boolean; matchEntireCell?: boolean; matchFormula?: boolean }
+  ): Promise<Array<{ cell: string; value: any; row: number; column: number }>> {
+    if (!this.univerAPI) {
+      throw new Error('Univer API not initialized');
+    }
+
+    const textFinder = await this.univerAPI.createTextFinderAsync(searchText);
+
+    // Apply options
+    if (options?.matchCase) {
+      await textFinder.matchCaseAsync(true);
+    }
+    if (options?.matchEntireCell) {
+      await textFinder.matchEntireCellAsync(true);
+    }
+    if (options?.matchFormula) {
+      await textFinder.matchFormulaTextAsync(true);
+    }
+
+    // Find all matches
+    const matches = textFinder.findAll();
+
+    // Convert to result format
+    const results = matches.map(cell => ({
+      cell: cell.getA1Notation(),
+      value: cell.getValue(),
+      row: cell.getRow(),
+      column: cell.getColumn(),
+    }));
+
+    // Filter by range if specified
+    if (range) {
+      const activeSheet = this.univerAPI.getActiveWorkbook()?.getActiveSheet();
+      if (!activeSheet) {
+        throw new Error('No active sheet');
+      }
+
+      const rangeObj = activeSheet.getRange(range);
+      const rangeRow = rangeObj.getRow();
+      const rangeCol = rangeObj.getColumn();
+      const rangeHeight = rangeObj.getHeight();
+      const rangeWidth = rangeObj.getWidth();
+
+      return results.filter(result => {
+        return result.row >= rangeRow &&
+               result.row < rangeRow + rangeHeight &&
+               result.column >= rangeCol &&
+               result.column < rangeCol + rangeWidth;
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Replace text in sheet or range
+   * Validates: Requirements 4.2.3
+   */
+  async replaceText(
+    searchText: string,
+    replaceText: string,
+    range?: string,
+    options?: { matchCase?: boolean; matchEntireCell?: boolean }
+  ): Promise<{ count: number; replacedCells: Array<{ cell: string; oldValue: any; newValue: any }> }> {
+    if (!this.univerAPI) {
+      throw new Error('Univer API not initialized');
+    }
+
+    // First find all matches
+    const matches = await this.findText(searchText, range, options);
+
+    if (matches.length === 0) {
+      return { count: 0, replacedCells: [] };
+    }
+
+    const activeSheet = this.univerAPI.getActiveWorkbook()?.getActiveSheet();
+    if (!activeSheet) {
+      throw new Error('No active sheet');
+    }
+
+    const replacedCells: Array<{ cell: string; oldValue: any; newValue: any }> = [];
+
+    // Replace each match
+    for (const match of matches) {
+      const cellRange = activeSheet.getRange(match.cell);
+      const oldValue = match.value;
+      let newValue: string;
+
+      if (options?.matchEntireCell) {
+        newValue = replaceText;
+      } else {
+        // Replace all occurrences in the cell value
+        const currentValue = String(oldValue);
+        if (options?.matchCase) {
+          newValue = currentValue.replace(new RegExp(this.escapeRegExp(searchText), 'g'), replaceText);
+        } else {
+          newValue = currentValue.replace(new RegExp(this.escapeRegExp(searchText), 'gi'), replaceText);
+        }
+      }
+
+      cellRange.setValue(newValue);
+      replacedCells.push({ cell: match.cell, oldValue, newValue });
+    }
+
+    return { count: replacedCells.length, replacedCells };
+  }
+
+  /**
+   * Escape special regex characters
+   */
+  private escapeRegExp(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
 
   // ============================================================================
   // Context Management
@@ -803,6 +926,31 @@ export class AIService {
       requiresConfirmation: false,
     };
   }
+  private async handleFindReplace(params: any): Promise<AIResponse> {
+    const result = await this.replaceText(
+      params.find,
+      params.replace,
+      params.range,
+      {
+        matchCase: params.matchCase,
+        matchEntireCell: params.matchEntireCell
+      }
+    );
+
+    return {
+      success: true,
+      message: `Replaced ${result.count} occurrence(s) of "${params.find}" with "${params.replace}" in ${params.range}`,
+      operations: result.replacedCells.map(cell => ({
+        type: 'set_value' as const,
+        target: cell.cell,
+        oldValue: cell.oldValue,
+        value: cell.newValue,
+        timestamp: new Date(),
+      })),
+      requiresConfirmation: true,
+    };
+  }
+
 
   // ============================================================================
   // Cleanup
