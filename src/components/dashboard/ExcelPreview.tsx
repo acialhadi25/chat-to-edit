@@ -209,6 +209,13 @@ function convertExcelDataToUniver(data: ExcelData) {
   console.log('Headers:', data.headers);
   console.log('Rows:', data.rows.length);
   
+  // Univer uses a different format - we need to create proper workbook structure
+  // Based on Univer documentation and working example
+  
+  const sheetId = 'sheet-01';
+  const sheetName = data.currentSheet || 'Sheet1';
+  
+  // Build cellData in Univer format
   const cellData: any = {};
   
   // Add headers (row 0)
@@ -259,19 +266,24 @@ function convertExcelDataToUniver(data: ExcelData) {
     });
   });
 
-  const sheetName = data.currentSheet || 'Sheet1';
+  // Return in Univer workbook format (not nested sheets)
   const univerData = {
+    id: 'workbook-01',
+    name: data.fileName || 'Workbook',
+    sheetOrder: [sheetId],
     sheets: {
-      [sheetName]: {
+      [sheetId]: {
+        id: sheetId,
         name: sheetName,
         cellData,
-        rowCount: data.rows.length + 20, // Add extra rows
-        columnCount: data.headers.length + 5, // Add extra columns
+        rowCount: data.rows.length + 20,
+        columnCount: data.headers.length + 5,
       },
     },
   };
   
   console.log('✅ Conversion complete. Cell data rows:', Object.keys(cellData).length);
+  console.log('📊 Univer data structure:', univerData);
   return univerData;
 }
 
