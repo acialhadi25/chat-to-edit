@@ -140,15 +140,56 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             break;
           }
           
+          case 'INSERT_FORMULA': {
+            // INSERT_FORMULA: Add formula to specific cell or range
+            const target = (action as any).target || action.params?.target;
+            const formula = action.params?.formula;
+            
+            if (target && formula) {
+              // Remove leading = if present
+              const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
+              sheet.getRange(target.row + 1, target.col).setValue(`=${formulaStr}`);
+              console.log(`✅ Applied INSERT_FORMULA at row ${target.row}, col ${target.col}: ${formulaStr}`);
+            }
+            break;
+          }
+          
           case 'EDIT_ROW': {
-            // TODO: Implement EDIT_ROW
-            console.log('EDIT_ROW not yet implemented for Univer');
+            // EDIT_ROW: Update entire row with new values
+            const rowData = action.params?.rowData;
+            const rowIndex = action.params?.row;
+            
+            if (rowData && rowIndex !== undefined) {
+              rowData.forEach((value: any, colIdx: number) => {
+                sheet.getRange(rowIndex + 1, colIdx).setValue(value);
+              });
+              console.log(`✅ Applied EDIT_ROW at row ${rowIndex}`);
+            }
             break;
           }
           
           case 'DELETE_ROW': {
-            // TODO: Implement DELETE_ROW
-            console.log('DELETE_ROW not yet implemented for Univer');
+            // DELETE_ROW: Remove row(s)
+            const rowIndex = action.params?.row;
+            const count = action.params?.count || 1;
+            
+            if (rowIndex !== undefined) {
+              // Univer API for deleting rows
+              const workbook = univerAPIRef.current.getActiveWorkbook();
+              const sheetId = workbook?.getActiveSheet()?.getSheetId();
+              
+              if (sheetId) {
+                // TODO: Implement row deletion using Univer command
+                console.log(`⏳ DELETE_ROW at row ${rowIndex} (count: ${count}) - needs implementation`);
+              }
+            }
+            break;
+          }
+          
+          case 'CONDITIONAL_FORMAT': {
+            // CONDITIONAL_FORMAT: Apply conditional formatting
+            console.log('⏳ CONDITIONAL_FORMAT not yet implemented for Univer');
+            // TODO: Implement using Univer conditional formatting API
             break;
           }
           
