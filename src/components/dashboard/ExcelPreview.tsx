@@ -22,62 +22,68 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
 
     // Initialize Univer
     useEffect(() => {
-      if (!containerRef.current) return;
-
-      console.log('Initializing Univer with data:', data);
-
-      const { univer, univerAPI } = createUniver({
-        locale: LocaleType.EN_US,
-        locales: {
-          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
-        },
-        presets: [
-          UniverSheetsCorePreset({
-            container: containerRef.current,
-          }),
-        ],
-      });
-
-      univerRef.current = univer;
-      univerAPIRef.current = univerAPI;
-
-      // Wait for lifecycle to be ready
-      const disposable = univerAPI.addEvent(
-        univerAPI.Event.LifeCycleChanged,
-        ({ stage }: any) => {
-          if (stage === univerAPI.Enum.LifecycleStages.Rendered) {
-            console.log('Univer rendered, creating workbook...');
-            
-            // Convert ExcelData to Univer format
-            const univerData = convertExcelDataToUniver(data);
-            univerAPI.createWorkbook(univerData);
-          }
-        }
-      );
-
-      // Listen for changes
-      if (onDataChange) {
-        const changeDisposable = univerAPI.addEvent(
-          univerAPI.Event.CommandExecuted,
-          () => {
-            const workbook = univerAPI.getActiveWorkbook();
-            if (workbook) {
-              onDataChange(workbook.save());
-            }
-          }
-        );
-
-        return () => {
-          disposable.dispose();
-          changeDisposable.dispose();
-          univer.dispose();
-        };
+      if (!containerRef.current) {
+        console.warn('Container ref not ready');
+        return;
       }
 
-      return () => {
-        disposable.dispose();
-        univer.dispose();
-      };
+      console.log('Initializing Univer with data:', data);
+      console.log('Container element:', containerRef.current);
+
+      try {
+        const { univer, univerAPI } = createUniver({
+          locale: LocaleType.EN_US,
+          locales: {
+            [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+          },
+          presets: [
+            UniverSheetsCorePreset({
+              container: containerRef.current,
+            }),
+          ],
+        });
+
+        console.log('✅ Univer instance created:', { univer, univerAPI });
+
+        univerRef.current = univer;
+        univerAPIRef.current = univerAPI;
+
+        // Convert ExcelData to Univer format
+        const univerData = convertExcelDataToUniver(data);
+        console.log('📊 Converted data to Univer format:', univerData);
+
+        // Create workbook immediately (don't wait for lifecycle event)
+        console.log('Creating workbook...');
+        const workbook = univerAPI.createWorkbook(univerData);
+        console.log('✅ Workbook created:', workbook);
+
+        // Listen for changes
+        if (onDataChange) {
+          const changeDisposable = univerAPI.addEvent(
+            univerAPI.Event.CommandExecuted,
+            () => {
+              const wb = univerAPI.getActiveWorkbook();
+              if (wb) {
+                onDataChange(wb.save());
+              }
+            }
+          );
+
+          return () => {
+            console.log('Cleaning up Univer...');
+            changeDisposable.dispose();
+            univer.dispose();
+          };
+        }
+
+        return () => {
+          console.log('Cleaning up Univer...');
+          univer.dispose();
+        };
+      } catch (error) {
+        console.error('❌ Error initializing Univer:', error);
+        return () => {}; // Return empty cleanup function
+      }
     }, []);
 
     // Update workbook when data changes
@@ -193,6 +199,10 @@ ExcelPreview.displayName = 'ExcelPreview';
 
 // Helper function to convert ExcelData to Univer format
 function convertExcelDataToUniver(data: ExcelData) {
+  console.log('Converting ExcelData to Univer format...');
+  console.log('Headers:', data.headers);
+  console.log('Rows:', data.rows.length);
+  
   const cellData: any = {};
   
   // Add headers (row 0)
@@ -213,7 +223,7 @@ function convertExcelDataToUniver(data: ExcelData) {
     if (!cellData[univerRowIdx]) cellData[univerRowIdx] = {};
     
     row.forEach((cellValue, colIdx) => {
-      const cell: any = { v: cellValue };
+      const cell: any = { v: cellValue ?? '' };
       
       // Add formula if exists
       const cellRef = `${String.fromCharCode(65 + colIdx)}${rowIdx + 1}`;
@@ -243,14 +253,20 @@ function convertExcelDataToUniver(data: ExcelData) {
     });
   });
 
-  return {
+  const sheetName = data.currentSheet || 'Sheet1';
+  const univerData = {
     sheets: {
-      [data.currentSheet || 'Sheet1']: {
-        name: data.currentSheet || 'Sheet1',
+      [sheetName]: {
+        name: sheetName,
         cellData,
+        rowCount: data.rows.length + 20, // Add extra rows
+        columnCount: data.headers.length + 5, // Add extra columns
       },
     },
   };
+  
+  console.log('✅ Conversion complete. Cell data rows:', Object.keys(cellData).length);
+  return univerData;
 }
 
 export default memo(ExcelPreview);
