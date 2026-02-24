@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import UniverSheet, { UniverSheetHandle } from '@/components/univer/UniverSheet';
+import UniverSheet from '@/components/univer/UniverSheet';
+import type { UniverSheetHandle } from '@/components/univer/UniverSheet';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
