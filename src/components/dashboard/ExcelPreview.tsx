@@ -108,13 +108,24 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
       const currentWorkbook = univerAPIRef.current.getActiveWorkbook();
       if (!currentWorkbook) return;
 
-      // Update sheet data
-      const sheet = currentWorkbook.getActiveSheet();
-      if (!sheet) return;
-
-      // Convert and apply data
-      // TODO: Implement incremental update instead of full replace
-      console.log('Workbook updated');
+      // Dispose current workbook and create new one with updated data
+      const workbookId = currentWorkbook.getId();
+      
+      // Convert ExcelData to Univer format
+      const univerData = convertExcelDataToUniver(data);
+      
+      // Dispose old workbook
+      univerAPIRef.current.disposeUnit(workbookId);
+      
+      // Create new workbook with updated data
+      setTimeout(() => {
+        try {
+          const newWorkbook = univerAPIRef.current!.createWorkbook(univerData);
+          console.log('✅ Workbook updated with new data');
+        } catch (err) {
+          console.error('❌ Error updating workbook:', err);
+        }
+      }, 50);
     }, [data]);
 
     // Expose imperative methods
