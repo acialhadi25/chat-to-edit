@@ -108,18 +108,42 @@ const ExcelUpload = ({ onFileUpload }: ExcelUploadProps) => {
 
               // Background color
               if (cell.s.fill && cell.s.fill.fgColor) {
-                const rgb = cell.s.fill.fgColor.rgb || cell.s.fill.fgColor.theme;
-                if (rgb) {
-                  style.backgroundColor = rgb.startsWith('FF') ? `#${rgb.slice(2)}` : `#${rgb}`;
+                const fgColor = cell.s.fill.fgColor;
+                let rgb = fgColor.rgb;
+                
+                // Handle theme colors (convert to actual RGB if needed)
+                if (!rgb && fgColor.theme !== undefined) {
+                  // Skip theme colors as they might be default/system colors
+                  console.log(`Skipping theme color for ${cellAddress}:`, fgColor.theme);
+                } else if (rgb) {
+                  // Remove FF prefix if present (ARGB format)
+                  let bgColor = rgb.startsWith('FF') ? rgb.slice(2) : rgb;
+                  
+                  // Skip black, very dark, or white backgrounds (likely defaults)
+                  const isBlackish = bgColor.match(/^0{5}[0-9A-Fa-f]$/) || bgColor === '000000';
+                  const isWhitish = bgColor.match(/^F{5}[0-9A-Fa-f]$/) || bgColor === 'FFFFFF';
+                  
+                  if (!isBlackish && !isWhitish) {
+                    style.backgroundColor = `#${bgColor}`;
+                    console.log(`Extracted background for ${cellAddress}: #${bgColor}`);
+                  } else {
+                    console.log(`Skipped background for ${cellAddress}: #${bgColor} (black/white)`);
+                  }
                 }
               }
 
               // Font color
               if (cell.s.font) {
                 if (cell.s.font.color) {
-                  const rgb = cell.s.font.color.rgb || cell.s.font.color.theme;
-                  if (rgb) {
-                    style.fontColor = rgb.startsWith('FF') ? `#${rgb.slice(2)}` : `#${rgb}`;
+                  const fontColorObj = cell.s.font.color;
+                  let rgb = fontColorObj.rgb;
+                  
+                  if (!rgb && fontColorObj.theme !== undefined) {
+                    // Skip theme colors
+                    console.log(`Skipping font theme color for ${cellAddress}`);
+                  } else if (rgb) {
+                    const fontColor = rgb.startsWith('FF') ? rgb.slice(2) : rgb;
+                    style.fontColor = `#${fontColor}`;
                   }
                 }
                 if (cell.s.font.bold) {

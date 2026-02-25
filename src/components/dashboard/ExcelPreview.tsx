@@ -129,13 +129,58 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           return;
         }
 
+        // Helper function to parse A1 notation to row/col
+        const parseA1Notation = (ref: string): { row: number; col: number } | null => {
+          const match = ref.match(/^([A-Z]+)(\d+)$/);
+          if (!match) return null;
+          
+          const colStr = match[1];
+          const rowStr = match[2];
+          
+          // Convert column letters to number (A=0, B=1, etc)
+          let col = 0;
+          for (let i = 0; i < colStr.length; i++) {
+            col = col * 26 + (colStr.charCodeAt(i) - 65);
+          }
+          
+          // Convert row to 0-based index
+          const row = parseInt(rowStr) - 1;
+          
+          return { row, col };
+        };
+
+        // Helper function to get row/col from target
+        const getRowCol = (target: any): { row: number; col: number } | null => {
+          // Check if target has ref (A1 notation)
+          if (target.ref && typeof target.ref === 'string') {
+            return parseA1Notation(target.ref);
+          }
+          
+          // Check if target has row/col or startRow/col
+          const row = target.row !== undefined ? target.row : target.startRow;
+          const col = target.col;
+          
+          if (row !== undefined && col !== undefined) {
+            return { row, col };
+          }
+          
+          return null;
+        };
+
         // Apply action based on type
         switch (action.type) {
           case 'EDIT_CELL': {
             const target = (action as any).target || action.params?.target;
             if (target && action.params?.value !== undefined) {
-              sheet.getRange(target.row + 1, target.col).setValue(action.params.value);
-              console.log(`✅ Applied EDIT_CELL at row ${target.row}, col ${target.col}`);
+              const rowCol = getRowCol(target);
+              
+              if (rowCol) {
+                // Univer uses 0-based indexing
+                sheet.getRange(rowCol.row, rowCol.col).setValue(action.params.value);
+                console.log(`✅ Applied EDIT_CELL at row ${rowCol.row}, col ${rowCol.col}`);
+              } else {
+                console.warn('Invalid target for EDIT_CELL:', target);
+              }
             }
             break;
           }
@@ -146,10 +191,18 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             const formula = action.params?.formula;
             
             if (target && formula && typeof formula === 'string') {
-              // Remove leading = if present
-              const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
-              sheet.getRange(target.row + 1, target.col).setValue(`=${formulaStr}`);
-              console.log(`✅ Applied INSERT_FORMULA at row ${target.row}, col ${target.col}: ${formulaStr}`);
+              const rowCol = getRowCol(target);
+              
+              if (rowCol) {
+                // Remove leading = if present
+                const formulaStr = formula.startsWith('=') ? formula.substring(1) : formula;
+                
+                // Univer uses 0-based indexing
+                sheet.getRange(rowCol.row, rowCol.col).setValue(`=${formulaStr}`);
+                console.log(`✅ Applied INSERT_FORMULA at row ${rowCol.row}, col ${rowCol.col}: ${formulaStr}`);
+              } else {
+                console.warn('Invalid target for INSERT_FORMULA:', target);
+              }
             }
             break;
           }
@@ -157,30 +210,43 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           case 'EDIT_ROW': {
             // EDIT_ROW: Update entire row with new values
             const rowData = action.params?.rowData;
-            const rowIndex = action.params?.row;
+            const target = (action as any).target || action.params?.target;
             
-            if (Array.isArray(rowData) && typeof rowIndex === 'number') {
-              rowData.forEach((value: any, colIdx: number) => {
-                sheet.getRange(rowIndex + 1, colIdx).setValue(value);
-              });
-              console.log(`✅ Applied EDIT_ROW at row ${rowIndex}`);
+            if (Array.isArray(rowData) && target) {
+              const rowCol = getRowCol(target);
+              
+              if (rowCol) {
+                rowData.forEach((value: any, colIdx: number) => {
+                  // Univer uses 0-based indexing
+                  sheet.getRange(rowCol.row, colIdx).setValue(value);
+                });
+                console.log(`✅ Applied EDIT_ROW at row ${rowCol.row}`);
+              } else {
+                console.warn('Invalid target for EDIT_ROW:', target);
+              }
             }
             break;
           }
           
           case 'DELETE_ROW': {
             // DELETE_ROW: Remove row(s)
-            const rowIndex = action.params?.row;
+            const target = (action as any).target || action.params?.target;
             const count = action.params?.count || 1;
             
-            if (rowIndex !== undefined) {
-              // Univer API for deleting rows
-              const workbook = univerAPIRef.current.getActiveWorkbook();
-              const sheetId = workbook?.getActiveSheet()?.getSheetId();
+            if (target) {
+              const rowCol = getRowCol(target);
               
-              if (sheetId) {
-                // TODO: Implement row deletion using Univer command
-                console.log(`⏳ DELETE_ROW at row ${rowIndex} (count: ${count}) - needs implementation`);
+              if (rowCol) {
+                // Univer API for deleting rows
+                const workbook = univerAPIRef.current.getActiveWorkbook();
+                const sheetId = workbook?.getActiveSheet()?.getSheetId();
+                
+                if (sheetId) {
+                  // TODO: Implement row deletion using Univer command
+                  console.log(`⏳ DELETE_ROW at row ${rowCol.row} (count: ${count}) - needs implementation`);
+                }
+              } else {
+                console.warn('Invalid target for DELETE_ROW:', target);
               }
             }
             break;
@@ -273,8 +339,8 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 style.bgcolor = '#' + cell.s.bg.rgb;
               }
               
-              if (cell.s.cl?.rgb) {
-                style.color = '#' + cell.s.cl.rgb;
+              if (cell.s.fc?.rgb) {
+                style.color = '#' + cell.s.fc.rgb;
               }
               
               if (cell.s.bl === 1) {
@@ -333,16 +399,10 @@ function convertExcelDataToUniver(data: ExcelData) {
   // Add headers (row 0)
   data.headers.forEach((header, colIdx) => {
     if (!cellData[0]) cellData[0] = {};
+    
+    // Simple cell without custom style - let Univer use defaults
     cellData[0][colIdx] = {
       v: header,
-      s: {
-        // Univer style format
-        bg: { rgb: 'EFEFEF' }, // Light gray background
-        cl: { rgb: '000000' }, // Text color (cl = color)
-        bl: 1, // bold
-        ht: 1, // horizontal align center
-        vt: 1, // vertical align middle
-      },
     };
   });
 
@@ -354,8 +414,11 @@ function convertExcelDataToUniver(data: ExcelData) {
     row.forEach((cellValue, colIdx) => {
       const cell: any = { v: cellValue ?? '' };
       
+      // Excel cellRef: A2, B2, etc. (rowIdx + 2 because: +1 for header, +1 for 1-based Excel)
+      const excelRowNum = rowIdx + 2;
+      const cellRef = `${String.fromCharCode(65 + colIdx)}${excelRowNum}`;
+      
       // Add formula if exists
-      const cellRef = `${String.fromCharCode(65 + colIdx)}${rowIdx + 1}`;
       if (data.formulas?.[cellRef]) {
         cell.f = data.formulas[cellRef];
       }
@@ -365,15 +428,19 @@ function convertExcelDataToUniver(data: ExcelData) {
         const style = data.cellStyles[cellRef];
         cell.s = {};
         
-        if (style.bgcolor) {
-          cell.s.bg = { rgb: style.bgcolor.replace('#', '') };
+        if (style.backgroundColor && typeof style.backgroundColor === 'string') {
+          const bgColor = style.backgroundColor.replace('#', '');
+          // Skip black or very dark backgrounds
+          if (bgColor !== '000000' && !bgColor.match(/^00000[0-9A-Fa-f]$/)) {
+            cell.s.bg = { rgb: bgColor };
+          }
         }
         
-        if (style.color) {
-          cell.s.cl = { rgb: style.color.replace('#', '') }; // cl = color
+        if (style.fontColor && typeof style.fontColor === 'string') {
+          cell.s.fc = { rgb: style.fontColor.replace('#', '') }; // fc = font color
         }
         
-        if (style.font?.bold) {
+        if (style.fontWeight === 'bold') {
           cell.s.bl = 1;
         }
       }
