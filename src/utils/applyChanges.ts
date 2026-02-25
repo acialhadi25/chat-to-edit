@@ -161,13 +161,18 @@ export function applyChanges(
         break;
       }
       case 'DELETE_COLUMN': {
-        // Handle DELETE_COLUMN action (similar to COLUMN_DELETE)
-        const columns = [...new Set(changeGroup.map((c: any) => {
-          if (c.columnName) return c.columnName;
-          return getColumnLetter(c.col);
-        }))].sort();
-        newData = applyDeleteColumns(newData, columns);
-        descriptions.push(`Deleted column(s): ${columns.join(', ')}`);
+        // Handle DELETE_COLUMN action
+        // The change object has col (index) and columnName (header name)
+        const columnIndices = [...new Set(changeGroup.map((c: any) => c.col))];
+        const columnNames = columnIndices.map(idx => newData.headers[idx]);
+        
+        // Delete columns by index
+        const indicesToDelete = new Set(columnIndices);
+        const newHeaders = newData.headers.filter((_, index) => !indicesToDelete.has(index));
+        const newRows = newData.rows.map((row) => row.filter((_, index) => !indicesToDelete.has(index)));
+        
+        newData = { ...newData, headers: newHeaders, rows: newRows };
+        descriptions.push(`Deleted column(s): ${columnNames.join(', ')}`);
         break;
       }
       case 'ROW_DELETE': {
