@@ -979,30 +979,6 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         break;
       }
 
-      case 'STATISTICS': {
-        // Add a summary row at the end
-        const summaryRow = data.rows.length;
-        data.headers.forEach((_header, colIndex) => {
-          const columnValues = data.rows
-            .map(row => row[colIndex])
-            .filter(val => typeof val === 'number');
-
-          if (columnValues.length > 0) {
-            const sum = columnValues.reduce((a, b) => a + b, 0);
-            changes.push({
-              row: summaryRow,
-              col: colIndex,
-              oldValue: null,
-              newValue: `SUM: ${sum}`,
-              type: 'CELL_UPDATE',
-            });
-          }
-        });
-
-        console.log(`Generated ${changes.length} changes for STATISTICS`);
-        break;
-      }
-
       case 'FILL_DOWN': {
         // Fill down values or formulas from first non-empty cell
         const target = getTarget();
