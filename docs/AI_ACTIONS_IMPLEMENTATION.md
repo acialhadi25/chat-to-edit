@@ -161,7 +161,7 @@ Dokumen ini menjelaskan implementasi action-action AI yang telah diintegrasikan 
 ---
 
 ### 8. ADD_COLUMN ⏳
-**Status**: Placeholder
+**Status**: Handled at Dashboard Level
 
 **Deskripsi**: Menambah kolom baru
 
@@ -173,7 +173,31 @@ Dokumen ini menjelaskan implementasi action-action AI yang telah diintegrasikan 
 
 ---
 
-### 9. GENERATE_DATA ⏳
+### 9. DELETE_COLUMN ✅
+**Status**: Implemented (Handled at Dashboard Level)
+
+**Deskripsi**: Menghapus kolom dari spreadsheet
+
+**Parameters**:
+- `columnName`: Nama kolom yang akan dihapus
+- `columnIndex`: Index kolom (0-based)
+
+**Contoh**:
+```typescript
+{
+  type: 'DELETE_COLUMN',
+  params: { columnName: 'No' }
+}
+```
+
+**Implementasi**: 
+- Generate change di `excelOperations.ts`
+- Apply change di `applyChanges.ts` dengan `applyDeleteColumns()`
+- Handled at dashboard level karena memerlukan data structure modification
+
+---
+
+### 10. GENERATE_DATA ⏳
 **Status**: Handled at Dashboard Level
 
 **Deskripsi**: Generate data berdasarkan pattern
@@ -277,3 +301,42 @@ preview.applyAction({
 
 **Last Updated**: 2025-02-25
 **Status**: 7/12 actions fully implemented, 4/12 handled at dashboard level, 1/12 pending
+
+
+## Bug Fixes
+
+### Race Condition in Cleanup (Fixed ✅)
+**Issue**: Warning "Attempted to synchronously unmount a root while React was already rendering"
+
+**Solution**: Use `setTimeout(() => univer.dispose(), 0)` to defer disposal and avoid race condition
+
+### applyChanges Error (Fixed ✅)
+**Issue**: TypeError "newRows[change.row] is not iterable"
+
+**Solution**: 
+- Check if row is array before spreading
+- Ensure row has enough columns before update
+- Add validation for row existence
+
+---
+
+## Updated Status Summary
+
+**Fully Implemented**: 8/13 actions
+- EDIT_CELL ✅
+- INSERT_FORMULA ✅
+- EDIT_ROW ✅
+- DELETE_ROW ✅
+- EDIT_COLUMN ✅
+- DATA_TRANSFORM ✅
+- FILL_DOWN ✅
+- DELETE_COLUMN ✅
+
+**Handled at Dashboard Level**: 4/13 actions
+- ADD_COLUMN ⏳
+- GENERATE_DATA ⏳
+- REMOVE_EMPTY_ROWS ⏳
+- STATISTICS ⏳
+
+**Pending**: 1/13 actions
+- CONDITIONAL_FORMAT ⏳
