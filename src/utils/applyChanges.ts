@@ -73,7 +73,7 @@ function applyDeleteRows(data: ExcelData, rows: number[]): ExcelData {
     return sortedDeletedRows.filter(deletedIdx => deletedIdx < originalRowIndex).length;
   };
 
-  const updatedRows = newRows.map((row, newRowIndex) => {
+  const updatedRows = newRows.map((row) => {
     return row.map((cell) => {
       // Check if cell contains a formula
       if (typeof cell === 'string' && cell.startsWith('=')) {
