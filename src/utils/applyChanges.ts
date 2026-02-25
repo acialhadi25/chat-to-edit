@@ -5,6 +5,7 @@ import { ExcelData, DataChange, getColumnIndex, getColumnLetter } from '@/types/
 
 function applyCellUpdates(data: ExcelData, changes: DataChange[]): ExcelData {
   const newRows = [...data.rows];
+  const newFormulas = { ...data.formulas };
   
   changes.forEach((change) => {
     // Ensure row exists - add empty rows if needed
@@ -28,9 +29,15 @@ function applyCellUpdates(data: ExcelData, changes: DataChange[]): ExcelData {
     
     newRow[change.col] = change.newValue;
     newRows[change.row] = newRow;
+    
+    // If the value is a formula, also store it in formulas object
+    if (typeof change.newValue === 'string' && change.newValue.startsWith('=')) {
+      const cellRef = `${getColumnLetter(change.col)}${change.row + 2}`; // +2 because: +1 for header, +1 for 1-based Excel
+      newFormulas[cellRef] = change.newValue;
+    }
   });
   
-  return { ...data, rows: newRows };
+  return { ...data, rows: newRows, formulas: newFormulas };
 }
 
 function applyRenameColumn(data: ExcelData, oldHeader: string, newHeader: string): ExcelData {
