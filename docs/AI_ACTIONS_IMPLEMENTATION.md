@@ -160,8 +160,8 @@ Dokumen ini menjelaskan implementasi action-action AI yang telah diintegrasikan 
 
 ---
 
-### 8. ADD_COLUMN ⏳
-**Status**: Handled at Dashboard Level
+### 8. ADD_COLUMN ✅
+**Status**: Fully Implemented
 
 **Deskripsi**: Menambah kolom baru
 
@@ -169,7 +169,21 @@ Dokumen ini menjelaskan implementasi action-action AI yang telah diintegrasikan 
 - `columnNames`: Array nama kolom atau single string
 - `position`: 'start' | 'end' | number
 
-**Note**: Action ini memerlukan modifikasi struktur data, sehingga di-handle di ExcelDashboard level, bukan di Univer Sheet level
+**Contoh**:
+```typescript
+{
+  type: 'ADD_COLUMN',
+  params: { 
+    columnNames: ['New Column 1', 'New Column 2'],
+    position: 'end'
+  }
+}
+```
+
+**Implementasi**: 
+- Generate COLUMN_ADD changes di `excelOperations.ts`
+- Apply changes di `applyChanges.ts` untuk update headers dan rows
+- Workbook Univer di-recreate dengan data baru
 
 ---
 
@@ -197,39 +211,97 @@ Dokumen ini menjelaskan implementasi action-action AI yang telah diintegrasikan 
 
 ---
 
-### 10. GENERATE_DATA ⏳
-**Status**: Handled at Dashboard Level
+### 10. GENERATE_DATA ✅
+**Status**: Fully Implemented
 
 **Deskripsi**: Generate data berdasarkan pattern
 
-**Note**: Action ini menambah rows baru, sehingga di-handle di ExcelDashboard level
+**Parameters**:
+- `pattern`: Pattern untuk generate data (numeric, alphabetic, date, atau custom)
+- `count`: Jumlah data yang akan di-generate (default: 10)
+- `startRow`: Row awal untuk insert data (default: end of data)
+- `column`: Column index untuk insert data (default: 0)
+
+**Contoh**:
+```typescript
+{
+  type: 'GENERATE_DATA',
+  params: { 
+    pattern: '1, 2, 3',  // Numeric sequence
+    count: 20,
+    startRow: 10,
+    column: 0
+  }
+}
+```
+
+**Pattern Types**:
+- Numeric: "1, 2, 3" → generates 1, 2, 3, 4, 5...
+- Alphabetic: "A, B, C" → generates A, B, C, D, E...
+- Date: "date" → generates sequential dates
+- Custom: Any string → repeats the string
+
+**Implementasi**: 
+- Parse pattern dan generate values di `excelOperations.ts`
+- Generate CELL_UPDATE changes untuk setiap value
+- Apply changes dan update Univer workbook
 
 ---
 
-### 10. REMOVE_EMPTY_ROWS ⏳
-**Status**: Handled at Dashboard Level
+### 11. REMOVE_EMPTY_ROWS ✅
+**Status**: Fully Implemented
 
 **Deskripsi**: Hapus semua row yang kosong
 
-**Note**: Action ini memerlukan re-indexing rows, sehingga di-handle di ExcelDashboard level
+**Contoh**:
+```typescript
+{
+  type: 'REMOVE_EMPTY_ROWS'
+}
+```
+
+**Implementasi**: 
+- Scan semua rows untuk menemukan yang kosong
+- Generate ROW_DELETE changes untuk setiap empty row
+- Apply changes di `applyChanges.ts` dengan `applyDeleteRows()`
+- Update Univer workbook dengan data baru
 
 ---
 
-### 11. STATISTICS ⏳
-**Status**: Handled at Dashboard Level
+### 12. STATISTICS ✅
+**Status**: Fully Implemented
 
 **Deskripsi**: Tambah summary row dengan statistik
 
-**Note**: Action ini menambah row baru, sehingga di-handle di ExcelDashboard level
+**Parameters**:
+- `columns`: Array column indices untuk calculate statistics (default: all numeric columns)
+- `statType`: 'sum' | 'avg' | 'count' | 'min' | 'max' (default: 'sum')
+
+**Contoh**:
+```typescript
+{
+  type: 'STATISTICS',
+  params: { 
+    columns: [2, 3, 4],  // Calculate for columns C, D, E
+    statType: 'sum'
+  }
+}
+```
+
+**Implementasi**: 
+- Identify numeric columns jika tidak specified
+- Generate formulas (SUM, AVG, COUNT, MIN, MAX)
+- Add summary row di akhir data
+- Formulas akan auto-update saat data berubah
 
 ---
 
-### 12. CONDITIONAL_FORMAT ⏳
+### 13. CONDITIONAL_FORMAT ⏳
 **Status**: Not Yet Implemented
 
 **Deskripsi**: Apply conditional formatting
 
-**Note**: Memerlukan Univer conditional formatting API
+**Note**: Memerlukan Univer conditional formatting API (research needed)
 
 ---
 
@@ -322,7 +394,7 @@ preview.applyAction({
 
 ## Updated Status Summary
 
-**Fully Implemented**: 8/13 actions
+**Fully Implemented**: 12/13 actions
 - EDIT_CELL ✅
 - INSERT_FORMULA ✅
 - EDIT_ROW ✅
@@ -331,12 +403,15 @@ preview.applyAction({
 - DATA_TRANSFORM ✅
 - FILL_DOWN ✅
 - DELETE_COLUMN ✅
-
-**Handled at Dashboard Level**: 4/13 actions
-- ADD_COLUMN ⏳
-- GENERATE_DATA ⏳
-- REMOVE_EMPTY_ROWS ⏳
-- STATISTICS ⏳
+- ADD_COLUMN ✅
+- GENERATE_DATA ✅
+- REMOVE_EMPTY_ROWS ✅
+- STATISTICS ✅
 
 **Pending**: 1/13 actions
-- CONDITIONAL_FORMAT ⏳
+- CONDITIONAL_FORMAT ⏳ (requires Univer API research)
+
+---
+
+**Last Updated**: 2025-02-25
+**Completion**: 92% (12/13 actions)
