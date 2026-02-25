@@ -831,15 +831,15 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         let col = 0;
 
         if (ref.includes(':')) {
-          // Range format: "F2:F12"
+          // Range format: "F2:F12" or "F1:F3"
           const [start, end] = ref.split(':');
           const startMatch = start.match(/([A-Z]+)(\d+)/);
           const endMatch = end.match(/([A-Z]+)(\d+)/);
           
           if (startMatch && endMatch) {
             col = startMatch[1].charCodeAt(0) - 65; // A=0, B=1, etc
-            startRow = parseInt(startMatch[2]) - 2; // -1 for header, -1 for 0-based
-            endRow = parseInt(endMatch[2]) - 2;
+            startRow = parseInt(startMatch[2]) - 1; // -1 for 1-based to 0-based (row 1 = index 0)
+            endRow = parseInt(endMatch[2]) - 1;
           }
         } else if (ref.match(/^[A-Z]+$/)) {
           // Column format: "F"
@@ -847,11 +847,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           startRow = 0;
           endRow = data.rows.length - 1;
         } else if (ref.match(/^[A-Z]+\d+$/)) {
-          // Single cell: "F2"
+          // Single cell: "F2" or "F1"
           const match = ref.match(/([A-Z]+)(\d+)/);
           if (match) {
             col = match[1].charCodeAt(0) - 65;
-            startRow = parseInt(match[2]) - 2;
+            startRow = parseInt(match[2]) - 1; // -1 for 1-based to 0-based (row 1 = index 0)
             endRow = startRow;
           }
         }
@@ -1091,7 +1091,9 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
       }
 
       case 'CONDITIONAL_FORMAT': {
-        // Apply conditional formatting based on cell values
+        // Apply conditional formatting using Univer native API
+        // This action should be handled by ExcelPreview component using Univer's native API
+        // We don't generate changes here because the formatting is rule-based, not static
         const target = getTarget();
         if (!target || !target.ref) {
           console.warn('CONDITIONAL_FORMAT: No target.ref found');
@@ -1105,165 +1107,19 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           break;
         }
 
-        console.log('CONDITIONAL_FORMAT: Processing rules:', rules);
+        console.log('CONDITIONAL_FORMAT: Rules will be applied by Univer native API');
+        console.log('CONDITIONAL_FORMAT: Target:', target);
+        console.log('CONDITIONAL_FORMAT: Rules:', rules);
 
-        // Parse target column - support both "G" and "G2:G13" formats
-        let colLetter = target.ref as string;
-        
-        // If it's a range like "G2:G13", extract just the column letter
-        if (colLetter.includes(':')) {
-          colLetter = colLetter.split(':')[0].replace(/\d+/g, ''); // Remove row numbers
-        } else {
-          colLetter = colLetter.replace(/\d+/g, ''); // Remove row numbers if any
-        }
-        
-        console.log('CONDITIONAL_FORMAT: Parsed column letter:', colLetter);
-        
-        const colIndex = getColumnIndex(colLetter);
-        
-        if (colIndex < 0 || colIndex >= data.headers.length) {
-          console.warn(`CONDITIONAL_FORMAT: Invalid column ${colLetter} (index: ${colIndex}, headers: ${data.headers.length})`);
-          break;
-        }
-
-        // Apply rules to each row
-        data.rows.forEach((row, rowIndex) => {
-          const cellValue = row[colIndex];
-          const cellValueStr = String(cellValue || '').toLowerCase();
-
-          console.log(`CONDITIONAL_FORMAT: Row ${rowIndex}, cell value: "${cellValue}", lowercase: "${cellValueStr}"`);
-
-          // Check each rule
-          for (const rule of rules) {
-            console.log(`CONDITIONAL_FORMAT: Full rule object:`, JSON.stringify(rule));
-            
-            // Support two formats:
-            // 1. New format with formula: {"formula": "=LOWER(G{row})=\"lunas\"", "format": {...}}
-            // 2. Old format with condition/value: {"condition": "contains", "value": "lunas", "format": {...}}
-            
-            let condition = rule.condition;
-            let value = rule.value;
-            const format = rule.format;
-            
-            // If formula is provided, parse it to extract condition and value
-            if (rule.formula && !condition) {
-              const formula = rule.formula as string;
-              console.log(`CONDITIONAL_FORMAT: Parsing formula: ${formula}`);
-              
-              // Parse formula like: =LOWER(G{row})="lunas" or =G{row}="Lunas"
-              // Extract the comparison value
-              const match = formula.match(/[=<>]+"([^"]+)"/);
-              if (match) {
-                value = match[1];
-                condition = 'equals'; // Use equals for exact match (case-insensitive if LOWER is used)
-                console.log(`CONDITIONAL_FORMAT: Extracted value from formula: "${value}"`);
-              }
-            }
-            
-            if (!condition || !value) {
-              console.warn(`CONDITIONAL_FORMAT: Skipping rule - no condition or value found`);
-              continue;
-            }
-            
-            const valueStr = String(value || '').toLowerCase();
-            // If value was extracted from LOWER() formula, it should be case-insensitive
-            const caseSensitive = rule.format?.caseSensitive === true;
-
-            console.log(`CONDITIONAL_FORMAT: Checking rule - condition: ${condition}, value: "${value}", caseSensitive: ${caseSensitive}`);
-
-            let matches = false;
-
-            // Check condition
-            switch (condition) {
-              case 'contains':
-              case 'textContains':
-                if (caseSensitive) {
-                  matches = String(cellValue || '').includes(String(value || ''));
-                } else {
-                  matches = cellValueStr.includes(valueStr);
-                }
-                console.log(`CONDITIONAL_FORMAT: Contains check - caseSensitive=${caseSensitive}, "${cellValue}" includes "${value}": ${matches}`);
-                break;
-              case 'equals':
-              case 'textEquals':
-                if (caseSensitive) {
-                  matches = cellValue === value;
-                } else {
-                  matches = cellValueStr === valueStr;
-                }
-                console.log(`CONDITIONAL_FORMAT: Equals check - caseSensitive=${caseSensitive}, "${cellValue}" === "${value}": ${matches}`);
-                break;
-              case 'startsWith':
-              case 'textStartsWith':
-                if (caseSensitive) {
-                  matches = String(cellValue || '').startsWith(String(value || ''));
-                } else {
-                  matches = cellValueStr.startsWith(valueStr);
-                }
-                break;
-              case 'endsWith':
-              case 'textEndsWith':
-                if (caseSensitive) {
-                  matches = String(cellValue || '').endsWith(String(value || ''));
-                } else {
-                  matches = cellValueStr.endsWith(valueStr);
-                }
-                break;
-            }
-
-            console.log(`CONDITIONAL_FORMAT: Match result: ${matches}, has format: ${!!format}`);
-            if (format) {
-              console.log(`CONDITIONAL_FORMAT: Format object:`, JSON.stringify(format));
-            }
-
-            if (matches && format) {
-              // Create a change with style information
-              const cellRef = createCellRef(colIndex, rowIndex);
-              const currentStyle = data.cellStyles?.[cellRef] || {};
-              
-              const newStyle: CellStyle = {
-                ...currentStyle,
-              };
-
-              if (format.backgroundColor) {
-                newStyle.bgcolor = format.backgroundColor;
-              }
-              if (format.color) {
-                newStyle.color = format.color;
-              }
-              if (format.bold !== undefined) {
-                newStyle.font = { ...newStyle.font, bold: format.bold };
-              }
-
-              // Store style change
-              if (!data.cellStyles) {
-                data.cellStyles = {};
-              }
-              data.cellStyles[cellRef] = newStyle;
-
-              changes.push({
-                row: rowIndex,
-                col: colIndex,
-                oldValue: cellValue,
-                newValue: cellValue, // Value doesn't change, only style
-                type: 'CELL_UPDATE',
-                params: { style: newStyle },
-              });
-
-              console.log(`CONDITIONAL_FORMAT: Applied rule to ${cellRef}: ${JSON.stringify(newStyle)}`);
-              break; // Only apply first matching rule
-            }
-          }
-        });
-
-        console.log(`Generated ${changes.length} changes for CONDITIONAL_FORMAT`);
+        // Don't generate changes - conditional formatting is handled by Univer API
+        // The ExcelPreview component will apply the rules using Univer's native API
         break;
       }
 
       // Add more cases as needed
       case 'EDIT_CELL': {
         // EDIT_CELL: Single cell edit with value or formula
-        const target = getTarget(action);
+        const target = action.params?.target;
         if (!target) {
           console.error('EDIT_CELL: No target specified');
           break;
@@ -1275,14 +1131,53 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           break;
         }
 
+        // Parse target - can be either { type: "cell", ref: "A1" } or { row: 0, col: 0 }
+        let row: number;
+        let col: number;
+
+        if ('row' in target && 'col' in target) {
+          // Direct coordinates
+          row = target.row as number;
+          col = target.col as number;
+        } else if ('ref' in target) {
+          // A1 notation
+          const ref = target.ref as string;
+          const match = ref.match(/^([A-Z]+)(\d+)$/);
+          if (!match) {
+            console.error(`EDIT_CELL: Invalid cell reference: ${ref}`);
+            break;
+          }
+          
+          // Convert column letter to index (A=0, B=1, ..., Z=25, AA=26, etc.)
+          const colLetter = match[1];
+          col = 0;
+          for (let i = 0; i < colLetter.length; i++) {
+            col = col * 26 + (colLetter.charCodeAt(i) - 64); // A=1, B=2, etc.
+          }
+          col -= 1; // Convert to 0-based (A=0, B=1, etc.)
+          
+          // Convert row number to 0-based index
+          // In this codebase, A1 refers to the first data row (data.rows[0]), not the header
+          // So: row = excelRow - 1
+          row = parseInt(match[2]) - 1;
+        } else {
+          console.error('EDIT_CELL: Invalid target format', target);
+          break;
+        }
+
+        const oldValue = (row >= 0 && row < data.rows.length && col >= 0 && col < data.rows[row].length) 
+          ? data.rows[row][col] 
+          : null;
+
         changes.push({
-          row: target.row,
-          col: target.col,
-          oldValue: data.rows[target.row]?.[target.col] ?? '',
+          row,
+          col,
+          oldValue,
           newValue: value,
+          type: 'CELL_UPDATE',
         });
 
-        console.log(`Generated 1 change for EDIT_CELL at row ${target.row}, col ${target.col}`);
+        console.log(`Generated 1 change for EDIT_CELL at row ${row}, col ${col}`);
         break;
       }
       

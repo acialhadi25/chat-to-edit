@@ -156,8 +156,49 @@ const ExcelDashboard = () => {
     );
   }, []);
 
-  const handleSpreadsheetDataChange = useCallback((data: XSpreadsheetSheet[]) => {
-    spreadsheetDataRef.current = data;
+  const handleSpreadsheetDataChange = useCallback((univerData: any) => {
+    spreadsheetDataRef.current = univerData;
+    
+    // Extract column widths from Univer data and update ExcelData
+    if (univerData && typeof univerData === 'object' && univerData.sheets) {
+      const sheetIds = Object.keys(univerData.sheets);
+      if (sheetIds.length > 0) {
+        const firstSheetId = sheetIds[0];
+        const sheetData = univerData.sheets[firstSheetId];
+        
+        if (sheetData && sheetData.columnData) {
+          const columnWidths: { [key: number]: number } = {};
+          
+          Object.keys(sheetData.columnData).forEach((colKey) => {
+            const colIdx = parseInt(colKey);
+            const colInfo = sheetData.columnData[colKey];
+            
+            if (colInfo && colInfo.w) {
+              columnWidths[colIdx] = colInfo.w;
+            }
+          });
+          
+          // Update ExcelData with new column widths if they changed
+          if (Object.keys(columnWidths).length > 0) {
+            setExcelData((prev) => {
+              if (!prev) return null;
+              
+              // Check if column widths actually changed
+              const hasChanges = Object.keys(columnWidths).some(
+                (key) => prev.columnWidths?.[parseInt(key)] !== columnWidths[parseInt(key)]
+              );
+              
+              if (hasChanges) {
+                console.log('📏 Column widths changed, updating ExcelData:', columnWidths);
+                return { ...prev, columnWidths };
+              }
+              
+              return prev;
+            });
+          }
+        }
+      }
+    }
   }, []);
 
   const handleSetPendingChanges = useCallback((changes: DataChange[]) => {

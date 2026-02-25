@@ -1,8 +1,14 @@
 import { useRef, memo, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US';
+import { UniverSheetsConditionalFormattingPreset } from '@univerjs/preset-sheets-conditional-formatting';
+import UniverPresetSheetsConditionalFormattingEnUS from '@univerjs/preset-sheets-conditional-formatting/locales/en-US';
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { ExcelData, AIAction } from '@/types/excel';
+import { applyConditionalFormatting, type ConditionalFormattingParams } from '@/services/conditionalFormattingService';
+
+import '@univerjs/preset-sheets-core/lib/index.css';
+import '@univerjs/preset-sheets-conditional-formatting/lib/index.css';
 
 export interface ExcelPreviewHandle {
   applyAction: (action: AIAction) => void;
@@ -34,12 +40,16 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
         const { univer, univerAPI } = createUniver({
           locale: LocaleType.EN_US,
           locales: {
-            [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+            [LocaleType.EN_US]: mergeLocales(
+              UniverPresetSheetsCoreEnUS,
+              UniverPresetSheetsConditionalFormattingEnUS
+            ),
           },
           presets: [
             UniverSheetsCorePreset({
               container: containerRef.current,
             }),
+            UniverSheetsConditionalFormattingPreset(),
           ],
         });
 
@@ -444,10 +454,26 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           }
           
           case 'CONDITIONAL_FORMAT': {
-            // CONDITIONAL_FORMAT: Apply conditional formatting
-            console.log('⏳ CONDITIONAL_FORMAT not yet implemented for Univer');
-            // TODO: Implement using Univer conditional formatting API
-            break;
+            // CONDITIONAL_FORMAT: Apply conditional formatting using Univer native API
+            console.log('Applying CONDITIONAL_FORMAT using Univer native API');
+            
+            const params = action.params as ConditionalFormattingParams;
+            
+            if (!params || !params.rules || !params.target) {
+              console.warn('Invalid CONDITIONAL_FORMAT params:', params);
+              return false;
+            }
+            
+            // Apply conditional formatting using Univer's native API
+            const success = applyConditionalFormatting(univerAPIRef.current, params);
+            
+            if (success) {
+              console.log('✅ Applied CONDITIONAL_FORMAT using Univer native API');
+              return true;
+            } else {
+              console.warn('⚠️ Failed to apply CONDITIONAL_FORMAT');
+              return false;
+            }
           }
           
           default:
@@ -545,13 +571,23 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           });
         });
 
-        // Extract column widths (if available)
-        // TODO: Get column widths from Univer API
+        // Extract column widths from Univer
+        const columnData = sheetData.columnData || {};
+        Object.keys(columnData).forEach((colKey) => {
+          const colIdx = parseInt(colKey);
+          const colInfo = columnData[colKey];
+          
+          if (colInfo && colInfo.w) {
+            extractedData.columnWidths[colIdx] = colInfo.w;
+            console.log(`Found column width for column ${colIdx}: ${colInfo.w}`);
+          }
+        });
 
         console.log('getData: Extraction complete');
         console.log('📊 Summary:');
         console.log(`  - Formulas extracted: ${Object.keys(extractedData.formulas).length}`);
         console.log(`  - Cell styles extracted: ${Object.keys(extractedData.cellStyles).length}`);
+        console.log(`  - Column widths extracted: ${Object.keys(extractedData.columnWidths).length}`);
 
         return extractedData;
       },
@@ -651,6 +687,18 @@ function convertExcelDataToUniver(data: ExcelData) {
     });
   });
 
+  // Build columnData for column widths
+  const columnData: any = {};
+  if (data.columnWidths) {
+    Object.entries(data.columnWidths).forEach(([colIndex, width]) => {
+      const colIdx = parseInt(colIndex);
+      columnData[colIdx] = {
+        w: width,
+      };
+    });
+    console.log('📏 Applying column widths:', data.columnWidths);
+  }
+
   // Return in Univer workbook format (not nested sheets)
   const univerData = {
     id: 'workbook-01',
@@ -661,6 +709,7 @@ function convertExcelDataToUniver(data: ExcelData) {
         id: sheetId,
         name: sheetName,
         cellData,
+        columnData: Object.keys(columnData).length > 0 ? columnData : undefined,
         rowCount: data.rows.length + 20,
         columnCount: data.headers.length + 5,
       },
