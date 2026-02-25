@@ -69,7 +69,7 @@ const ExcelDashboard = () => {
 
 
 
-  // Trigger FortuneSheet resize when sidebar state changes (left sidebar)
+  // Trigger Univer resize when sidebar state changes (left sidebar)
   useEffect(() => {
     if (!excelData) return;
     
@@ -92,7 +92,7 @@ const ExcelDashboard = () => {
     });
   }, [sidebarState, excelData]);
 
-  // Trigger FortuneSheet resize when chatOpen changes (right sidebar)
+  // Trigger Univer resize when chatOpen changes (right sidebar)
   useEffect(() => {
     if (!excelData) return;
     
@@ -216,14 +216,14 @@ const ExcelDashboard = () => {
         return;
       }
 
-      console.log('Applying action to FortuneSheet via API...');
-      // Apply action to FortuneSheet using proper API
+      console.log('Applying action to Univer via API...');
+      // Apply action to Univer using proper API
       const applied = excelPreviewRef.current?.applyAction(actionWithChanges);
       
       if (applied) {
-        console.log('✅ Action applied to FortuneSheet successfully');
+        console.log('✅ Action applied to Univer successfully');
       } else {
-        console.warn('⚠️ Action not fully applied to FortuneSheet, will sync via state');
+        console.warn('⚠️ Action not fully applied to Univer, will sync via state');
       }
 
       console.log('Applying changes to React state...');
@@ -358,7 +358,7 @@ const ExcelDashboard = () => {
       // Add headers with styling
       const headerRow = worksheet.addRow(excelData.headers);
       headerRow.eachCell((cell, colNumber) => {
-        // Check if header has custom style from FortuneSheet
+        // Check if header has custom style from Univer
         const headerStyleRef = `HEADER_${colNumber - 1}`;
         const headerStyle = cellStyles[headerStyleRef];
         
@@ -444,11 +444,11 @@ const ExcelDashboard = () => {
       console.log(`  - Borders applied: ${bordersApplied}`);
       console.log(`  - Cell styles applied: ${stylesApplied}`);
       
-      // Set column widths from FortuneSheet or use defaults
+      // Set column widths from Univer or use defaults
       excelData.headers.forEach((_, idx) => {
         let width = 15; // Default width in Excel units
         
-        // Use FortuneSheet column width if available
+        // Use Univer column width if available
         if (columnWidths[idx]) {
           width = columnWidths[idx] / 8; // Convert from pixels to Excel units (approx)
           console.log(`Setting column ${idx} width to ${width} (from ${columnWidths[idx]}px)`);
