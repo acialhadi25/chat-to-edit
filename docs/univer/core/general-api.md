@@ -1,43 +1,64 @@
-# General API - Univer Sheet
+# Univer General API Documentation
 
 ## Overview
 
-General API menyediakan fungsionalitas dasar yang berlaku untuk semua tipe dokumen Univer. API ini mencakup command system, event handling, clipboard operations, dan utilities.
+In Univer, the Facade API available varies depending on the document type. This section introduces the general Facade API applicable to all document types.
 
-## Command System
+```typescript
+import { FUniver } from '@univerjs/core/facade'
 
-Univer menggunakan command system terpusat untuk semua operasi, memungkinkan fitur undo/redo dan collaboration.
+const univerAPI = FUniver.newAPI(univer)
+```
 
-### Listening to Commands
+## Commands
 
-#### Before Command Execution
+The majority of operations in Univer are registered with the command system, and are triggered through the command system. This unified approach to operations enables Univer to readily implement features such as undo, redo, and collaboration, etc.
+
+Commands can be simply understood as unique "events" within Univer.
+
+### Listening Commands
+
+Univer provides two ways to listen for commands:
+
+- `onBeforeCommandExecute`: Executes custom logic before the command is executed
+- `onCommandExecuted`: Executes custom logic after the command is executed
+
+#### Before Execution
+
 ```typescript
 const univerAPI = FUniver.newAPI(univer)
 
 univerAPI.onBeforeCommandExecute((command) => {
   const { id, type, params } = command
-  console.log('Command akan dieksekusi:', id)
-  
-  // Mencegah command dieksekusi
-  // throw new Error('Editing is prohibited')
+  // Custom logic executed before the command is executed
 })
 ```
 
-#### After Command Execution
+To prevent command execution:
+
+```typescript
+univerAPI.onBeforeCommandExecute((command) => {
+  throw new Error('Editing is prohibited')
+})
+```
+
+#### After Execution
+
 ```typescript
 univerAPI.onCommandExecuted((command) => {
   const { id, type, params } = command
-  console.log('Command telah dieksekusi:', id)
+  // Custom logic executed after the command is executed
 })
 ```
 
 #### Cancel Listening
+
 ```typescript
 const disposable = univerAPI.onBeforeCommandExecute((command) => {
-  // Logic
+  // custom preprocessing logic
 })
 
-// Hapus listener setelah tidak digunakan
+// Destroy the listener
 setTimeout(() => {
   disposable.dispose()
 }, 1000)
@@ -46,52 +67,50 @@ setTimeout(() => {
 ### Execute Commands
 
 ```typescript
-// Set nilai cell menggunakan command
+// Execute the command
 univerAPI.executeCommand('sheet.command.set-range-values', {
   value: { v: 'Hello, Univer!' },
   range: { startRow: 0, startColumn: 0, endRow: 0, endColumn: 0 },
 })
 ```
 
-## Event System
+## Events
 
-Univer menyediakan event system komprehensif untuk mendengarkan perubahan dalam spreadsheet.
+Univer provides a comprehensive event system for listening to spreadsheet changes.
 
 ### Event Categories
 
-#### Clipboard Events
-- `BeforeClipboardChange` - Sebelum clipboard berubah
-- `BeforeClipboardPaste` - Sebelum paste
-- `ClipboardChanged` - Setelah clipboard berubah
-- `ClipboardPasted` - Setelah paste
+Full event list: https://reference.univer.ai/en-US/classes/FEventName#properties
 
-```typescript
-univerAPI.addEvent(univerAPI.Event.BeforeClipboardPaste, (params) => {
-  const { text, html } = params
-  // Cancel paste operation
-  // params.cancel = true
-})
-```
+#### Clipboard Events
+- `BeforeClipboardChange`
+- `BeforeClipboardPaste`
+- `ClipboardChanged`
+- `ClipboardPasted`
 
 #### Selection Events
-- `SelectionChanged` - Selection berubah
-- `SelectionMoveStart` - Selection mulai bergerak
-- `SelectionMoveEnd` - Selection selesai bergerak
-- `SelectionMoving` - Selection sedang bergerak
-
-```typescript
-univerAPI.addEvent(univerAPI.Event.SelectionChanged, (params) => {
-  const { worksheet, workbook, selections } = params
-  console.log('Selection changed:', selections)
-})
-```
+- `SelectionChanged`
+- `SelectionMoveStart`
+- `SelectionMoveEnd`
+- `SelectionMoving`
 
 #### Cell Events
-- `CellClicked` - Cell diklik
-- `CellHover` - Hover di cell
-- `CellPointerDown` - Pointer down di cell
-- `CellPointerUp` - Pointer up di cell
-- `CellPointerMove` - Pointer bergerak di cell
+- `CellClicked`
+- `CellHover`
+- `CellPointerDown`
+- `CellPointerUp`
+- `CellPointerMove`
+
+#### Sheet Events
+- `SheetValueChanged`
+- `SheetZoomChanged`
+- `BeforeSheetEditStart`
+- `SheetEditStarted`
+- `BeforeSheetEditEnd`
+- `SheetEditEnded`
+- `SheetEditChanging`
+
+### Using Events
 
 ```typescript
 univerAPI.addEvent(univerAPI.Event.CellClicked, (params) => {
@@ -100,78 +119,47 @@ univerAPI.addEvent(univerAPI.Event.CellClicked, (params) => {
 })
 ```
 
-#### Sheet Events
-- `SheetValueChanged` - Nilai sheet berubah
-- `SheetZoomChanged` - Zoom level berubah
-- `SheetSkeletonChanged` - Struktur sheet berubah
-- `BeforeSheetEditStart` - Sebelum edit dimulai
-- `SheetEditStarted` - Edit dimulai
-- `BeforeSheetEditEnd` - Sebelum edit selesai
-- `SheetEditEnded` - Edit selesai
-- `SheetEditChanging` - Sedang edit
-- `Scroll` - Sheet di-scroll
-
-```typescript
-univerAPI.addEvent(univerAPI.Event.SheetValueChanged, (params) => {
-  const { worksheet, workbook } = params
-  console.log('Sheet values changed')
-})
-```
-
-### Canceling Event Listeners
+### Cancel Event Listeners
 
 ```typescript
 const disposable = univerAPI.addEvent(univerAPI.Event.SheetValueChanged, (params) => {
   // Handle value changes
 })
 
-// Hapus listener
+// Remove the listener
 disposable.dispose()
 ```
 
-## Undo & Redo
+## Undo/Redo
 
 ```typescript
-// Undo
 await univerAPI.undo()
-
-// Redo
 await univerAPI.redo()
 ```
 
 ## Clipboard Operations
 
-### Copy & Paste
-
 ```typescript
-univerAPI.addEvent(univerAPI.Event.CellClicked, async (params) => {
-  const fWorkbook = univerAPI.getActiveWorkbook()
-  const fWorksheet = fWorkbook.getActiveSheet()
+// Copy range A1:B2
+const fRange = fWorksheet.getRange('A1:B2')
+fRange.activate().setValues([
+  [1, 2],
+  [3, 4],
+])
+await univerAPI.copy()
 
-  // Copy range A1:B2
-  const fRange = fWorksheet.getRange('A1:B2')
-  fRange.activate().setValues([
-    [1, 2],
-    [3, 4],
-  ])
-  await univerAPI.copy()
-
-  // Paste ke C1:D2
-  const fRange2 = fWorksheet.getRange('C1')
-  fRange2.activate()
-  await univerAPI.paste()
-})
+// Paste to C1
+const fRange2 = fWorksheet.getRange('C1')
+fRange2.activate()
+await univerAPI.paste()
 ```
 
-### Using Commands
+Or using commands:
 
 ```typescript
 import { CopyCommand, PasteCommand } from '@univerjs/ui'
 
-// Copy
 univerAPI.executeCommand(CopyCommand.id)
-
-// Paste
 univerAPI.executeCommand(PasteCommand.id)
 ```
 
@@ -186,37 +174,61 @@ formulaEngine.registerFunction(
   'CUSTOMSUM',
   (...variants) => {
     let sum = 0
-    const last = variants[variants.length - 1]
-
-    if (last.isLambda && last.isLambda()) {
-      variants.pop()
-      const variantsList = variants.map(variant => 
-        Array.isArray(variant) ? variant[0][0] : variant
-      )
-      sum += last.executeCustom(...variantsList).getValue()
-    }
-
     for (const variant of variants) {
       sum += Number(variant) || 0
     }
-
     return sum
   },
-  'Adds its arguments'
+  'Adds its arguments',
 )
-
-// Gunakan formula
-const fWorksheet = fWorkbook.getActiveSheet()
-fWorksheet.getRange('A3').setValue({ f: '=CUSTOMSUM(A1,A2,LAMBDA(x,y,x*y))' })
 ```
 
-### With Internationalization
+### Using Formula in Cell
+
+**IMPORTANT**: Formula format must include leading `=`
+
+```typescript
+const cellA3 = fWorksheet.getRange('A3')
+cellA3.setValue({ f: '=CUSTOMSUM(A1,A2)' })
+```
+
+### Cell Data Format with Formula
+
+```typescript
+// Cell with formula
+const cell = {
+  f: '=SUM(A1:A10)',  // Formula (with leading =)
+  v: ''                // Value (empty, let Univer calculate)
+}
+
+// Cell without formula
+const cell = {
+  v: 'Hello World'     // Just value
+}
+```
+
+### Unregister Formula
+
+```typescript
+const functionDisposable = formulaEngine.registerFunction({
+  // calculate
+})
+
+// Unregister
+functionDisposable.dispose()
+```
+
+### Formula with Localization
 
 ```typescript
 formulaEngine.registerFunction(
   'CUSTOMSUM',
   (...variants) => {
-    // Implementation
+    let sum = 0
+    for (const variant of variants) {
+      sum += Number(variant) || 0
+    }
+    return sum
   },
   {
     description: {
@@ -263,63 +275,60 @@ formulaEngine.registerFunction(
         },
       },
     },
-  }
+  },
 )
 ```
 
-### Unregister Formula
+## WebSocket
 
 ```typescript
-const functionDisposable = formulaEngine.registerFunction({
-  // config
+const ws = univerAPI.createSocket('ws://your-websocket-url')
+
+ws.open$.subscribe(() => {
+  console.log('websocket opened')
+  ws.send('hello')
 })
 
-// Unregister
-functionDisposable.dispose()
+ws.message$.subscribe((message) => {
+  console.log('websocket message', message)
+})
+
+ws.close$.subscribe(() => {
+  console.log('websocket closed')
+})
+
+ws.error$.subscribe((error) => {
+  console.log('websocket error', error)
+})
 ```
 
-## Enums & Utilities
-
-### Enums
+## Enums and Utilities
 
 ```typescript
-console.log(univerAPI.Enum)
+// Enums
 console.log(univerAPI.Enum.UniverInstanceType.UNIVER_SHEET)
 console.log(univerAPI.Enum.LifecycleStages.Rendered)
-```
 
-### Utilities
-
-```typescript
-console.log(univerAPI.Util)
-console.log(univerAPI.Util.tools.chatAtABC(10)) // Convert number to column letter
-console.log(univerAPI.Util.tools.ABCatNum('K')) // Convert column letter to number
-```
-
-## Lifecycle Events
-
-```typescript
-const disposable = univerAPI.addEvent(
-  univerAPI.Event.LifeCycleChanged, 
-  ({ stage }) => {
-    if (stage === univerAPI.Enum.LifecycleStages.Steady) {
-      // Interface sudah fully rendered
-      console.log('Univer is ready')
-    }
-  }
-)
+// Utilities
+console.log(univerAPI.Util.tools.chatAtABC(10))
+console.log(univerAPI.Util.tools.ABCatNum('K'))
 ```
 
 ## Best Practices
 
-1. **Selalu dispose listeners** yang tidak digunakan untuk mencegah memory leaks
-2. **Gunakan lifecycle events** untuk operasi yang memerlukan interface fully rendered
-3. **Prefer specific events** daripada general events untuk performa lebih baik
-4. **Keep event handlers lightweight** untuk menjaga performa
-5. **Use command system** untuk operasi yang perlu undo/redo support
+1. **Always dispose listeners** when no longer needed to prevent memory leaks
+2. **Use appropriate events** - prefer specific events over general ones
+3. **Keep event handlers lightweight** to maintain performance
+4. **Formula format**: Always include leading `=` in formula string
+5. **Cell with formula**: Set `v` to empty string, let Univer calculate the result
 
-## Referensi
+## References
 
-- [Full Event List](https://reference.univer.ai/en-US/classes/FEventName#properties)
-- [Command System](https://docs.univer.ai/guides/architecture/command-system)
-- [Facade API](https://reference.univer.ai/)
+- [Univer Official Docs](https://docs.univer.ai/guides/sheets/features/core/general-api)
+- [FUniver API Reference](https://reference.univer.ai/en-US/classes/FUniver)
+- [Event Names Reference](https://reference.univer.ai/en-US/classes/FEventName)
+
+---
+
+**Last Updated**: 2025-02-25
+**Source**: https://docs.univer.ai/guides/sheets/features/core/general-api

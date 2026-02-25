@@ -615,10 +615,10 @@ function convertExcelDataToUniver(data: ExcelData) {
       // Add formula if exists
       if (hasFormula) {
         const formula = data.formulas[cellRef];
-        // Remove leading = if present (Univer adds it automatically)
-        cell.f = formula.startsWith('=') ? formula.substring(1) : formula;
-        // For cells with formulas, don't set v (let Univer calculate it)
-        // Or set v to null/empty to force recalculation
+        // Keep the leading = for Univer (based on official docs example)
+        cell.f = formula.startsWith('=') ? formula : `=${formula}`;
+        // Set v to empty string for formula cells
+        cell.v = '';
         console.log(`📝 Adding formula to ${cellRef}: ${cell.f}`);
       } else {
         // Only set value if there's no formula
