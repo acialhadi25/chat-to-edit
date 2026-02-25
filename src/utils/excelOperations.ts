@@ -1285,6 +1285,33 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         console.log(`Generated 1 change for EDIT_CELL at row ${target.row}, col ${target.col}`);
         break;
       }
+      
+      case 'DELETE_COLUMN': {
+        // DELETE_COLUMN: Remove column from data structure
+        const columnName = action.params?.columnName;
+        const columnIndex = action.params?.columnIndex;
+        
+        let colToDelete = columnIndex;
+        
+        // If columnName provided, find its index
+        if (columnName && !columnIndex) {
+          colToDelete = data.headers.findIndex(h => h === columnName);
+        }
+        
+        if (colToDelete !== undefined && colToDelete >= 0) {
+          // Mark this as a structural change that needs to be handled at dashboard level
+          changes.push({
+            type: 'DELETE_COLUMN',
+            col: colToDelete,
+            columnName: data.headers[colToDelete],
+          } as any);
+          
+          console.log(`Generated DELETE_COLUMN change for column ${colToDelete} (${data.headers[colToDelete]})`);
+        } else {
+          console.warn('DELETE_COLUMN: Invalid column index or name');
+        }
+        break;
+      }
 
       default:
         console.warn(`generateChangesFromAction: ${action.type} not implemented`);

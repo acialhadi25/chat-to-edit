@@ -77,14 +77,20 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
 
           return () => {
             console.log('Cleaning up Univer...');
-            changeDisposable.dispose();
-            univer.dispose();
+            // Use setTimeout to avoid race condition
+            setTimeout(() => {
+              changeDisposable.dispose();
+              univer.dispose();
+            }, 0);
           };
         }
 
         return () => {
           console.log('Cleaning up Univer...');
-          univer.dispose();
+          // Use setTimeout to avoid race condition
+          setTimeout(() => {
+            univer.dispose();
+          }, 0);
         };
       } catch (error) {
         console.error('❌ Error initializing Univer:', error);
@@ -274,10 +280,18 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
             
             if (columnNames) {
               const names = Array.isArray(columnNames) ? columnNames : [columnNames];
-              console.log(`⏳ ADD_COLUMN: ${names.join(', ')} at ${position} - needs full implementation`);
+              console.log(`⏳ ADD_COLUMN: ${names.join(', ')} at ${position} - handled at dashboard level`);
               // Note: Adding columns requires updating the data structure
               // This should be handled at the ExcelDashboard level
             }
+            break;
+          }
+          
+          case 'DELETE_COLUMN': {
+            // DELETE_COLUMN: Remove column
+            console.log('⏳ DELETE_COLUMN - handled at dashboard level');
+            // Note: Deleting columns requires updating the data structure
+            // This should be handled at the ExcelDashboard level
             break;
           }
           

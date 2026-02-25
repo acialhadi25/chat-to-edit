@@ -13,8 +13,19 @@ function applyCellUpdates(data: ExcelData, changes: DataChange[]): ExcelData {
       newRows.push(new Array(data.headers.length).fill(null));
     }
     
+    // Ensure the row is an array
+    if (!Array.isArray(newRows[change.row])) {
+      newRows[change.row] = new Array(data.headers.length).fill(null);
+    }
+    
     // Now update the cell
     const newRow = [...newRows[change.row]];
+    
+    // Ensure row has enough columns
+    while (newRow.length <= change.col) {
+      newRow.push(null);
+    }
+    
     newRow[change.col] = change.newValue;
     newRows[change.row] = newRow;
   });
@@ -145,6 +156,16 @@ export function applyChanges(
       }
       case 'COLUMN_DELETE': {
         const columns = [...new Set(changeGroup.map((c) => getColumnLetter(c.col)))].sort();
+        newData = applyDeleteColumns(newData, columns);
+        descriptions.push(`Deleted column(s): ${columns.join(', ')}`);
+        break;
+      }
+      case 'DELETE_COLUMN': {
+        // Handle DELETE_COLUMN action (similar to COLUMN_DELETE)
+        const columns = [...new Set(changeGroup.map((c: any) => {
+          if (c.columnName) return c.columnName;
+          return getColumnLetter(c.col);
+        }))].sort();
         newData = applyDeleteColumns(newData, columns);
         descriptions.push(`Deleted column(s): ${columns.join(', ')}`);
         break;
