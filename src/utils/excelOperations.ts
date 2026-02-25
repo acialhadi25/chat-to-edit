@@ -1,4 +1,4 @@
-import { ExcelData, DataChange, AIAction, CellStyle, createCellRef, getColumnIndex } from '@/types/excel';
+import { ExcelData, DataChange, AIAction, getColumnIndex } from '@/types/excel';
 
 /**
  * Creates a deep copy of the Excel data to ensure immutability.
@@ -62,8 +62,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
 
   try {
     // Helper to get target from either direct property or params
-    const getTarget = () => action.target || (action.params?.target || action.params) as any;
-    const getFormula = () => action.formula || (action.params?.formula as string);
+    const getTarget = () => (action as any).target || (action.params?.target || action.params) as any;
+    const getFormula = () => (action as any).formula || (action.params?.formula as string);
     const getTransformType = () => action.params?.transformType || action.params?.transform as string;
 
     console.log('generateChangesFromAction called with:', {
@@ -365,11 +365,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         // FIRST: Check if changes array is already provided
         if (action.changes && action.changes.length > 0) {
           console.log('ADD_COLUMN_WITH_DATA: Using provided changes array directly');
-          return action.changes.map(change => ({
+          return action.changes.map((change: any) => ({
             row: typeof change.row === 'number' ? change.row : parseInt(change.cellRef?.match(/\d+/)?.[0] || '0') - 2,
             col: typeof change.col === 'number' ? change.col : (change.cellRef ? change.cellRef.charCodeAt(0) - 65 : 0),
-            oldValue: change.before || null,
-            newValue: change.after,
+            oldValue: change.before || change.oldValue || null,
+            newValue: change.after || change.newValue,
             type: (change.type as any) || 'CELL_UPDATE',
             columnName: change.columnName,
           }));
@@ -573,11 +573,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         // If changes are already provided in action, use them directly
         if (action.changes && action.changes.length > 0) {
           console.log('EDIT_ROW: Using provided changes array');
-          return action.changes.map(change => ({
-            row: typeof change.row === 'number' ? change.row : parseInt(change.cellRef.match(/\d+/)?.[0] || '0') - 2,
-            col: typeof change.col === 'number' ? change.col : change.cellRef.charCodeAt(0) - 65,
-            oldValue: change.before,
-            newValue: change.after,
+          return action.changes.map((change: any) => ({
+            row: typeof change.row === 'number' ? change.row : parseInt(change.cellRef?.match(/\d+/)?.[0] || '0') - 2,
+            col: typeof change.col === 'number' ? change.col : (change.cellRef ? change.cellRef.charCodeAt(0) - 65 : 0),
+            oldValue: change.before || change.oldValue,
+            newValue: change.after || change.newValue,
             type: 'CELL_UPDATE' as const,
           }));
         }
@@ -726,11 +726,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         // If changes are already provided in action, use them directly
         if (action.changes && action.changes.length > 0) {
           console.log('ADD_COLUMN: Using provided changes array');
-          return action.changes.map(change => ({
-            row: typeof change.row === 'number' ? change.row : parseInt(change.cellRef.match(/\d+/)?.[0] || '0') - 2,
-            col: typeof change.col === 'number' ? change.col : change.cellRef.charCodeAt(0) - 65,
-            oldValue: change.before,
-            newValue: change.after,
+          return action.changes.map((change: any) => ({
+            row: typeof change.row === 'number' ? change.row : parseInt(change.cellRef?.match(/\d+/)?.[0] || '0') - 2,
+            col: typeof change.col === 'number' ? change.col : (change.cellRef ? change.cellRef.charCodeAt(0) - 65 : 0),
+            oldValue: change.before || change.oldValue,
+            newValue: change.after || change.newValue,
             type: 'CELL_UPDATE' as const,
           }));
         }
@@ -764,10 +764,11 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             for (let row = 0; row < data.rows.length; row++) {
               let value: any = null;
               
-              switch (pattern.type) {
+              const patternObj = pattern as any;
+              switch (patternObj.type) {
                 case 'status':
                 case 'text':
-                  const values = pattern.values || ['Value'];
+                  const values = patternObj.values || ['Value'];
                   value = values[row % values.length];
                   break;
                 case 'addresses':
@@ -785,8 +786,8 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                   value = `user${row + 1}@example.com`;
                   break;
                 case 'numbers':
-                  const min = pattern.min || 0;
-                  const max = pattern.max || 1000000;
+                  const min = patternObj.min || 0;
+                  const max = patternObj.max || 1000000;
                   value = Math.floor(Math.random() * (max - min + 1)) + min;
                   break;
               }
@@ -1135,13 +1136,14 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         let row: number;
         let col: number;
 
-        if ('row' in target && 'col' in target) {
+        const targetObj = target as any;
+        if ('row' in targetObj && 'col' in targetObj) {
           // Direct coordinates
-          row = target.row as number;
-          col = target.col as number;
-        } else if ('ref' in target) {
+          row = targetObj.row as number;
+          col = targetObj.col as number;
+        } else if ('ref' in targetObj) {
           // A1 notation
-          const ref = target.ref as string;
+          const ref = targetObj.ref as string;
           const match = ref.match(/^([A-Z]+)(\d+)$/);
           if (!match) {
             console.error(`EDIT_CELL: Invalid cell reference: ${ref}`);
@@ -1268,12 +1270,12 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         // STATISTICS: Add summary row with statistics (SUM, AVG, COUNT, etc.)
         console.log('STATISTICS: Generating summary statistics...');
         
-        const columns = action.params?.columns || [];
-        const statType = action.params?.statType || 'sum'; // sum, avg, count, min, max
+        const columns = (action.params?.columns || []) as any[];
+        const statType = (action.params?.statType || 'sum') as string; // sum, avg, count, min, max
         const summaryRow = data.rows.length; // Add at the end
         
         // If no columns specified, use all numeric columns
-        let columnsToProcess = columns;
+        let columnsToProcess: number[] = columns;
         if (columnsToProcess.length === 0) {
           // Find numeric columns
           columnsToProcess = data.headers.map((_, idx) => idx).filter(colIdx => {
@@ -1296,9 +1298,20 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           newValue: statType.toUpperCase(),
         } as any);
         
+        // Helper function to convert column index to letter
+        const getColumnLetterLocal = (colIdx: number): string => {
+          let letter = '';
+          let num = colIdx;
+          while (num >= 0) {
+            letter = String.fromCharCode(65 + (num % 26)) + letter;
+            num = Math.floor(num / 26) - 1;
+          }
+          return letter;
+        };
+        
         // Add formulas for each column
         columnsToProcess.forEach((colIdx: number) => {
-          const colLetter = getColumnLetter(colIdx);
+          const colLetter = getColumnLetterLocal(colIdx);
           const startRow = 2; // Skip header (row 1 in Excel notation)
           const endRow = summaryRow + 1; // Excel uses 1-based indexing
           const range = `${colLetter}${startRow}:${colLetter}${endRow}`;
@@ -1341,10 +1354,10 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         // GENERATE_DATA: Generate pattern-based data
         console.log('GENERATE_DATA: Generating data from pattern...');
         
-        const pattern = action.params?.pattern;
-        const count = action.params?.count || 10;
-        const startRow = action.params?.startRow !== undefined ? action.params.startRow : data.rows.length;
-        const column = action.params?.column || 0;
+        const pattern = action.params?.pattern as any;
+        const count = (action.params?.count || 10) as number;
+        const startRow = action.params?.startRow !== undefined ? (action.params.startRow as number) : data.rows.length;
+        const column = (action.params?.column || 0) as number;
         
         if (!pattern) {
           console.warn('GENERATE_DATA: No pattern specified');
@@ -1367,7 +1380,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           }
           // Check for alphabetic sequence (e.g., "A, B, C")
           else if (pattern.match(/^[A-Z],\s*[A-Z]/)) {
-            const letters = pattern.split(',').map(s => s.trim());
+            const letters = pattern.split(',').map((s: string) => s.trim());
             const startChar = letters[0].charCodeAt(0);
             generatedValues = Array.from({ length: count }, (_, i) => 
               String.fromCharCode(startChar + i)
@@ -1395,6 +1408,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         
         // Create changes for each generated value
         generatedValues.forEach((value, idx) => {
+          const rowIdx = startRow + idx;
           const rowIdx = startRow + idx;
           changes.push({
             type: 'CELL_UPDATE',
