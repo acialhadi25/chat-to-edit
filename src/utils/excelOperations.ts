@@ -305,7 +305,6 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         for (let row = startRow; row <= endRow; row++) {
           Object.entries(patterns).forEach(([colLetter, pattern]: [string, any]) => {
             const col = colLetter.charCodeAt(0) - 65; // A=0, B=1, etc
-            const rowNum = row + 2; // Convert back to 1-based for display
             
             let value: any = null;
             
@@ -662,7 +661,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                 row: rowIndex,
                 col: colIndex,
                 oldValue,
-                newValue: value,
+                newValue: value as CellValue,
                 type: 'CELL_UPDATE',
               });
               
@@ -983,7 +982,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
       case 'STATISTICS': {
         // Add a summary row at the end
         const summaryRow = data.rows.length;
-        data.headers.forEach((header, colIndex) => {
+        data.headers.forEach((_header, colIndex) => {
           const columnValues = data.rows
             .map(row => row[colIndex])
             .filter(val => typeof val === 'number');
@@ -1175,7 +1174,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           row,
           col,
           oldValue,
-          newValue: value,
+          newValue: value as CellValue,
           type: 'CELL_UPDATE',
         });
 
@@ -1408,7 +1407,6 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         
         // Create changes for each generated value
         generatedValues.forEach((value, idx) => {
-          const rowIdx = startRow + idx;
           const rowIdx = startRow + idx;
           changes.push({
             type: 'CELL_UPDATE',
