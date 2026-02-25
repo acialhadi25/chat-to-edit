@@ -114,6 +114,9 @@ docs/univer/
 ├── QUICK_START.md                     ✅ Quick start guide
 ├── IMPLEMENTATION_PLAN.md             ✅ Implementation roadmap
 ├── DOCUMENTATION_INDEX.md             ✅ This file
+├── API_REFERENCE.md                   ✅ Complete API documentation
+├── USAGE_EXAMPLES.md                  ✅ Practical usage examples
+├── BEST_PRACTICES.md                  ✅ Best practices guide
 │
 ├── core/                              # Core features (12 files)
 │   ├── general-api.md                 ✅ Command, Events, Clipboard
@@ -142,18 +145,18 @@ docs/univer/
 │   ├── conditional-formatting.md      ✅ (dari fetch)
 │   ├── import-export.md               ✅ (dari fetch)
 │   ├── collaboration.md               ✅ (dari fetch)
-│   ├── charts.md                      ⏳ NEXT (Pro)
-│   ├── pivot-table.md                 ⏳ NEXT (Pro)
-│   ├── advanced-formula.md            ⏳ NEXT (Pro)
-│   ├── print.md                       ⏳ NEXT (Pro)
-│   ├── watermark.md                   ⏳ Plugin
-│   ├── crosshair-highlighting.md      ⏳ Plugin
-│   ├── zen.md                         ⏳ Plugin
-│   ├── uniscript.md                   ⏳ Plugin
-│   ├── mcp.md                         ⏳ Pro
-│   ├── sparkline.md                   ⏳ Pro
-│   ├── live-share.md                  ⏳ Pro
-│   └── edit-history.md                ⏳ Pro
+│   ├── charts.md                      ✅ Charts (Pro)
+│   ├── pivot-table.md                 ✅ Pivot tables (Pro)
+│   ├── advanced-formula.md            ✅ Advanced formulas (Pro)
+│   ├── print.md                       ✅ Print (Pro)
+│   ├── watermark.md                   ✅ Watermark plugin
+│   ├── crosshair-highlighting.md      ✅ Crosshair plugin
+│   ├── zen.md                         ✅ Zen mode plugin
+│   ├── uniscript.md                   ✅ UniScript plugin
+│   ├── mcp.md                         ✅ MCP integration (Pro)
+│   ├── sparkline.md                   ✅ Sparkline (Pro)
+│   ├── live-share.md                  ✅ Live share (Pro)
+│   └── edit-history.md                ✅ Edit history (Pro)
 │
 ├── ui/                                # UI customization (4 files)
 │   ├── overview.md                    ✅ (dari fetch)
@@ -170,23 +173,28 @@ docs/univer/
 ### Untuk Developer Baru
 1. Mulai dengan [README.md](./README.md)
 2. Baca [QUICK_START.md](./QUICK_START.md)
-3. Pelajari [core/general-api.md](./core/general-api.md)
-4. Pelajari [core/sheets-api.md](./core/sheets-api.md)
+3. Review [API_REFERENCE.md](./API_REFERENCE.md) untuk API lengkap
+4. Pelajari [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) untuk contoh praktis
+5. Ikuti [BEST_PRACTICES.md](./BEST_PRACTICES.md) untuk best practices
 
 ### Untuk Implementasi
 1. Review [integration/README.md](./integration/README.md)
 2. Follow [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
-3. Gunakan dokumentasi fitur spesifik sesuai kebutuhan
+3. Gunakan [API_REFERENCE.md](./API_REFERENCE.md) sebagai referensi
+4. Ikuti patterns di [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md)
+5. Terapkan [BEST_PRACTICES.md](./BEST_PRACTICES.md)
+
+### Untuk Migrasi dari FortuneSheet
+1. Baca [Migration Guide](../migration/fortunesheet-to-univer.md)
+2. Review API mapping dan conversion utilities
+3. Follow migration checklist
+4. Test dengan validation suite
 
 ### Untuk Referensi Cepat
 1. Gunakan index ini untuk navigasi
-2. Setiap file dokumentasi memiliki:
-   - Overview
-   - Installation
-   - API Reference
-   - Examples
-   - Best Practices
-   - Troubleshooting
+2. [API_REFERENCE.md](./API_REFERENCE.md) untuk method signatures
+3. [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) untuk copy-paste examples
+4. [BEST_PRACTICES.md](./BEST_PRACTICES.md) untuk dos and don'ts
 
 ## 📊 Statistik Dokumentasi
 

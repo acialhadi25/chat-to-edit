@@ -15,6 +15,13 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import type { IWorkbookData } from '@/types/univer.types';
+import {
+  createSystemError,
+  createPermissionError,
+  createValidationError,
+} from '@/utils/errors';
+import { logError, logWarning, logInfo } from '@/utils/errorLogger';
+import { withRetry, withFallback } from '@/utils/errorRecovery';
 
 // ============================================================================
 // Types
@@ -69,12 +76,25 @@ export class StorageService {
    */
   async saveWorkbook(workbookId: string, data: IWorkbookData): Promise<void> {
     try {
+      // Validate inputs
+      if (!workbookId || workbookId.trim().length === 0) {
+        throw createValidationError.invalidWorksheet(workbookId);
+      }
+      
+      if (!data || !data.name) {
+        throw createValidationError.invalidDataType('IWorkbookData', typeof data);
+      }
+
       this.updateStatus('saving');
 
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      // Get current user with retry
+      const { data: { user }, error: userError } = await withRetry(
+        () => supabase.auth.getUser(),
+        { maxAttempts: 2, delayMs: 500 }
+      );
+      
       if (userError || !user) {
-        throw new Error('User not authenticated');
+        throw createPermissionError.unauthorized();
       }
 
       // Check if workbook exists
@@ -87,40 +107,66 @@ export class StorageService {
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         // PGRST116 is "not found" error, which is expected for new workbooks
-        throw fetchError;
+        throw createSystemError.databaseError('check workbook existence', fetchError);
       }
 
       if (existing) {
-        // Update existing workbook
-        const { error: updateError } = await (supabase as any)
-          .from('workbooks')
-          .update({
-            name: data.name,
-            data: data as any,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', workbookId)
-          .eq('user_id', user.id);
+        // Update existing workbook with retry
+        const { error: updateError } = await withRetry(
+          () => (supabase as any)
+            .from('workbooks')
+            .update({
+              name: data.name,
+              data: data as any,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', workbookId)
+            .eq('user_id', user.id),
+          { maxAttempts: 3, delayMs: 1000 }
+        );
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          throw createSystemError.databaseError('update workbook', updateError);
+        }
+        
+        await logInfo('Workbook updated successfully', {
+          workbookId,
+          operation: 'StorageService.saveWorkbook',
+        });
       } else {
-        // Insert new workbook
-        const { error: insertError } = await (supabase as any)
-          .from('workbooks')
-          .insert({
-            id: workbookId,
-            user_id: user.id,
-            name: data.name,
-            data: data as any,
-          });
+        // Insert new workbook with retry
+        const { error: insertError } = await withRetry(
+          () => (supabase as any)
+            .from('workbooks')
+            .insert({
+              id: workbookId,
+              user_id: user.id,
+              name: data.name,
+              data: data as any,
+            }),
+          { maxAttempts: 3, delayMs: 1000 }
+        );
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          throw createSystemError.databaseError('insert workbook', insertError);
+        }
+        
+        await logInfo('Workbook created successfully', {
+          workbookId,
+          operation: 'StorageService.saveWorkbook',
+        });
       }
 
       this.updateStatus('saved');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save workbook';
       this.updateStatus('error', errorMessage);
+      
+      await logError(error, {
+        workbookId,
+        operation: 'StorageService.saveWorkbook',
+      });
+      
       throw error;
     }
   }
@@ -130,27 +176,52 @@ export class StorageService {
    */
   async loadWorkbook(workbookId: string): Promise<IWorkbookData> {
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        throw new Error('User not authenticated');
+      // Validate input
+      if (!workbookId || workbookId.trim().length === 0) {
+        throw createValidationError.invalidWorksheet(workbookId);
       }
 
-      // Fetch workbook
-      const { data, error } = await (supabase as any)
-        .from('workbooks')
-        .select('*')
-        .eq('id', workbookId)
-        .eq('user_id', user.id)
-        .single();
+      // Get current user with retry
+      const { data: { user }, error: userError } = await withRetry(
+        () => supabase.auth.getUser(),
+        { maxAttempts: 2, delayMs: 500 }
+      );
+      
+      if (userError || !user) {
+        throw createPermissionError.unauthorized();
+      }
 
-      if (error) throw error;
-      if (!data) throw new Error('Workbook not found');
+      // Fetch workbook with retry
+      const { data, error } = await withRetry(
+        () => (supabase as any)
+          .from('workbooks')
+          .select('*')
+          .eq('id', workbookId)
+          .eq('user_id', user.id)
+          .single(),
+        { maxAttempts: 3, delayMs: 1000 }
+      );
+
+      if (error) {
+        throw createSystemError.databaseError('load workbook', error);
+      }
+      
+      if (!data) {
+        throw createValidationError.invalidWorksheet(workbookId);
+      }
+
+      await logInfo('Workbook loaded successfully', {
+        workbookId,
+        operation: 'StorageService.loadWorkbook',
+      });
 
       return data.data as IWorkbookData;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load workbook';
-      throw new Error(errorMessage);
+      await logError(error, {
+        workbookId,
+        operation: 'StorageService.loadWorkbook',
+      });
+      throw error;
     }
   }
 
@@ -179,11 +250,21 @@ export class StorageService {
           const data = await this.autoSaveCallback();
           await this.saveWorkbook(this.autoSaveWorkbookId, data);
         } catch (error) {
-          console.error('Auto-save failed:', error);
+          await logWarning('Auto-save failed', {
+            workbookId: this.autoSaveWorkbookId,
+            operation: 'StorageService.autoSave',
+            details: { error: error instanceof Error ? error.message : 'Unknown error' },
+          });
           // Don't throw - auto-save failures should not interrupt user workflow
         }
       }
     }, interval);
+    
+    logInfo('Auto-save enabled', {
+      workbookId,
+      operation: 'StorageService.enableAutoSave',
+      details: { interval },
+    });
   }
 
   /**

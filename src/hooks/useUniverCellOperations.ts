@@ -3,14 +3,15 @@
  * 
  * Provides type-safe cell operations for Univer spreadsheet.
  * Implements getCellValue, setCellValue, getRangeValues, and setRangeValues
- * with validation and error handling.
+ * with validation, error handling, and performance optimizations.
  * 
  * Requirements: 1.1.3, 1.1.4
  * @see https://docs.univer.ai/guides/sheets/getting-started/cell-data
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { FUniver, FWorkbook, FWorksheet, FRange } from '../types/univer.types';
+import { performanceService, PerformanceService } from '../services/performanceService';
 
 interface UseUniverCellOperationsOptions {
   univerAPI: FUniver | null;
@@ -86,7 +87,7 @@ export function useUniverCellOperations({
   }, []);
 
   /**
-   * Get cell value with type safety
+   * Get cell value with type safety and caching
    * 
    * @param row - Zero-based row index
    * @param col - Zero-based column index
@@ -95,6 +96,13 @@ export function useUniverCellOperations({
   const getCellValue = useCallback((row: number, col: number): any => {
     try {
       validateCellCoordinates(row, col);
+      
+      // Check cache first
+      const cacheKey = `cell:${row}:${col}`;
+      const cached = performanceService.get(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
       
       const worksheet = getActiveWorksheet();
       if (!worksheet) {
@@ -106,7 +114,12 @@ export function useUniverCellOperations({
         return undefined;
       }
 
-      return range.getValue();
+      const value = range.getValue();
+      
+      // Cache the value
+      performanceService.set(cacheKey, value);
+      
+      return value;
     } catch (error) {
       console.error('Error getting cell value:', error);
       throw error;
@@ -114,7 +127,7 @@ export function useUniverCellOperations({
   }, [getActiveWorksheet, validateCellCoordinates]);
 
   /**
-   * Set cell value with validation
+   * Set cell value with validation and cache invalidation
    * 
    * @param row - Zero-based row index
    * @param col - Zero-based column index
@@ -138,6 +151,10 @@ export function useUniverCellOperations({
       if (!success) {
         throw new Error(`Failed to set value for cell (${row}, ${col})`);
       }
+      
+      // Invalidate cache for this cell
+      const cacheKey = `cell:${row}:${col}`;
+      performanceService.delete(cacheKey);
     } catch (error) {
       console.error('Error setting cell value:', error);
       throw error;
@@ -145,7 +162,7 @@ export function useUniverCellOperations({
   }, [getActiveWorksheet, validateCellCoordinates]);
 
   /**
-   * Get range values for batch reads
+   * Get range values for batch reads with caching
    * 
    * @param range - A1 notation range (e.g., "A1:B10")
    * @returns 2D array of values
@@ -153,6 +170,13 @@ export function useUniverCellOperations({
   const getRangeValues = useCallback((range: string): any[][] => {
     try {
       validateRangeNotation(range);
+      
+      // Check cache first
+      const cacheKey = `range:${range}`;
+      const cached = performanceService.get<any[][]>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
       
       const worksheet = getActiveWorksheet();
       if (!worksheet) {
@@ -165,7 +189,14 @@ export function useUniverCellOperations({
       }
 
       const values = rangeObj.getValues();
-      return values || [];
+      const result = values || [];
+      
+      // Cache the result if it's not too large
+      if (PerformanceService.shouldCache(result)) {
+        performanceService.set(cacheKey, result);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error getting range values:', error);
       throw error;
@@ -173,7 +204,7 @@ export function useUniverCellOperations({
   }, [getActiveWorksheet, validateRangeNotation]);
 
   /**
-   * Set range values for batch writes
+   * Set range values for batch writes with cache invalidation
    * 
    * @param range - A1 notation range (e.g., "A1:B10")
    * @param values - 2D array of values to set
@@ -222,6 +253,10 @@ export function useUniverCellOperations({
       if (!success) {
         throw new Error(`Failed to set values for range: ${range}`);
       }
+      
+      // Invalidate cache for this range
+      const cacheKey = `range:${range}`;
+      performanceService.delete(cacheKey);
     } catch (error) {
       console.error('Error setting range values:', error);
       throw error;

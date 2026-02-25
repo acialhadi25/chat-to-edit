@@ -13,11 +13,14 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US';
 import '@univerjs/preset-sheets-core/lib/index.css';
 import { useUniverCellOperations } from './useUniverCellOperations';
+import { useUniverPerformance } from './useUniverPerformance';
 
 interface UseUniverOptions {
   container: HTMLDivElement | null;
   initialData?: any;
   locale?: LocaleType;
+  enableWorker?: boolean;
+  enableCaching?: boolean;
 }
 
 interface UseUniverReturn {
@@ -37,15 +40,32 @@ interface UseUniverReturn {
  * @param options - Configuration options
  * @returns Univer API, instance, and ready state
  */
-export function useUniver({ container, initialData, locale = LocaleType.EN_US }: UseUniverOptions): UseUniverReturn {
+export function useUniver({ 
+  container, 
+  initialData, 
+  locale = LocaleType.EN_US,
+  enableWorker = true,
+  enableCaching = true,
+}: UseUniverOptions): UseUniverReturn {
   const univerAPIRef = useRef<any>(null);
   const univerRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
 
+  // Performance optimization
+  const { workerURL, isWorkerEnabled } = useUniverPerformance({
+    enableWorker,
+    enableCaching,
+  });
+
   useEffect(() => {
     if (!container) return;
 
-    // Create Univer instance with preset mode
+    // Log worker status
+    if (isWorkerEnabled) {
+      console.log('[Univer] Worker enabled for better performance');
+    }
+
+    // Create Univer instance with preset mode and optional worker
     const { univer, univerAPI } = createUniver({
       locale,
       locales: {
@@ -54,6 +74,7 @@ export function useUniver({ container, initialData, locale = LocaleType.EN_US }:
       presets: [
         UniverSheetsCorePreset({
           container,
+          workerURL: isWorkerEnabled ? workerURL : undefined,
         }),
       ],
     });
@@ -86,7 +107,7 @@ export function useUniver({ container, initialData, locale = LocaleType.EN_US }:
       univerAPIRef.current = null;
       setIsReady(false);
     };
-  }, [container, locale]); // Note: initialData intentionally excluded to prevent re-initialization
+  }, [container, locale, isWorkerEnabled, workerURL]); // Note: initialData intentionally excluded to prevent re-initialization
 
   // Cell operations hook
   const cellOperations = useUniverCellOperations({

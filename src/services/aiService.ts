@@ -24,6 +24,16 @@ import type { FUniver } from '@univerjs/facade';
 import { MCPService } from './mcpService';
 import { CommandParser } from './commandParser';
 import { CollaborationService } from './collaborationService';
+import {
+  createValidationError,
+  createAIError,
+  createSystemError,
+  toErrorResponse,
+  toSuccessResponse,
+  type ServiceResponse,
+} from '../utils/errors';
+import { logError, logWarning, logInfo } from '../utils/errorLogger';
+import { withRetry, withFallback } from '../utils/errorRecovery';
 
 /**
  * AI Service for Univer Sheet integration
@@ -61,12 +71,42 @@ export class AIService {
    * Sets up MCP connection if enabled
    */
   async initialize(univerAPI: FUniver): Promise<void> {
-    this.univerAPI = univerAPI;
-    this.collaborationService.initialize(univerAPI);
+    try {
+      this.univerAPI = univerAPI;
+      this.collaborationService.initialize(univerAPI);
 
-    if (this.config.mcpEnabled && this.config.mcpConfig) {
-      this.mcpService = new MCPService(this.config.mcpConfig);
-      await this.mcpService.connect();
+      if (this.config.mcpEnabled && this.config.mcpConfig) {
+        this.mcpService = new MCPService(this.config.mcpConfig);
+        
+        // Use retry logic for MCP connection
+        await withRetry(
+          () => this.mcpService!.connect(),
+          {
+            maxAttempts: 3,
+            delayMs: 1000,
+            onRetry: (attempt) => {
+              logWarning(`Retrying MCP connection (attempt ${attempt})`, {
+                operation: 'AIService.initialize',
+              });
+            },
+          }
+        );
+        
+        await logInfo('AI Service initialized successfully', {
+          operation: 'AIService.initialize',
+          details: { mcpEnabled: true },
+        });
+      } else {
+        await logInfo('AI Service initialized without MCP', {
+          operation: 'AIService.initialize',
+          details: { mcpEnabled: false },
+        });
+      }
+    } catch (error) {
+      await logError(error, {
+        operation: 'AIService.initialize',
+      });
+      throw createSystemError.initializationError('AI Service', error as Error);
     }
   }
 
@@ -86,34 +126,67 @@ export class AIService {
    * ```
    */
   async processCommand(command: string, context?: Partial<AIContext>): Promise<AIResponse> {
-    // Update context if provided
-    if (context) {
-      this.updateContext(context);
-    }
-
-    // Parse command
-    const parsedCommand = this.commandParser.parse(command, this.context);
-
-    // Validate command
-    const validation = this.commandParser.validate(parsedCommand);
-    if (!validation.valid) {
-      return {
-        success: false,
-        message: validation.errors.join(', '),
-        operations: [],
-        requiresConfirmation: false,
-        error: validation.errors[0],
-      };
-    }
-
-    // Execute command based on intent
     try {
-      const result = await this.executeCommand(parsedCommand);
+      // Validate command input
+      if (!command || command.trim().length === 0) {
+        throw createAIError.invalidParameter('command', command, 'Command cannot be empty');
+      }
+
+      // Update context if provided
+      if (context) {
+        this.updateContext(context);
+      }
+
+      // Parse command
+      const parsedCommand = this.commandParser.parse(command, this.context);
+
+      // Validate command
+      const validation = this.commandParser.validate(parsedCommand);
+      if (!validation.valid) {
+        await logWarning('Command validation failed', {
+          operation: 'AIService.processCommand',
+          details: {
+            command,
+            errors: validation.errors,
+          },
+        });
+        
+        return {
+          success: false,
+          message: validation.errors.join(', '),
+          operations: [],
+          requiresConfirmation: false,
+          error: validation.errors[0],
+        };
+      }
+
+      // Execute command with retry for transient errors
+      const result = await withRetry(
+        () => this.executeCommand(parsedCommand),
+        {
+          maxAttempts: 2,
+          delayMs: 500,
+        }
+      );
+      
+      await logInfo('Command executed successfully', {
+        operation: 'AIService.processCommand',
+        details: {
+          command,
+          intent: parsedCommand.intent,
+        },
+      });
+      
       return result;
     } catch (error) {
+      await logError(error, {
+        operation: 'AIService.processCommand',
+        additionalContext: { command },
+      });
+      
       return {
         success: false,
-        message: 'Failed to execute command',
+        message: error instanceof Error ? error.message : 'Failed to execute command',
         operations: [],
         requiresConfirmation: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -127,52 +200,54 @@ export class AIService {
    */
   private async executeCommand(command: ParsedCommand): Promise<AIResponse> {
     if (!this.univerAPI) {
-      throw new Error('Univer API not initialized');
+      throw createSystemError.univerNotReady();
     }
 
     const { intent, parameters } = command;
 
-    switch (intent) {
-      case 'read_cell':
-        return await this.handleReadCell(parameters);
-      case 'write_cell':
-        return await this.handleWriteCell(parameters);
-      case 'read_range':
-        return await this.handleReadRange(parameters);
-      case 'write_range':
-        return await this.handleWriteRange(parameters);
-      case 'set_formula':
-        return await this.handleSetFormula(parameters);
-      case 'format_cells':
-        return await this.handleFormatCells(parameters);
-      case 'sort_data':
-        return await this.handleSortData(parameters);
-      case 'filter_data':
-        return await this.handleFilterData(parameters);
-      case 'create_chart':
-        return await this.handleCreateChart(parameters);
-      case 'analyze_data':
-        return await this.handleAnalyzeData(parameters);
-      case 'find_replace':
-        return await this.handleFindReplace(parameters);
-      case 'add_comment':
-        return await this.handleAddComment(parameters);
-      case 'reply_comment':
-        return await this.handleReplyComment(parameters);
-      case 'resolve_comment':
-        return await this.handleResolveComment(parameters);
-      case 'delete_comment':
-        return await this.handleDeleteComment(parameters);
-      case 'get_comments':
-        return await this.handleGetComments(parameters);
-      default:
-        return {
-          success: false,
-          message: `Unknown command intent: ${intent}`,
-          operations: [],
-          requiresConfirmation: false,
-          error: 'UNRECOGNIZED_COMMAND',
-        };
+    try {
+      switch (intent) {
+        case 'read_cell':
+          return await this.handleReadCell(parameters);
+        case 'write_cell':
+          return await this.handleWriteCell(parameters);
+        case 'read_range':
+          return await this.handleReadRange(parameters);
+        case 'write_range':
+          return await this.handleWriteRange(parameters);
+        case 'set_formula':
+          return await this.handleSetFormula(parameters);
+        case 'format_cells':
+          return await this.handleFormatCells(parameters);
+        case 'sort_data':
+          return await this.handleSortData(parameters);
+        case 'filter_data':
+          return await this.handleFilterData(parameters);
+        case 'create_chart':
+          return await this.handleCreateChart(parameters);
+        case 'analyze_data':
+          return await this.handleAnalyzeData(parameters);
+        case 'find_replace':
+          return await this.handleFindReplace(parameters);
+        case 'add_comment':
+          return await this.handleAddComment(parameters);
+        case 'reply_comment':
+          return await this.handleReplyComment(parameters);
+        case 'resolve_comment':
+          return await this.handleResolveComment(parameters);
+        case 'delete_comment':
+          return await this.handleDeleteComment(parameters);
+        case 'get_comments':
+          return await this.handleGetComments(parameters);
+        default:
+          throw createAIError.unrecognizedCommand(intent);
+      }
+    } catch (error) {
+      await logError(error, {
+        operation: 'AIService.executeCommand',
+        additionalContext: { intent, parameters },
+      });
+      throw error;
     }
   }
 
