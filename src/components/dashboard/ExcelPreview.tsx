@@ -603,18 +603,26 @@ function convertExcelDataToUniver(data: ExcelData) {
     if (!cellData[univerRowIdx]) cellData[univerRowIdx] = {};
     
     row.forEach((cellValue, colIdx) => {
-      const cell: any = { v: cellValue ?? '' };
-      
       // Excel cellRef: A2, B2, etc. (rowIdx + 2 because: +1 for header, +1 for 1-based Excel)
       const excelRowNum = rowIdx + 2;
       const cellRef = `${String.fromCharCode(65 + colIdx)}${excelRowNum}`;
       
+      // Check if this cell has a formula
+      const hasFormula = data.formulas?.[cellRef];
+      
+      const cell: any = {};
+      
       // Add formula if exists
-      if (data.formulas?.[cellRef]) {
+      if (hasFormula) {
         const formula = data.formulas[cellRef];
         // Remove leading = if present (Univer adds it automatically)
         cell.f = formula.startsWith('=') ? formula.substring(1) : formula;
+        // For cells with formulas, don't set v (let Univer calculate it)
+        // Or set v to null/empty to force recalculation
         console.log(`📝 Adding formula to ${cellRef}: ${cell.f}`);
+      } else {
+        // Only set value if there's no formula
+        cell.v = cellValue ?? '';
       }
       
       // Add styles if exists
