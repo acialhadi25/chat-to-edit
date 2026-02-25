@@ -1288,17 +1288,39 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
       
       case 'DELETE_COLUMN': {
         // DELETE_COLUMN: Remove column from data structure
-        const columnName = action.params?.columnName;
-        const columnIndex = action.params?.columnIndex;
+        // Check both params and target for column info
+        const target = (action as any).target || {};
+        const columnName = action.params?.columnName || target.columnName || target.ref;
+        const columnIndex = action.params?.columnIndex || target.columnIndex || target.col;
+        
+        console.log('DELETE_COLUMN params:', { columnName, columnIndex });
+        console.log('DELETE_COLUMN target:', target);
+        console.log('Available headers:', data.headers);
         
         let colToDelete = columnIndex;
         
         // If columnName provided, find its index
-        if (columnName && !columnIndex) {
+        if (columnName && colToDelete === undefined) {
           colToDelete = data.headers.findIndex(h => h === columnName);
+          console.log(`Found column "${columnName}" at index ${colToDelete}`);
         }
         
-        if (colToDelete !== undefined && colToDelete >= 0) {
+        // Also try to match by column letter (A, B, C, etc.)
+        if ((colToDelete === undefined || colToDelete < 0) && columnName && typeof columnName === 'string') {
+          const match = columnName.match(/^([A-Z]+)$/);
+          if (match) {
+            const colLetter = match[1];
+            // Convert column letter to index (A=0, B=1, etc.)
+            let colIdx = 0;
+            for (let i = 0; i < colLetter.length; i++) {
+              colIdx = colIdx * 26 + (colLetter.charCodeAt(i) - 65);
+            }
+            colToDelete = colIdx;
+            console.log(`Converted column letter "${colLetter}" to index ${colToDelete}`);
+          }
+        }
+        
+        if (colToDelete !== undefined && colToDelete >= 0 && colToDelete < data.headers.length) {
           // Mark this as a structural change that needs to be handled at dashboard level
           changes.push({
             type: 'DELETE_COLUMN',
@@ -1306,9 +1328,9 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             columnName: data.headers[colToDelete],
           } as any);
           
-          console.log(`Generated DELETE_COLUMN change for column ${colToDelete} (${data.headers[colToDelete]})`);
+          console.log(`✅ Generated DELETE_COLUMN change for column ${colToDelete} (${data.headers[colToDelete]})`);
         } else {
-          console.warn('DELETE_COLUMN: Invalid column index or name');
+          console.warn('DELETE_COLUMN: Invalid column index or name', { colToDelete, columnName, columnIndex, target });
         }
         break;
       }
