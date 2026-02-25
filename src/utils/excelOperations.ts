@@ -1554,6 +1554,16 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         break;
       }
 
+      case 'DATA_AUDIT':
+      case 'INSIGHTS':
+      case 'CLARIFY':
+      case 'INFO': {
+        // These are informational actions that don't modify data
+        // They just provide analysis/insights to the user
+        console.log(`ℹ️ ${action.type} is an informational action, no changes generated`);
+        break;
+      }
+
       default:
         console.warn(`generateChangesFromAction: ${action.type} not implemented`);
     }

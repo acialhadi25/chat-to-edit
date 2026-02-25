@@ -194,6 +194,10 @@ const ExcelDashboard = () => {
 
       console.log('Action validated, generating changes...');
 
+      // Check if this is an informational action (no changes expected)
+      const informationalActions = ['DATA_AUDIT', 'INSIGHTS', 'CLARIFY', 'INFO'];
+      const isInformational = informationalActions.includes(action.type);
+
       // Generate changes if not present
       let actionWithChanges = action;
       if (!action.changes || action.changes.length === 0) {
@@ -204,6 +208,17 @@ const ExcelDashboard = () => {
         actionWithChanges = { ...action, changes: generatedChanges };
       } else {
         console.log('Using existing changes:', action.changes);
+      }
+
+      // For informational actions, no changes is expected and OK
+      if (isInformational) {
+        console.log(`ℹ️ ${action.type} is informational, no changes to apply`);
+        // Just mark as applied
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.action?.id === action.id) {
+          handleUpdateMessageAction(lastMessage.id, { ...actionWithChanges, status: 'applied' });
+        }
+        return;
       }
 
       if (!actionWithChanges.changes || actionWithChanges.changes.length === 0) {
