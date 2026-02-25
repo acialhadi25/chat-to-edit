@@ -1335,6 +1335,225 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         break;
       }
 
+      case 'REMOVE_EMPTY_ROWS': {
+        // REMOVE_EMPTY_ROWS: Remove all rows that are completely empty
+        console.log('REMOVE_EMPTY_ROWS: Scanning for empty rows...');
+        
+        const emptyRowIndices: number[] = [];
+        
+        data.rows.forEach((row, rowIdx) => {
+          // Check if all cells in row are empty
+          const isEmpty = row.every(cell => 
+            cell === null || 
+            cell === undefined || 
+            cell === '' || 
+            (typeof cell === 'string' && cell.trim() === '')
+          );
+          
+          if (isEmpty) {
+            emptyRowIndices.push(rowIdx);
+          }
+        });
+        
+        console.log(`Found ${emptyRowIndices.length} empty rows:`, emptyRowIndices);
+        
+        // Generate ROW_DELETE changes for each empty row
+        emptyRowIndices.forEach(rowIdx => {
+          changes.push({
+            type: 'ROW_DELETE',
+            row: rowIdx,
+          } as any);
+        });
+        
+        console.log(`✅ Generated ${changes.length} ROW_DELETE changes for REMOVE_EMPTY_ROWS`);
+        break;
+      }
+
+      case 'STATISTICS': {
+        // STATISTICS: Add summary row with statistics (SUM, AVG, COUNT, etc.)
+        console.log('STATISTICS: Generating summary statistics...');
+        
+        const columns = action.params?.columns || [];
+        const statType = action.params?.statType || 'sum'; // sum, avg, count, min, max
+        const summaryRow = data.rows.length; // Add at the end
+        
+        // If no columns specified, use all numeric columns
+        let columnsToProcess = columns;
+        if (columnsToProcess.length === 0) {
+          // Find numeric columns
+          columnsToProcess = data.headers.map((_, idx) => idx).filter(colIdx => {
+            // Check if column has numeric data
+            const hasNumeric = data.rows.some(row => {
+              const val = row[colIdx];
+              return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val)));
+            });
+            return hasNumeric;
+          });
+        }
+        
+        console.log(`Processing statistics for columns:`, columnsToProcess);
+        
+        // Add label in first column
+        changes.push({
+          type: 'CELL_UPDATE',
+          row: summaryRow,
+          col: 0,
+          newValue: statType.toUpperCase(),
+        } as any);
+        
+        // Add formulas for each column
+        columnsToProcess.forEach((colIdx: number) => {
+          const colLetter = getColumnLetter(colIdx);
+          const startRow = 2; // Skip header (row 1 in Excel notation)
+          const endRow = summaryRow + 1; // Excel uses 1-based indexing
+          const range = `${colLetter}${startRow}:${colLetter}${endRow}`;
+          
+          let formula = '';
+          switch (statType.toLowerCase()) {
+            case 'sum':
+              formula = `=SUM(${range})`;
+              break;
+            case 'avg':
+            case 'average':
+              formula = `=AVERAGE(${range})`;
+              break;
+            case 'count':
+              formula = `=COUNT(${range})`;
+              break;
+            case 'min':
+              formula = `=MIN(${range})`;
+              break;
+            case 'max':
+              formula = `=MAX(${range})`;
+              break;
+            default:
+              formula = `=SUM(${range})`;
+          }
+          
+          changes.push({
+            type: 'CELL_UPDATE',
+            row: summaryRow,
+            col: colIdx,
+            newValue: formula,
+          } as any);
+        });
+        
+        console.log(`✅ Generated ${changes.length} changes for STATISTICS`);
+        break;
+      }
+
+      case 'GENERATE_DATA': {
+        // GENERATE_DATA: Generate pattern-based data
+        console.log('GENERATE_DATA: Generating data from pattern...');
+        
+        const pattern = action.params?.pattern;
+        const count = action.params?.count || 10;
+        const startRow = action.params?.startRow !== undefined ? action.params.startRow : data.rows.length;
+        const column = action.params?.column || 0;
+        
+        if (!pattern) {
+          console.warn('GENERATE_DATA: No pattern specified');
+          break;
+        }
+        
+        console.log(`Pattern: ${pattern}, Count: ${count}, StartRow: ${startRow}, Column: ${column}`);
+        
+        // Parse pattern and generate data
+        let generatedValues: any[] = [];
+        
+        // Detect pattern type
+        if (typeof pattern === 'string') {
+          // Check for numeric sequence (e.g., "1, 2, 3")
+          const numMatch = pattern.match(/^(\d+),\s*(\d+)/);
+          if (numMatch) {
+            const start = parseInt(numMatch[1]);
+            const step = parseInt(numMatch[2]) - start;
+            generatedValues = Array.from({ length: count }, (_, i) => start + (i * step));
+          }
+          // Check for alphabetic sequence (e.g., "A, B, C")
+          else if (pattern.match(/^[A-Z],\s*[A-Z]/)) {
+            const letters = pattern.split(',').map(s => s.trim());
+            const startChar = letters[0].charCodeAt(0);
+            generatedValues = Array.from({ length: count }, (_, i) => 
+              String.fromCharCode(startChar + i)
+            );
+          }
+          // Check for date sequence
+          else if (pattern.includes('date') || pattern.includes('Date')) {
+            const today = new Date();
+            generatedValues = Array.from({ length: count }, (_, i) => {
+              const date = new Date(today);
+              date.setDate(date.getDate() + i);
+              return date.toISOString().split('T')[0];
+            });
+          }
+          // Default: repeat pattern
+          else {
+            generatedValues = Array.from({ length: count }, () => pattern);
+          }
+        } else if (Array.isArray(pattern)) {
+          // Repeat array pattern
+          generatedValues = Array.from({ length: count }, (_, i) => pattern[i % pattern.length]);
+        }
+        
+        console.log(`Generated ${generatedValues.length} values:`, generatedValues.slice(0, 5));
+        
+        // Create changes for each generated value
+        generatedValues.forEach((value, idx) => {
+          const rowIdx = startRow + idx;
+          changes.push({
+            type: 'CELL_UPDATE',
+            row: rowIdx,
+            col: column,
+            newValue: value,
+          } as any);
+        });
+        
+        console.log(`✅ Generated ${changes.length} changes for GENERATE_DATA`);
+        break;
+      }
+
+      case 'ADD_COLUMN': {
+        // ADD_COLUMN: Add new column(s) to the spreadsheet
+        console.log('ADD_COLUMN: Adding new column...');
+        
+        const columnNames = action.params?.columnNames || action.params?.columnName;
+        const position = action.params?.position || 'end'; // 'start', 'end', or number
+        
+        if (!columnNames) {
+          console.warn('ADD_COLUMN: No column names specified');
+          break;
+        }
+        
+        const names = Array.isArray(columnNames) ? columnNames : [columnNames];
+        console.log(`Adding columns: ${names.join(', ')} at position: ${position}`);
+        
+        // Determine insert position
+        let insertIndex: number;
+        if (position === 'start') {
+          insertIndex = 0;
+        } else if (position === 'end') {
+          insertIndex = data.headers.length;
+        } else if (typeof position === 'number') {
+          insertIndex = position;
+        } else {
+          insertIndex = data.headers.length;
+        }
+        
+        // Generate changes for each column
+        names.forEach((name, idx) => {
+          const colIndex = insertIndex + idx;
+          changes.push({
+            type: 'COLUMN_ADD',
+            col: colIndex,
+            newValue: name,
+          } as any);
+        });
+        
+        console.log(`✅ Generated ${changes.length} changes for ADD_COLUMN`);
+        break;
+      }
+
       default:
         console.warn(`generateChangesFromAction: ${action.type} not implemented`);
     }
