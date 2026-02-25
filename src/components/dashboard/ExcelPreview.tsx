@@ -204,6 +204,12 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           
           case 'INSERT_FORMULA': {
             // INSERT_FORMULA: Add formula to specific cell or range
+            // If action has changes array, it's handled at dashboard level
+            if (action.changes && action.changes.length > 0) {
+              console.log('⏳ INSERT_FORMULA with changes - handled at dashboard level');
+              return false;
+            }
+            
             const target = (action as any).target || action.params?.target;
             const formula = action.params?.formula;
             
@@ -217,11 +223,14 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                 // Univer uses 0-based indexing
                 sheet.getRange(rowCol.row, rowCol.col).setValue(`=${formulaStr}`);
                 console.log(`✅ Applied INSERT_FORMULA at row ${rowCol.row}, col ${rowCol.col}: ${formulaStr}`);
+                return true;
               } else {
-                console.warn('Invalid target for INSERT_FORMULA:', target);
+                console.log('⏳ INSERT_FORMULA without valid target - handled at dashboard level');
               }
+            } else {
+              console.log('⏳ INSERT_FORMULA without target/formula - handled at dashboard level');
             }
-            break;
+            return false;
           }
           
           case 'EDIT_ROW': {
@@ -247,6 +256,12 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           
           case 'DELETE_ROW': {
             // DELETE_ROW: Remove row(s)
+            // If action has changes array, it's handled at dashboard level
+            if (action.changes && action.changes.length > 0) {
+              console.log('⏳ DELETE_ROW with changes - handled at dashboard level');
+              return false;
+            }
+            
             const target = (action as any).target || action.params?.target;
             const countParam = action.params?.count || 1;
             const count = typeof countParam === 'number' ? countParam : 1;
@@ -273,15 +288,18 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                       }
                     }
                     console.log(`✅ Applied DELETE_ROW at row ${rowCol.row} (count: ${count})`);
+                    return true;
                   }
                 } catch (error) {
                   console.error('Failed to delete row:', error);
                 }
               } else {
-                console.warn('Invalid target for DELETE_ROW:', target);
+                console.log('⏳ DELETE_ROW without valid target - handled at dashboard level');
               }
+            } else {
+              console.log('⏳ DELETE_ROW without target - handled at dashboard level');
             }
-            break;
+            return false;
           }
           
           case 'ADD_COLUMN': {
@@ -328,8 +346,14 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
           
           case 'DATA_TRANSFORM': {
             // DATA_TRANSFORM: Transform data (uppercase, lowercase, titlecase)
+            // If action has changes array, it's handled at dashboard level
+            if (action.changes && action.changes.length > 0) {
+              console.log('⏳ DATA_TRANSFORM with changes - handled at dashboard level');
+              return false;
+            }
+            
             const target = (action as any).target || action.params?.target;
-            const transformType = action.params?.transformType;
+            const transformType = action.params?.transformType || action.params?.transform;
             
             if (target && transformType) {
               // Parse range if it's a range notation like "A2:A10"
@@ -364,10 +388,15 @@ const ExcelPreview = forwardRef<ExcelPreviewHandle, ExcelPreviewProps>(
                     }
                   }
                   console.log(`✅ Applied DATA_TRANSFORM (${transformType}) to range ${target.ref}`);
+                  return true;
                 }
+              } else if (target.type === 'column' && target.ref) {
+                // Handle column reference (e.g., "G")
+                console.log(`⏳ DATA_TRANSFORM for column ${target.ref} - handled at dashboard level`);
+                return false;
               }
             }
-            break;
+            return false;
           }
           
           case 'FILL_DOWN': {

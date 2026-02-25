@@ -94,14 +94,14 @@ export function validateExcelAction(action: unknown): ValidationResult {
       break;
 
     case "DATA_TRANSFORM":
-      // Check in both root level and params
-      const transformType = a.transformType || (a.params && (a.params as any).transformType);
+      // Check in both root level and params - support both 'transformType' and 'transform'
+      const transformType = a.transformType || (a.params && (a.params as any).transformType) || (a.params && (a.params as any).transform);
       if (
         !transformType ||
         !["uppercase", "lowercase", "titlecase"].includes(transformType as string)
       ) {
         errors.push(
-          "DATA_TRANSFORM requires 'transformType' (uppercase, lowercase, or titlecase)"
+          "DATA_TRANSFORM requires 'transformType' or 'transform' (uppercase, lowercase, or titlecase)"
         );
       }
       break;

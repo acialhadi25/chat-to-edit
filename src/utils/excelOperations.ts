@@ -64,7 +64,7 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
     // Helper to get target from either direct property or params
     const getTarget = () => action.target || (action.params?.target || action.params) as any;
     const getFormula = () => action.formula || (action.params?.formula as string);
-    const getTransformType = () => action.params?.transformType as string;
+    const getTransformType = () => action.params?.transformType || action.params?.transform as string;
 
     console.log('generateChangesFromAction called with:', {
       type: action.type,
