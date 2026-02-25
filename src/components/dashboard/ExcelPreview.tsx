@@ -611,7 +611,10 @@ function convertExcelDataToUniver(data: ExcelData) {
       
       // Add formula if exists
       if (data.formulas?.[cellRef]) {
-        cell.f = data.formulas[cellRef];
+        const formula = data.formulas[cellRef];
+        // Remove leading = if present (Univer adds it automatically)
+        cell.f = formula.startsWith('=') ? formula.substring(1) : formula;
+        console.log(`📝 Adding formula to ${cellRef}: ${cell.f}`);
       }
       
       // Add styles if exists
