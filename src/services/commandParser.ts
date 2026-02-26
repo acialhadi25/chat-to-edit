@@ -25,10 +25,13 @@ import type {
  * - Parameter extraction
  * - Command validation
  * - Suggestion generation
+ * - Context awareness
+ * - Ambiguity handling
  */
 export class CommandParser {
   private commandPatterns: Map<CommandIntent, RegExp[]>;
   private destructiveCommands: Set<CommandIntent>;
+  private contextAwareCommands: Set<CommandIntent>;
 
   constructor() {
     this.commandPatterns = this.initializePatterns();
@@ -36,6 +39,15 @@ export class CommandParser {
       'delete_row',
       'delete_column',
       'find_replace',
+    ]);
+    this.contextAwareCommands = new Set([
+      'read_range',
+      'write_range',
+      'format_cells',
+      'sort_data',
+      'filter_data',
+      'create_chart',
+      'analyze_data',
     ]);
   }
 
@@ -61,6 +73,17 @@ export class CommandParser {
         const match = normalizedCommand.match(pattern);
         if (match) {
           const parameters = this.extractParameters(intent, match, context, command);
+          
+          // Apply context awareness for commands that support it
+          if (this.contextAwareCommands.has(intent) && context.currentSelection) {
+            parameters.contextRange = context.currentSelection;
+            
+            // If no explicit range provided, use context
+            if (!parameters.range && !parameters.cell) {
+              parameters.range = context.currentSelection;
+            }
+          }
+          
           return {
             intent,
             parameters,
@@ -71,10 +94,15 @@ export class CommandParser {
       }
     }
 
-    // No pattern matched
+    // No pattern matched - try to provide helpful suggestions
+    const suggestions = this.findSimilarCommands(normalizedCommand);
+    
     return {
       intent: 'unknown',
-      parameters: {},
+      parameters: { 
+        originalCommand: command,
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
+      },
       requiresConfirmation: false,
     };
   }
@@ -92,6 +120,18 @@ export class CommandParser {
     // Check if intent is recognized
     if (command.intent === 'unknown') {
       errors.push('Could not understand the command');
+      
+      // Provide suggestions if available
+      if (command.parameters.suggestions && Array.isArray(command.parameters.suggestions)) {
+        const suggestionList = command.parameters.suggestions
+          .slice(0, 3)
+          .map(s => `"${s.example}"`)
+          .join(', ');
+        errors.push(`Did you mean: ${suggestionList}?`);
+      } else {
+        errors.push('Try rephrasing or use a command suggestion');
+      }
+      
       return { valid: false, errors, warnings };
     }
 
@@ -102,8 +142,12 @@ export class CommandParser {
       case 'set_formula':
         if (!command.parameters.cell) {
           errors.push('Cell reference is required');
+          if (command.parameters.contextRange) {
+            warnings.push(`Using current selection: ${command.parameters.contextRange}`);
+          }
         } else if (!this.isValidCellReference(command.parameters.cell)) {
           errors.push(`Invalid cell reference: ${command.parameters.cell}`);
+          errors.push('Cell references should be in format like A1, B2, AA10');
         }
         break;
 
@@ -115,9 +159,23 @@ export class CommandParser {
       case 'create_chart':
       case 'analyze_data':
         if (!command.parameters.range) {
-          errors.push('Range reference is required');
-        } else if (!this.isValidRangeReference(command.parameters.range)) {
-          errors.push(`Invalid range reference: ${command.parameters.range}`);
+          if (command.parameters.contextRange) {
+            // Using context - this is valid but warn user
+            warnings.push(`Using current selection: ${command.parameters.contextRange}`);
+          } else {
+            errors.push('Range reference is required');
+            errors.push('Range references should be in format like A1:B10');
+          }
+        } else {
+          // Check if range is valid
+          if (!this.isValidRangeReference(command.parameters.range)) {
+            errors.push(`Invalid range reference: ${command.parameters.range}`);
+            errors.push('Range references should be in format like A1:B10, C5:D20');
+          }
+          // Warn if range came from context
+          if (command.parameters.contextRange && command.parameters.range === command.parameters.contextRange) {
+            warnings.push(`Using current selection: ${command.parameters.contextRange}`);
+          }
         }
         break;
     }
@@ -125,14 +183,21 @@ export class CommandParser {
     // Validate specific parameters
     if (command.intent === 'write_cell' && command.parameters.value === undefined) {
       errors.push('Value is required for write operation');
+      errors.push('Example: "set A1 to 100" or "write hello to B2"');
     }
 
     if (command.intent === 'set_formula' && !command.parameters.formula) {
       errors.push('Formula is required');
+      errors.push('Example: "calculate SUM(A1:A10) in A11"');
     }
 
     if (command.intent === 'write_range' && !command.parameters.values) {
       errors.push('Values are required for range write operation');
+    }
+
+    // Check for ambiguous commands
+    if (this.isAmbiguous(command)) {
+      warnings.push('This command may be ambiguous. Please be more specific.');
     }
 
     return {
@@ -248,51 +313,63 @@ export class CommandParser {
       /format ([a-z]+\d+(?::[a-z]+\d+)?) as (.+)/i,
       /apply (.+?) format(?:ting)? to ([a-z]+\d+(?::[a-z]+\d+)?)/i,
       /make ([a-z]+\d+(?::[a-z]+\d+)?) (.+)/i,
+      /format (?:this|current|selected) as (.+)/i, // Context-aware
+      /make (?:this|current|selected) (.+)/i, // Context-aware
     ]);
 
     // Sort patterns
     patterns.set('sort_data', [
       /sort ([a-z]+\d+:[a-z]+\d+) by (?:column )?([a-z]+)/i,
       /sort ([a-z]+\d+:[a-z]+\d+) (?:in )?(ascending|descending)/i,
+      /sort (?:this|current|selected) by (?:column )?([a-z]+)/i, // Context-aware
+      /sort (?:this|current|selected) (?:in )?(ascending|descending)/i, // Context-aware
     ]);
 
     // Filter patterns
     patterns.set('filter_data', [
       /filter ([a-z]+\d+:[a-z]+\d+) (?:where|by) (.+)/i,
       /show (?:only )?(.+?) in ([a-z]+\d+:[a-z]+\d+)/i,
+      /filter (?:this|current|selected) (?:where|by) (.+)/i, // Context-aware
     ]);
 
     // Chart patterns
     patterns.set('create_chart', [
       /create (?:a )?(\w+?) chart (?:from|of|using) ([a-z]+\d+:[a-z]+\d+)/i,
       /chart ([a-z]+\d+:[a-z]+\d+) as (\w+)/i,
+      /create (?:a )?(\w+?) chart/i, // Context-aware
     ]);
 
     // Analyze patterns
     patterns.set('analyze_data', [
       /analyze (?:data (?:in|from) )?([a-z]+\d+:[a-z]+\d+)/i,
       /(?:get|show) (?:statistics|summary) (?:of|for) ([a-z]+\d+:[a-z]+\d+)/i,
+      /analyze (?:this|current|selected)/i, // Context-aware
+      /(?:get|show) (?:statistics|summary)/i, // Context-aware
     ]);
 
     // Row/column operations
     patterns.set('insert_row', [
       /insert (?:a )?row (?:at|before) (?:row )?(\d+)/i,
       /add (?:a )?row (?:at|before) (?:row )?(\d+)/i,
+      /insert (?:a )?row/i, // Context-aware
     ]);
 
     patterns.set('delete_row', [
       /delete row (\d+)/i,
       /remove row (\d+)/i,
+      /delete (?:this|current|selected) row/i, // Context-aware
     ]);
 
     patterns.set('insert_column', [
       /insert (?:a )?column (?:at|before) (?:column )?([a-z]+)/i,
       /add (?:a )?column (?:at|before) (?:column )?([a-z]+)/i,
+      /insert (?:a )?column/i, // Context-aware
     ]);
 
     patterns.set('delete_column', [
       /delete column ([a-z]+)/i,
       /remove column ([a-z]+)/i,
+      /delete (?:this|current|selected) column/i, // Context-aware
     ]);
 
     // Find/replace patterns
@@ -362,7 +439,10 @@ export class CommandParser {
       case 'read_range':
       case 'write_range':
       case 'analyze_data':
-        params.range = this.normalizeRangeReference(match[1]);
+        if (match[1]) {
+          params.range = this.normalizeRangeReference(match[1]);
+        }
+        // else: context-aware pattern, will use currentSelection
         break;
 
       case 'set_formula':
@@ -378,61 +458,98 @@ export class CommandParser {
 
       case 'format_cells':
         // Check if first match is a range/cell reference
-        if (/^[a-z]+\d+(?::[a-z]+\d+)?$/i.test(match[1])) {
+        if (match[1] && /^[a-z]+\d+(?::[a-z]+\d+)?$/i.test(match[1])) {
           params.range = this.normalizeRangeReference(match[1]);
           params.format = this.parseFormat(match[2]);
-        } else {
+        } else if (match[1]) {
           params.format = this.parseFormat(match[1]);
-          params.range = this.normalizeRangeReference(match[2]);
+          if (match[2]) {
+            params.range = this.normalizeRangeReference(match[2]);
+          }
+          // else: context-aware, will use currentSelection
+        } else {
+          // Context-aware pattern matched (no explicit range)
+          // Will use context.currentSelection
         }
         break;
 
       case 'sort_data':
-        params.range = this.normalizeRangeReference(match[1]);
-        // Check if match[2] is a column letter or ascending/descending
-        if (match[2] && /^[a-z]+$/i.test(match[2]) && match[2].toLowerCase() !== 'ascending' && match[2].toLowerCase() !== 'descending') {
-          params.options = {
-            column: this.columnLetterToNumber(match[2]),
-            ascending: true,
-          };
+        if (match[1] && /^[a-z]+\d+:[a-z]+\d+$/i.test(match[1])) {
+          params.range = this.normalizeRangeReference(match[1]);
+          // Check if match[2] is a column letter or ascending/descending
+          if (match[2] && /^[a-z]+$/i.test(match[2]) && match[2].toLowerCase() !== 'ascending' && match[2].toLowerCase() !== 'descending') {
+            params.options = {
+              column: this.columnLetterToNumber(match[2]),
+              ascending: true,
+            };
+          } else {
+            params.options = {
+              column: 0,
+              ascending: !match[2] || match[2].toLowerCase() !== 'descending',
+            };
+          }
         } else {
-          params.options = {
-            column: 0,
-            ascending: !match[2] || match[2].toLowerCase() !== 'descending',
-          };
+          // Context-aware pattern
+          if (match[1] && /^[a-z]+$/i.test(match[1]) && match[1].toLowerCase() !== 'ascending' && match[1].toLowerCase() !== 'descending') {
+            params.options = {
+              column: this.columnLetterToNumber(match[1]),
+              ascending: true,
+            };
+          } else {
+            params.options = {
+              column: 0,
+              ascending: !match[1] || match[1].toLowerCase() !== 'descending',
+            };
+          }
         }
         break;
 
       case 'filter_data':
         // Check if first match is a range reference
-        if (/^[a-z]+\d+:[a-z]+\d+$/i.test(match[1])) {
+        if (match[1] && /^[a-z]+\d+:[a-z]+\d+$/i.test(match[1])) {
           params.range = this.normalizeRangeReference(match[1]);
           params.criteria = this.parseFilterCriteria(match[2]);
-        } else {
+        } else if (match[1]) {
           params.criteria = this.parseFilterCriteria(match[1]);
-          params.range = this.normalizeRangeReference(match[2]);
+          if (match[2]) {
+            params.range = this.normalizeRangeReference(match[2]);
+          }
+          // else: context-aware
+        } else {
+          // Context-aware pattern
         }
         break;
 
       case 'create_chart':
         // Check if first match is a range reference (for "chart A1:B10 as type" pattern)
-        if (/^[a-z]+\d+:[a-z]+\d+$/i.test(match[1])) {
+        if (match[1] && /^[a-z]+\d+:[a-z]+\d+$/i.test(match[1])) {
           params.range = this.normalizeRangeReference(match[1]);
           params.type = match[2].toLowerCase();
-        } else {
+        } else if (match[1]) {
           params.type = match[1].toLowerCase();
-          params.range = this.normalizeRangeReference(match[2]);
+          if (match[2]) {
+            params.range = this.normalizeRangeReference(match[2]);
+          }
+          // else: context-aware
+        } else {
+          // Context-aware pattern
         }
         break;
 
       case 'insert_row':
       case 'delete_row':
-        params.row = parseInt(match[1], 10);
+        if (match[1]) {
+          params.row = parseInt(match[1], 10);
+        }
+        // else: context-aware, will need to determine from selection
         break;
 
       case 'insert_column':
       case 'delete_column':
-        params.column = this.columnLetterToNumber(match[1]);
+        if (match[1]) {
+          params.column = this.columnLetterToNumber(match[1]);
+        }
+        // else: context-aware, will need to determine from selection
         break;
 
       case 'find_replace':
@@ -591,5 +708,59 @@ export class CommandParser {
       result = result * 26 + (upperLetter.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
     }
     return result - 1;
+  }
+
+  /**
+   * Find similar commands based on partial match
+   * @private
+   */
+  private findSimilarCommands(normalizedCommand: string): CommandSuggestion[] {
+    const suggestions = this.getSuggestions('');
+    const keywords = normalizedCommand.split(' ');
+    
+    // Score each suggestion based on keyword matches
+    const scored = suggestions.map(suggestion => {
+      let score = 0;
+      const suggestionText = `${suggestion.command} ${suggestion.description} ${suggestion.example}`.toLowerCase();
+      
+      for (const keyword of keywords) {
+        if (suggestionText.includes(keyword)) {
+          score += keyword.length;
+        }
+      }
+      
+      return { suggestion, score };
+    });
+    
+    // Return top 3 suggestions with score > 0
+    return scored
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(s => s.suggestion);
+  }
+
+  /**
+   * Check if command is ambiguous
+   * @private
+   */
+  private isAmbiguous(command: ParsedCommand): boolean {
+    // Check for ambiguous references without context
+    if (command.intent === 'delete_row' || command.intent === 'delete_column') {
+      // Deleting without explicit reference could be ambiguous
+      if (!command.parameters.row && !command.parameters.column) {
+        return true;
+      }
+    }
+    
+    // Check for ambiguous range operations
+    if (this.contextAwareCommands.has(command.intent)) {
+      // If using context but context might be unclear
+      if (command.parameters.contextRange && !command.parameters.range) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 }

@@ -291,7 +291,7 @@ describe("GENERATE_DATA Action", () => {
       expect(result.data.rows).toHaveLength(5);
       result.data.rows.forEach((row) => {
         const phone = row[0] as string;
-        expect(phone).toMatch(/^081234567\d{2}$/);
+        expect(phone).toMatch(/^0812345678\d{2}$/);
       });
     });
 

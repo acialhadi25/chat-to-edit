@@ -1,4 +1,5 @@
-import { ExcelData, DataChange, AIAction, getColumnIndex } from '@/types/excel';
+import { ExcelData, DataChange, AIAction, getColumnIndex, CellValue } from '@/types/excel';
+import { validateAIAction, formatErrorMessage } from './aiActionErrors';
 
 /**
  * Creates a deep copy of the Excel data to ensure immutability.
@@ -56,11 +57,30 @@ export function analyzeDataForCleansing(data: ExcelData): string[] {
 /**
  * Generate DataChange array from AIAction
  * This function converts action params into actual cell changes
+ * 
+ * @throws {AIActionError} If validation fails
  */
 export function generateChangesFromAction(data: ExcelData, action: AIAction): DataChange[] {
   const changes: DataChange[] = [];
 
   try {
+    // VALIDATION: Validate action before processing
+    const validation = validateAIAction(action, data);
+    if (!validation.valid && validation.error) {
+      console.error('❌ AI Action validation failed:', validation.error);
+      console.error(formatErrorMessage(validation.error));
+      
+      // For recoverable errors, log and continue with best effort
+      // For non-recoverable errors, throw
+      if (!validation.error.recoverable) {
+        throw new Error(formatErrorMessage(validation.error));
+      } else {
+        console.warn('⚠️ Continuing with best effort despite validation warning');
+      }
+    } else {
+      console.log('✅ AI Action validation passed:', action.type);
+    }
+    
     // Helper to get target from either direct property or params
     const getTarget = () => (action as any).target || (action.params?.target || action.params) as any;
     const getFormula = () => (action as any).formula || (action.params?.formula as string);
@@ -80,8 +100,16 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         const target = (action as any).target || action.params?.target;
         const patterns = (action as any).patterns || action.params?.patterns;
         
+        if (!target && !patterns && !action.description) {
+          console.error('❌ GENERATE_DATA: Missing required parameters');
+          console.error('💡 Provide either:');
+          console.error('   1. target and patterns parameters, OR');
+          console.error('   2. a description with generation instructions (e.g., "fill data to row 20")');
+          break;
+        }
+        
         if (!target || !patterns) {
-          console.warn('GENERATE_DATA: Missing target or patterns');
+          console.warn('⚠️ GENERATE_DATA: Missing target or patterns, attempting to extract from description');
           console.warn('Available keys:', Object.keys(action));
           console.warn('Params:', action.params);
           
@@ -338,6 +366,12 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
                 const city = cities[(row - startRow) % cities.length];
                 const number = 10 + (row - startRow) * 10;
                 value = `${street} No. ${number}, ${city}`;
+                break;
+              case 'phone':
+                value = `0812345678${String(row - startRow).padStart(2, '0')}`;
+                break;
+              case 'email':
+                value = `user${(row - startRow) + 1}@example.com`;
                 break;
               case 'text':
                 const textValues = pattern.values || ['Value 1', 'Value 2', 'Value 3'];
@@ -1265,14 +1299,6 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
         
         console.log(`Processing statistics for columns:`, columnsToProcess);
         
-        // Add label in first column
-        changes.push({
-          type: 'CELL_UPDATE',
-          row: summaryRow,
-          col: 0,
-          newValue: statType.toUpperCase(),
-        } as any);
-        
         // Helper function to convert column index to letter
         const getColumnLetterLocal = (colIdx: number): string => {
           let letter = '';
@@ -1284,15 +1310,20 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
           return letter;
         };
         
-        // Add formulas for each column
+        // Determine the label based on statType
+        // Always uppercase the label for consistency
+        const lowerStatType = statType.toLowerCase();
+        const label = statType.toUpperCase();
+        
+        // Add formulas for each column FIRST
         columnsToProcess.forEach((colIdx: number) => {
           const colLetter = getColumnLetterLocal(colIdx);
           const startRow = 2; // Skip header (row 1 in Excel notation)
-          const endRow = summaryRow + 1; // Excel uses 1-based indexing
+          const endRow = summaryRow + 2; // +1 for 1-based Excel, +1 to include summary row
           const range = `${colLetter}${startRow}:${colLetter}${endRow}`;
           
           let formula = '';
-          switch (statType.toLowerCase()) {
+          switch (lowerStatType) {
             case 'sum':
               formula = `=SUM(${range})`;
               break;
@@ -1320,6 +1351,14 @@ export function generateChangesFromAction(data: ExcelData, action: AIAction): Da
             newValue: formula,
           } as any);
         });
+        
+        // Add label in first column LAST (so it overwrites any formula in column 0)
+        changes.push({
+          type: 'CELL_UPDATE',
+          row: summaryRow,
+          col: 0,
+          newValue: label,
+        } as any);
         
         console.log(`✅ Generated ${changes.length} changes for STATISTICS`);
         break;

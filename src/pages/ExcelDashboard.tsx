@@ -15,6 +15,8 @@ import { analyzeDataForCleansing } from '@/utils/excelOperations';
 import { applyChanges } from '@/utils/applyChanges';
 import { useToast } from '@/hooks/use-toast';
 import { validateExcelAction, getValidationErrorMessage } from '@/utils/actionValidation';
+import { requiresConfirmation, getActionImpact } from '@/utils/actionConfirmation';
+import { ConfirmationDialog } from '@/components/dashboard/ConfirmationDialog';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import type { ExcelPreviewHandle } from '@/components/dashboard/ExcelPreview';
@@ -54,6 +56,10 @@ const ExcelDashboard = () => {
   const [chatOpen, setChatOpen] = useState(true);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const spreadsheetDataRef = useRef<XSpreadsheetSheet[] | null>(null);
+  
+  // Confirmation dialog state
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<AIAction | null>(null);
 
   const { saveFileRecord } = useFileHistory();
   const { saveChatMessage } = useChatHistory();
@@ -218,6 +224,33 @@ const ExcelDashboard = () => {
         return;
       }
 
+      // Check if action requires confirmation
+      if (requiresConfirmation(action, currentData)) {
+        console.log('Action requires confirmation, showing dialog...');
+        const impact = getActionImpact(action, currentData);
+        console.log('Action impact:', impact);
+        
+        // Store the action and show confirmation dialog
+        setPendingAction(action);
+        setConfirmationOpen(true);
+        return; // Wait for user confirmation
+      }
+
+      // If no confirmation needed, proceed with execution
+      await executeAction(action);
+    },
+    [excelData]
+  );
+
+  // Separate function to execute the action (called after confirmation or directly)
+  const executeAction = useCallback(
+    async (action: AIAction) => {
+      const currentData = excelData;
+      if (!currentData) {
+        console.error('No excel data available');
+        return;
+      }
+
       const validation = validateExcelAction(action);
       if (!validation.isValid) {
         console.error('Action validation failed:', validation);
@@ -301,6 +334,40 @@ const ExcelDashboard = () => {
     },
     [excelData, messages, pushState, toast, handleUpdateMessageAction, handleSetPendingChanges]
   );
+
+  // Handle confirmation dialog actions
+  const handleConfirmAction = useCallback(() => {
+    if (pendingAction) {
+      console.log('User confirmed action:', pendingAction.type);
+      setConfirmationOpen(false);
+      executeAction(pendingAction);
+      setPendingAction(null);
+    }
+  }, [pendingAction, executeAction]);
+
+  const handleCancelAction = useCallback(() => {
+    if (pendingAction) {
+      console.log('User cancelled action:', pendingAction.type);
+      
+      // Mark action as rejected
+      const messageToUpdate = messages.find((m) => m.action?.id === pendingAction.id);
+      if (messageToUpdate && messageToUpdate.action) {
+        handleUpdateMessageAction(messageToUpdate.id, {
+          ...messageToUpdate.action,
+          status: 'rejected',
+        });
+      }
+      
+      setConfirmationOpen(false);
+      setPendingAction(null);
+      handleSetPendingChanges([]);
+      
+      toast({
+        title: 'Action Cancelled',
+        description: 'The destructive operation was cancelled.',
+      });
+    }
+  }, [pendingAction, messages, handleUpdateMessageAction, handleSetPendingChanges, toast]);
 
   const handleRejectAction = (actionId: string) => {
     const messageToUpdate = messages.find((m) => m.action?.id === actionId);
@@ -666,6 +733,15 @@ const ExcelDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog for Destructive Operations */}
+      <ConfirmationDialog
+        open={confirmationOpen}
+        onOpenChange={setConfirmationOpen}
+        action={pendingAction}
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelAction}
+      />
     </div>
   );
 };

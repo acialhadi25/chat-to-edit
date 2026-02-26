@@ -962,7 +962,7 @@ describe("STATISTICS Action", () => {
       const result = applyChanges(data, changes);
 
       // Should default to SUM
-      expect(result.data.rows[2][0]).toBe("sum");
+      expect(result.data.rows[2][0]).toBe("SUM");
       expect(result.data.formulas["A4"]).toBe("=SUM(A2:A4)");
     });
 
@@ -997,10 +997,10 @@ describe("STATISTICS Action", () => {
 
       const testCases = [
         { statType: "SUM", expected: "SUM" },
-        { statType: "sum", expected: "sum" },
-        { statType: "Sum", expected: "Sum" },
+        { statType: "sum", expected: "SUM" },
+        { statType: "Sum", expected: "SUM" },
         { statType: "AVG", expected: "AVG" },
-        { statType: "avg", expected: "avg" },
+        { statType: "avg", expected: "AVG" },
         { statType: "AVERAGE", expected: "AVERAGE" },
       ];
 
