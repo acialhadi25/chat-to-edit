@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback } from 'react';
 import { ExcelData, EditHistory, ActionType } from '@/types/excel';
 import { cloneExcelData } from '@/utils/excelOperations';

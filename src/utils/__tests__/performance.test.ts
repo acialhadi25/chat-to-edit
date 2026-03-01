@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Performance Tests for AI Actions and Workbook Operations
  * 

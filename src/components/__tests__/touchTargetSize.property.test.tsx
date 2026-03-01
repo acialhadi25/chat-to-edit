@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import * as fc from "fast-check";

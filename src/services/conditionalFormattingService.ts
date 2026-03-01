@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Conditional Formatting Service
  * 

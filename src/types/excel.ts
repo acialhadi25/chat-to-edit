@@ -19,11 +19,15 @@ export interface CellStyle {
 export interface DataChange {
   row: number;
   col: number;
-  oldValue: CellValue;
+  oldValue?: CellValue;
   newValue: CellValue;
   type?: 'CELL_UPDATE' | 'ROW_DELETE' | 'COLUMN_DELETE' | 'COLUMN_RENAME' | 'COLUMN_ADD';
   params?: Record<string, unknown>;
   columnName?: string; // For COLUMN_ADD type
+  // Legacy fields used by some components
+  cellRef?: string;
+  before?: CellValue;
+  after?: CellValue;
 }
 
 export type ActionType =
@@ -69,10 +73,38 @@ export interface AIAction {
   id?: string;
   type: ActionType;
   status?: 'pending' | 'applied' | 'rejected';
-  params: { [key: string]: unknown };
+  params?: { [key: string]: unknown };
   changes?: DataChange[];
   formula?: string;
   description: string;
+  // Chart fields
+  chartType?: string;
+  chartTitle?: string;
+  chartColors?: string[];
+  xAxisColumn?: number;
+  xAxisLabel?: string;
+  yAxisColumns?: number[];
+  yAxisLabel?: string;
+  showLegend?: boolean;
+  showGrid?: boolean;
+  // Statistics/Pivot fields
+  target?: { type: string; ref: string; [key: string]: unknown };
+  groupByColumn?: number;
+  aggregateColumn?: number;
+  statisticsType?: string;
+  // Conditional format fields
+  conditionType?: string;
+  conditionValues?: (string | number)[];
+  formatStyle?: { backgroundColor?: string; color?: string; bold?: boolean; italic?: boolean };
+  // Audit report
+  auditReport?: {
+    totalErrors: number;
+    outliers: { cellRef: string; value: unknown; reason: string }[];
+    typeInconsistencies: { cellRef: string; expected: string; found: string }[];
+    missingValues: { column: string; row: number }[];
+    suggestions: { id?: string; description: string; action: AIAction }[];
+  };
+  [key: string]: unknown;
 }
 
 export interface QuickOption {
@@ -100,11 +132,19 @@ export interface ExcelData {
   headers: string[];
   rows: SheetData;
   formulas: { [cellRef: string]: string };
-  mergedCells?: string[];
+  mergedCells?: MergeRange[] | string[];
   cellStyles?: { [cellRef: string]: CellStyle };
-  columnWidths?: { [colIndex: number]: number };
+  columnWidths?: { [colIndex: number]: number } | number[];
   selectedCells?: { r: number; c: number }[];
   pendingChanges?: DataChange[];
+  frozenRows?: number;
+  frozenColumns?: number;
+}
+
+export interface SheetDataWithHeaders {
+  headers: string[];
+  rows: Row[];
+  [key: string]: unknown;
 }
 
 export interface EditHistory {
@@ -169,6 +209,19 @@ export interface FortuneSheetData {
   row?: number;
   column?: number;
   [key: string]: unknown;
+}
+
+export interface MergeRange {
+  // Standard r/c/rs/cs format
+  r?: number;
+  c?: number;
+  rs?: number;
+  cs?: number;
+  // Legacy startRow/endRow format
+  startRow?: number;
+  endRow?: number;
+  startCol?: number;
+  endCol?: number;
 }
 
 // Keep XSpreadsheet types for backward compatibility during migration

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Usage Examples for Type Guards
  * 

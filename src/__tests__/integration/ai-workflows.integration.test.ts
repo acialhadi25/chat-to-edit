@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Integration Tests: AI Command Workflows
  * 

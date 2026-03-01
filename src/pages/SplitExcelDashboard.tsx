@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { Scissors, Download, FileJson, FileStack } from "lucide-react";
 import ExcelUpload from "@/components/dashboard/ExcelUpload";

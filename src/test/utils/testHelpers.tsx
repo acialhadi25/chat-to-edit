@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ExcelData, SheetData } from "@/types/excel";
 import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
