@@ -101,7 +101,7 @@ serve(async (req) => {
         }
       } catch (error) {
         results.failed++;
-        results.errors.push(`Subscription ${subscription.id}: ${error.message}`);
+        results.errors.push(`Subscription ${subscription.id}: ${error instanceof Error ? error.message : String(error)}`);
 
         // Mark subscription as past_due
         await supabase
@@ -120,7 +120,7 @@ serve(async (req) => {
           payload: {
             subscription_id: subscription.id,
             user_id: subscription.user_id,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
           },
           created_at: new Date().toISOString(),
         });
@@ -139,7 +139,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Renewal error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

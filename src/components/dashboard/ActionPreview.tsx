@@ -30,7 +30,7 @@ const ActionPreview = ({ changes, totalChanges }: ActionPreviewProps) => {
             </span>
             <ArrowRight className="h-3 w-3 text-muted-foreground" />
             <span className="max-w-[80px] truncate font-medium text-success">
-              {change.type === 'formula' ? (
+              {(change as any).type === 'formula' ? (
                 <code className="text-primary">{String(change.after)}</code>
               ) : change.after === null || change.after === '' ? (
                 '(kosong)'

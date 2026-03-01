@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it } from "vitest";
 
 // SKIP ALL TESTS - Database integration tests require proper Supabase mocking

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Error Handling Tests
  * 

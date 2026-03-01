@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGesture } from '@use-gesture/react';

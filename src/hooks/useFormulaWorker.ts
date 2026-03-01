@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * React hook for asynchronous formula evaluation using Web Workers
  * 

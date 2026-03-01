@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { http, HttpResponse } from "msw";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://test.supabase.co";

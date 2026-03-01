@@ -33,7 +33,6 @@ export default defineConfig(({ mode }) => ({
           // Vendor chunks
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-scroll-area'],
-          'fortune-sheet': ['@fortune-sheet/react'],
           'xlsx-vendor': ['xlsx', 'xlsx-js-style'],
           'supabase-vendor': ['@supabase/supabase-js'],
         },

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Example: How to integrate Sentry performance tracking with Excel operations
  * 

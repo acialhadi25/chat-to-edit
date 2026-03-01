@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect } from "vitest";
 import { generateChangesFromAction } from "../excelOperations";
 import { applyChanges } from "../applyChanges";

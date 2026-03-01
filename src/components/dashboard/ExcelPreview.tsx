@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useRef, memo, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US';

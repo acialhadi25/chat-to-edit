@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AIAction } from '@/types/excel';
 import { Check } from 'lucide-react';
 

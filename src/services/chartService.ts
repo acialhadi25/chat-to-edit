@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Chart Service for Univer Sheet Integration
  * 

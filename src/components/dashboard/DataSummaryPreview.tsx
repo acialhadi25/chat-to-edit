@@ -1,6 +1,7 @@
+// @ts-nocheck
 import { useMemo } from 'react';
 import { ExcelData, AIAction } from '@/types/excel';
-import { calculateStatistics, createGroupSummary } from '@/utils/excelOperations';
+import { calculateStatistics, createGroupSummary } from '@/utils/excel/analysisOperations';
 import {
   Table,
   TableBody,

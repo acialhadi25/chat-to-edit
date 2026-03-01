@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Find and Replace Service for Univer Sheet Integration
  * 

@@ -258,7 +258,7 @@ DATA ANALYSIS (use this for accurate responses):
     return new Response(
       JSON.stringify({
         error: 'An error occurred processing your request',
-        message: error.message,
+        message: error instanceof Error ? error.message : String(error),
       }),
       {
         status: 500,
